@@ -6,9 +6,13 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
     private _onDidChangeTreeData: vscode.EventEmitter<StashItem | StashFileItem | undefined | null | void> = new vscode.EventEmitter<StashItem | StashFileItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<StashItem | StashFileItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
-    constructor(private gitService: GitService) {}
+    constructor(
+        private gitService: GitService,
+        private _outputChannel?: vscode.OutputChannel
+    ) {}
 
-    refresh(): void {
+    refresh(reason: string = 'manual'): void {
+        this._outputChannel?.appendLine(`[REFRESH] triggered by: ${reason}`);
         this._onDidChangeTreeData.fire();
     }
 

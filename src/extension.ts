@@ -2,12 +2,17 @@ import * as vscode from 'vscode';
 import { GitService } from './gitService';
 import { StashProvider } from './stashProvider';
 import { StashItem } from './stashItem';
+import { pickStash } from './uiUtils';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('MyStash extension is now active!');
 
-	const gitService = new GitService();
-	const stashProvider = new StashProvider(gitService);
+	// 0b-i: Create output channel for diagnostics
+	const outputChannel = vscode.window.createOutputChannel('MyStash');
+	context.subscriptions.push(outputChannel);
+
+	const gitService = new GitService(outputChannel);
+	const stashProvider = new StashProvider(gitService, outputChannel);
 
 	// Register the tree view
 	const treeView = vscode.window.createTreeView('mystashView', {
@@ -19,7 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register commands
 	context.subscriptions.push(
 		vscode.commands.registerCommand('mystash.refresh', () => {
-			stashProvider.refresh();
+			stashProvider.refresh('manual');
 		})
 	);
 
@@ -37,7 +42,7 @@ export function activate(context: vscode.ExtensionContext) {
 			try {
 				await gitService.createStash(message, includeUntracked === 'Yes');
 				vscode.window.showInformationMessage('Stash created successfully');
-				stashProvider.refresh();
+				stashProvider.refresh('post-command');
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to create stash: ${error.message}`);
 			}
@@ -47,25 +52,15 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('mystash.apply', async (item?: StashItem) => {
 			if (!item) {
-				const stashes = await gitService.getStashList();
-				if (stashes.length === 0) {
-					vscode.window.showInformationMessage('No stashes available');
-					return;
-				}
-				const selected = await vscode.window.showQuickPick(
-					stashes.map(s => ({ label: s.message, description: s.name, stash: s })),
-					{ placeHolder: 'Select a stash to apply' }
-				);
-				if (!selected) {
-					return;
-				}
-				item = new StashItem(selected.stash);
+				const entry = await pickStash(gitService, 'Select a stash to apply');
+				if (!entry) { return; }
+				item = new StashItem(entry);
 			}
 
 			try {
 				await gitService.applyStash(item.stashEntry.index);
 				vscode.window.showInformationMessage(`Applied ${item.stashEntry.name}`);
-				stashProvider.refresh();
+				stashProvider.refresh('post-command');
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to apply stash: ${error.message}`);
 			}
@@ -75,25 +70,15 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('mystash.pop', async (item?: StashItem) => {
 			if (!item) {
-				const stashes = await gitService.getStashList();
-				if (stashes.length === 0) {
-					vscode.window.showInformationMessage('No stashes available');
-					return;
-				}
-				const selected = await vscode.window.showQuickPick(
-					stashes.map(s => ({ label: s.message, description: s.name, stash: s })),
-					{ placeHolder: 'Select a stash to pop' }
-				);
-				if (!selected) {
-					return;
-				}
-				item = new StashItem(selected.stash);
+				const entry = await pickStash(gitService, 'Select a stash to pop');
+				if (!entry) { return; }
+				item = new StashItem(entry);
 			}
 
 			try {
 				await gitService.popStash(item.stashEntry.index);
 				vscode.window.showInformationMessage(`Popped ${item.stashEntry.name}`);
-				stashProvider.refresh();
+				stashProvider.refresh('post-command');
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to pop stash: ${error.message}`);
 			}
@@ -103,19 +88,9 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('mystash.drop', async (item?: StashItem) => {
 			if (!item) {
-				const stashes = await gitService.getStashList();
-				if (stashes.length === 0) {
-					vscode.window.showInformationMessage('No stashes available');
-					return;
-				}
-				const selected = await vscode.window.showQuickPick(
-					stashes.map(s => ({ label: s.message, description: s.name, stash: s })),
-					{ placeHolder: 'Select a stash to drop' }
-				);
-				if (!selected) {
-					return;
-				}
-				item = new StashItem(selected.stash);
+				const entry = await pickStash(gitService, 'Select a stash to drop');
+				if (!entry) { return; }
+				item = new StashItem(entry);
 			}
 
 			const confirm = await vscode.window.showWarningMessage(
@@ -131,7 +106,7 @@ export function activate(context: vscode.ExtensionContext) {
 			try {
 				await gitService.dropStash(item.stashEntry.index);
 				vscode.window.showInformationMessage(`Dropped ${item.stashEntry.name}`);
-				stashProvider.refresh();
+				stashProvider.refresh('post-command');
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to drop stash: ${error.message}`);
 			}
@@ -141,19 +116,9 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('mystash.show', async (item?: StashItem) => {
 			if (!item) {
-				const stashes = await gitService.getStashList();
-				if (stashes.length === 0) {
-					vscode.window.showInformationMessage('No stashes available');
-					return;
-				}
-				const selected = await vscode.window.showQuickPick(
-					stashes.map(s => ({ label: s.message, description: s.name, stash: s })),
-					{ placeHolder: 'Select a stash to show' }
-				);
-				if (!selected) {
-					return;
-				}
-				item = new StashItem(selected.stash);
+				const entry = await pickStash(gitService, 'Select a stash to show');
+				if (!entry) { return; }
+				item = new StashItem(entry);
 			}
 
 			try {
@@ -190,7 +155,7 @@ export function activate(context: vscode.ExtensionContext) {
 			try {
 				await gitService.clearStashes();
 				vscode.window.showInformationMessage('All stashes cleared');
-				stashProvider.refresh();
+				stashProvider.refresh('post-command');
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to clear stashes: ${error.message}`);
 			}

@@ -1,13 +1,39 @@
 // Place your settings in this file to overwrite default and user settings.
 {
     "files.exclude": {
-        "out": false, // set this to true to hide the "out" folder with the compiled JS files
-        "dist": false // set this to true to hide the "dist" folder with the compiled JS files
+        "out": false,
+        "dist": false
     },
     "search.exclude": {
-        "out": true, // set this to false to include "out" folder in search results
-        "dist": true // set this to false to include "dist" folder in search results
+        "out": true,
+        "dist": true
     },
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-    "typescript.tsc.autoDetect": "off"
+    "typescript.tsc.autoDetect": "off",
+
+    // ── Copilot / Chat Configuration ──
+    // Attach copilot-instructions.md automatically in every chat
+    "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+
+    // Scope Copilot completions to project patterns
+    "github.copilot.chat.commitMessageGeneration.instructions": [
+        {
+            "text": "Use conventional commit format: type(scope): description. Types: feat, fix, refactor, test, chore, docs. Scopes: git, tree, provider, extension, ui, config. Keep subject under 72 chars. Body optional but welcome for multi-file changes."
+        }
+    ],
+    "github.copilot.chat.testGeneration.instructions": [
+        {
+            "text": "Use Mocha + assert (no chai). Unit tests mock execAsync via dependency injection — never shell out to real git. Integration tests run in the VS Code extension host via @vscode/test-electron. Group tests with describe/suite blocks by class or function. Test files go in src/test/ and match the pattern: {module}.test.ts."
+        }
+    ],
+    "github.copilot.chat.codeGeneration.instructions": [
+        {
+            "file": ".github/copilot-instructions.md"
+        }
+    ],
+    "github.copilot.chat.reviewSelection.instructions": [
+        {
+            "text": "Check for: 1) Errors thrown inside getChildren() (should return [] instead). 2) Missing cancel guards on InputBox/QuickPick (undefined check). 3) Duplicated QuickPick fallback boilerplate (should use pickStash helper). 4) Any direct child_process usage outside gitService.ts. 5) Any use of 'any' type (prefer 'unknown'). 6) Missing context.subscriptions.push() for disposables."
+        }
+    ]
 }
