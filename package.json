@@ -164,6 +164,12 @@
         "title": "Open Stash Panel",
         "category": "MyStash",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "mystash.showStats",
+        "title": "Show Stash Stats",
+        "category": "MyStash",
+        "icon": "$(graph)"
       }
     ],
     "menus": {
@@ -225,6 +231,11 @@
           "group": "1_stash@3"
         },
         {
+          "command": "mystash.showStats",
+          "when": "view == mystashView && viewItem == stashItem",
+          "group": "1_stash@4"
+        },
+        {
           "command": "mystash.drop",
           "when": "view == mystashView && viewItem == stashItem",
           "group": "2_destructive"
@@ -266,9 +277,21 @@
         {
           "command": "mystash.openPanel",
           "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.showStats",
+          "when": "workspaceFolderCount > 0"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "mystash.stash",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s",
+        "when": "workspaceFolderCount > 0"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -304,9 +327,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.54.0"
-  },
-  "dependencies": {
+    "typescript-eslint": "^8.54.0",
     "date-fns": "^4.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

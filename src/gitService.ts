@@ -25,31 +25,49 @@ export interface StashEntry {
 
 export type FileStatus = 'M' | 'A' | 'D' | 'R' | 'C';
 
+export type StashMode = 'all' | 'staged' | 'untracked';
+
+export interface StashOperationResult {
+    success: boolean;
+    conflicts: boolean;
+    message: string;
+}
+
 export interface StashFileEntry {
     path: string;
     status: FileStatus;
 }
 
-export class GitService {
-    private workspaceRoot: string | undefined;
-    private _outputChannel: vscode.OutputChannel | undefined;
+/** Function signature for the exec implementation — injectable for tests. */
+export type ExecFn = (command: string, options: { cwd: string }) => Promise<{ stdout: string; stderr: string }>;
 
-    constructor(outputChannel?: vscode.OutputChannel) {
-        this.workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+export class GitService {
+    private _workspaceRoot: string | undefined;
+    private _outputChannel: vscode.OutputChannel | undefined;
+    private _execFn: ExecFn;
+
+    /**
+     * @param workspaceRoot  Explicit workspace root path. Pass `undefined` for headless/test use.
+     * @param outputChannel  VS Code output channel for diagnostics (optional).
+     * @param execFn         Custom exec implementation for unit testing (optional).
+     */
+    constructor(workspaceRoot?: string, outputChannel?: vscode.OutputChannel, execFn?: ExecFn) {
+        // TODO: multi-root — caller passes the selected workspace folder
+        this._workspaceRoot = workspaceRoot;
         this._outputChannel = outputChannel;
-        // TODO: multi-root — accept workspaceRoot as parameter instead of hardcoding [0]
+        this._execFn = execFn ?? execAsync;
     }
 
     private async execGit(command: string): Promise<GitResult> {
-        if (!this.workspaceRoot) {
+        if (!this._workspaceRoot) {
             return { stdout: '', stderr: 'No workspace folder open', exitCode: 1 };
         }
 
         this._outputChannel?.appendLine(`[GIT] git ${command}`);
 
         try {
-            const { stdout, stderr } = await execAsync(`git ${command}`, {
-                cwd: this.workspaceRoot
+            const { stdout, stderr } = await this._execFn(`git ${command}`, {
+                cwd: this._workspaceRoot
             });
             this._outputChannel?.appendLine(`[GIT] exit 0`);
             return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode: 0 };
@@ -117,10 +135,12 @@ export class GitService {
         });
     }
 
-    async createStash(message?: string, includeUntracked: boolean = false): Promise<void> {
+    async createStash(message?: string, mode: StashMode = 'all'): Promise<void> {
         let command = 'stash push';
-        if (includeUntracked) {
+        if (mode === 'untracked') {
             command += ' --include-untracked';
+        } else if (mode === 'staged') {
+            command += ' --staged';
         }
         if (message) {
             command += ` -m "${message}"`;
@@ -131,18 +151,27 @@ export class GitService {
         }
     }
 
-    async applyStash(index: number): Promise<void> {
+    async applyStash(index: number): Promise<StashOperationResult> {
         const { stderr, exitCode } = await this.execGit(`stash apply "stash@{${index}}"`);
-        if (exitCode !== 0) {
-            throw new Error(stderr || 'Failed to apply stash');
+        if (exitCode !== 0 && stderr.includes('CONFLICT')) {
+            return { success: true, conflicts: true, message: stderr };
         }
+        if (exitCode !== 0) {
+            return { success: false, conflicts: false, message: stderr || 'Failed to apply stash' };
+        }
+        return { success: true, conflicts: false, message: '' };
     }
 
-    async popStash(index: number): Promise<void> {
+    async popStash(index: number): Promise<StashOperationResult> {
         const { stderr, exitCode } = await this.execGit(`stash pop "stash@{${index}}"`);
-        if (exitCode !== 0) {
-            throw new Error(stderr || 'Failed to pop stash');
+        if (exitCode !== 0 && stderr.includes('CONFLICT')) {
+            // On conflict, git pop applies changes but does NOT drop the stash
+            return { success: true, conflicts: true, message: stderr };
         }
+        if (exitCode !== 0) {
+            return { success: false, conflicts: false, message: stderr || 'Failed to pop stash' };
+        }
+        return { success: true, conflicts: false, message: '' };
     }
 
     async dropStash(index: number): Promise<void> {

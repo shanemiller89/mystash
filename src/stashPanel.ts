@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { GitService, StashEntry, StashFileEntry } from './gitService';
-import { formatRelativeTime } from './utils';
+import { formatRelativeTime, getConfig } from './utils';
 
 /**
  * Manages the MyStash webview panel — a rich, interactive stash explorer
@@ -15,6 +15,16 @@ export class StashPanel {
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
     private _isReady = false;
+
+    /**
+     * 8b-iii: Refresh the webview panel if it is currently open.
+     * Called from StashProvider.refresh() so tree + webview stay in sync.
+     */
+    public static refreshIfOpen(): void {
+        if (StashPanel._instance && StashPanel._instance._isReady) {
+            StashPanel._instance._refresh();
+        }
+    }
 
     public static createOrShow(
         extensionUri: vscode.Uri,
@@ -76,8 +86,14 @@ export class StashPanel {
             const stashes = await this._gitService.getStashList();
             const payload = await this._buildPayload(stashes);
             this._panel.webview.postMessage({ type: 'stashData', payload });
+
+            // 8b-vi: Update panel title with stash count
+            this._panel.title = stashes.length > 0
+                ? `MyStash (${stashes.length})`
+                : 'MyStash';
         } catch {
             this._panel.webview.postMessage({ type: 'stashData', payload: [] });
+            this._panel.title = 'MyStash';
         }
     }
 
@@ -113,6 +129,8 @@ export class StashPanel {
         type: string;
         index?: number;
         filePath?: string;
+        message?: string;
+        mode?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -126,49 +144,57 @@ export class StashPanel {
 
             case 'apply':
                 if (msg.index !== undefined) {
-                    try {
-                        await this._gitService.applyStash(msg.index);
+                    const applyResult = await this._gitService.applyStash(msg.index);
+                    if (applyResult.success && applyResult.conflicts) {
+                        vscode.window.showWarningMessage(
+                            `Applied stash@{${msg.index}} with merge conflicts. Resolve them manually.`
+                        );
+                    } else if (applyResult.success) {
                         vscode.window.showInformationMessage(`Applied stash@{${msg.index}}`);
-                        await this._refresh();
-                    } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
-                        vscode.window.showErrorMessage(`Failed to apply: ${m}`);
+                    } else {
+                        vscode.window.showErrorMessage(`Failed to apply: ${applyResult.message}`);
                     }
+                    await this._refresh();
                 }
                 break;
 
             case 'pop':
                 if (msg.index !== undefined) {
-                    try {
-                        await this._gitService.popStash(msg.index);
+                    const popResult = await this._gitService.popStash(msg.index);
+                    if (popResult.success && popResult.conflicts) {
+                        vscode.window.showWarningMessage(
+                            `Stash applied with conflicts but was NOT removed. Resolve conflicts, then drop manually.`
+                        );
+                    } else if (popResult.success) {
                         vscode.window.showInformationMessage(`Popped stash@{${msg.index}}`);
-                        await this._refresh();
-                    } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
-                        vscode.window.showErrorMessage(`Failed to pop: ${m}`);
+                    } else {
+                        vscode.window.showErrorMessage(`Failed to pop: ${popResult.message}`);
                     }
+                    await this._refresh();
                 }
                 break;
 
             case 'drop':
                 if (msg.index !== undefined) {
-                    const confirm = await vscode.window.showWarningMessage(
-                        `Drop stash@{${msg.index}}? This cannot be undone.`,
-                        { modal: true },
-                        'Yes',
-                        'No'
-                    );
-                    if (confirm === 'Yes') {
-                        try {
-                            await this._gitService.dropStash(msg.index);
-                            vscode.window.showInformationMessage(
-                                `Dropped stash@{${msg.index}}`
-                            );
-                            await this._refresh();
-                        } catch (e: unknown) {
-                            const m = e instanceof Error ? e.message : 'Unknown error';
-                            vscode.window.showErrorMessage(`Failed to drop: ${m}`);
-                        }
+                    // 9a-ii: Respect confirmOnDrop setting
+                    if (getConfig<boolean>('confirmOnDrop', true)) {
+                        const confirm = await vscode.window.showWarningMessage(
+                            `Drop stash@{${msg.index}}? This cannot be undone.`,
+                            { modal: true },
+                            'Yes',
+                            'No'
+                        );
+                        if (confirm !== 'Yes') { break; }
+                    }
+                    try {
+                        await this._gitService.dropStash(msg.index);
+                        vscode.window.showInformationMessage(
+                            `Dropped stash@{${msg.index}}`
+                        );
+                        await this._refresh();
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to drop: ${m}`);
                     }
                 }
                 break;
@@ -201,6 +227,25 @@ export class StashPanel {
                 await vscode.commands.executeCommand('mystash.stash');
                 await this._refresh();
                 break;
+
+            case 'createStashInline': {
+                // 8b-ii: Handle inline stash creation from webview form
+                const stashMessage = msg.message ?? '';
+                const stashMode = (msg.mode ?? 'all') as 'all' | 'staged' | 'untracked';
+                try {
+                    await this._gitService.createStash(stashMessage || undefined, stashMode);
+                    vscode.window.showInformationMessage(
+                        stashMessage
+                            ? `Stashed: "${stashMessage}"`
+                            : 'Changes stashed successfully'
+                    );
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    vscode.window.showErrorMessage(`Stash failed: ${m}`);
+                }
+                await this._refresh();
+                break;
+            }
 
             case 'clearStashes':
                 await vscode.commands.executeCommand('mystash.clear');

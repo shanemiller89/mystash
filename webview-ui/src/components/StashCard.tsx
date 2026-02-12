@@ -3,31 +3,67 @@ import { useStashStore, type StashData } from '../store';
 import { postMessage } from '../vscode';
 import { StashFiles } from './StashFiles';
 
-export const StashCard: React.FC<{ stash: StashData }> = ({ stash }) => {
+export const StashCard: React.FC<{
+    stash: StashData;
+    tabIndex?: number;
+    isFocused?: boolean;
+}> = ({ stash, tabIndex = -1, isFocused = false }) => {
     const { expandedIndices, toggleExpanded } = useStashStore();
     const isExpanded = expandedIndices.has(stash.index);
     const isWip = stash.message.toLowerCase().startsWith('wip');
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        switch (e.key) {
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                toggleExpanded(stash.index);
+                break;
+            case 'a':
+                e.preventDefault();
+                postMessage('apply', { index: stash.index });
+                break;
+            case 'p':
+                e.preventDefault();
+                postMessage('pop', { index: stash.index });
+                break;
+            case 'd':
+                e.preventDefault();
+                postMessage('drop', { index: stash.index });
+                break;
+        }
+    };
+
     return (
-        <div className="group rounded-md border border-border bg-card hover:border-accent transition-colors">
+        <div
+            className={`group rounded-md border bg-card transition-colors outline-none ${
+                isFocused ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent'
+            }`}
+            data-stash-card
+            tabIndex={tabIndex}
+            role="option"
+            aria-selected={isFocused}
+            aria-expanded={isExpanded}
+            onKeyDown={handleKeyDown}
+        >
             {/* Header */}
             <div
-                className="flex items-stretch gap-2.5 p-3 cursor-pointer select-none min-h-[52px]"
+                className="flex items-stretch gap-2.5 p-3 cursor-pointer select-none min-h-[52px] leading-normal"
                 onClick={() => toggleExpanded(stash.index)}
             >
                 {/* Color indicator */}
                 <div
-                    className={`w-1 rounded-full flex-shrink-0 ${
+                    className={`w-1 rounded-full flex-shrink-0 self-stretch ${
                         isWip ? 'bg-warning' : 'bg-accent'
                     }`}
                 />
 
                 {/* Info */}
                 <div className="flex-1 min-w-0 self-center">
-                    <div className="font-semibold text-[13px] truncate">
+                    <div className="font-semibold text-[13px] leading-[18px] truncate">
                         {stash.message || '(no message)'}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] opacity-75">
+                    <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] leading-[16px] opacity-75">
                         <span className="opacity-60">{stash.name}</span>
                         <span className="inline-flex items-center gap-1 bg-badge-bg text-badge-fg px-1.5 py-0.5 rounded text-[10px] font-medium">
                             ⎇ {stash.branch}

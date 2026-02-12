@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { GitService } from './gitService';
 import { StashItem, StashFileItem } from './stashItem';
+import { StashPanel } from './stashPanel';
 import { getConfig } from './utils';
 
 export class StashProvider implements vscode.TreeDataProvider<StashItem | StashFileItem> {
@@ -8,6 +9,7 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
     readonly onDidChangeTreeData: vscode.Event<StashItem | StashFileItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
     private _treeView?: vscode.TreeView<StashItem | StashFileItem>;
+    private _statusBarItem?: vscode.StatusBarItem;
     private _refreshTimer?: ReturnType<typeof setTimeout>;
     private _isRefreshing = false;
 
@@ -17,6 +19,13 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
         private gitService: GitService,
         private _outputChannel?: vscode.OutputChannel
     ) {}
+
+    /**
+     * 9b-i: Set the status bar item reference so we can update it on refresh.
+     */
+    setStatusBarItem(statusBarItem: vscode.StatusBarItem): void {
+        this._statusBarItem = statusBarItem;
+    }
 
     /**
      * Set the tree view reference so we can update badge/title.
@@ -40,6 +49,8 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
         this._refreshTimer = setTimeout(() => {
             this._refreshTimer = undefined;
             this._onDidChangeTreeData.fire();
+            // 8b-iii: Also refresh the webview panel if it's open
+            StashPanel.refreshIfOpen();
         }, StashProvider.DEBOUNCE_MS);
     }
 
@@ -112,6 +123,12 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
             const hasStashes = stashes.length > 0;
             await vscode.commands.executeCommand('setContext', 'mystash.hasStashes', hasStashes);
 
+            // 9a-iii: Sort order — git returns newest-first by default
+            const sortOrder = getConfig<string>('sortOrder', 'newest');
+            if (sortOrder === 'oldest') {
+                stashes.reverse();
+            }
+
             // 1d-v: Update badge with stash count
             // 1d-vi: Dynamic title
             if (this._treeView) {
@@ -121,6 +138,17 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
                 this._treeView.title = hasStashes
                     ? `Git Stashes (${stashes.length})`
                     : 'Git Stashes';
+            }
+
+            // 9b-i: Update status bar item
+            if (this._statusBarItem) {
+                if (hasStashes) {
+                    this._statusBarItem.text = `$(archive) ${stashes.length}`;
+                    this._statusBarItem.tooltip = `MyStash — ${stashes.length} stash${stashes.length !== 1 ? 'es' : ''}`;
+                    this._statusBarItem.show();
+                } else {
+                    this._statusBarItem.hide();
+                }
             }
 
             return stashes.map(stash => new StashItem(stash, vscode.TreeItemCollapsibleState.Collapsed));

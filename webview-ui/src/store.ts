@@ -26,11 +26,13 @@ interface StashStore {
     expandedIndices: Set<number>;
     loading: boolean;
     searchQuery: string;
+    showCreateForm: boolean;
 
     setStashes: (stashes: StashData[]) => void;
     setLoading: (loading: boolean) => void;
     setSearchQuery: (query: string) => void;
     toggleExpanded: (index: number) => void;
+    setShowCreateForm: (show: boolean) => void;
     filteredStashes: () => StashData[];
 }
 
@@ -39,10 +41,12 @@ export const useStashStore = create<StashStore>((set, get) => ({
     expandedIndices: new Set(),
     loading: true,
     searchQuery: '',
+    showCreateForm: false,
 
     setStashes: (stashes) => set({ stashes, loading: false }),
     setLoading: (loading) => set({ loading }),
     setSearchQuery: (searchQuery) => set({ searchQuery }),
+    setShowCreateForm: (show) => set({ showCreateForm: show }),
 
     toggleExpanded: (index) =>
         set((state) => {

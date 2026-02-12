@@ -14,7 +14,10 @@ export function activate(context: vscode.ExtensionContext) {
 	const outputChannel = vscode.window.createOutputChannel('MyStash');
 	context.subscriptions.push(outputChannel);
 
-	const gitService = new GitService(outputChannel);
+	const gitService = new GitService(
+		vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+		outputChannel
+	);
 
 	// Register mystash: URI scheme for side-by-side diff viewing
 	const contentProvider = new StashContentProvider(gitService);
@@ -23,6 +26,13 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	const stashProvider = new StashProvider(gitService, outputChannel);
+
+	// 9b-i: Status bar item — shows stash count, click → focus tree view
+	const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
+	statusBarItem.command = 'mystashView.focus';
+	statusBarItem.tooltip = 'MyStash — Click to view stashes';
+	context.subscriptions.push(statusBarItem);
+	stashProvider.setStatusBarItem(statusBarItem);
 
 	// Register the tree view
 	const treeView = vscode.window.createTreeView('mystashView', {
@@ -53,6 +63,15 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	);
 
+	// 9a-iv: Refresh when mystash settings change
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeConfiguration((e) => {
+			if (e.affectsConfiguration('mystash')) {
+				stashProvider.refresh('settings-changed');
+			}
+		})
+	);
+
 	// Register commands
 	context.subscriptions.push(
 		vscode.commands.registerCommand('mystash.refresh', () => {
@@ -62,21 +81,90 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('mystash.stash', async () => {
-			const message = await vscode.window.showInputBox({
+			// 2c: Guard — no changes means nothing to stash
+			const hasChanges = await gitService.hasChanges();
+			if (!hasChanges) {
+				vscode.window.showInformationMessage('No local changes to stash');
+				return;
+			}
+
+			// 2e: Cancel-safe message prompt
+			let message = await vscode.window.showInputBox({
 				prompt: 'Enter stash message (optional)',
 				placeHolder: 'Stash message'
 			});
 
-			const includeUntracked = await vscode.window.showQuickPick(['No', 'Yes'], {
-				placeHolder: 'Include untracked files?'
+			// Escape pressed → cancel
+			if (message === undefined) { return; }
+
+			// Empty submit → ask if intentional
+			if (message === '') {
+				const emptyOk = await vscode.window.showQuickPick(['Yes, no message', 'Let me type one'], {
+					placeHolder: 'Create stash without a message?'
+				});
+				if (!emptyOk) { return; }
+				if (emptyOk === 'Let me type one') {
+					message = await vscode.window.showInputBox({
+						prompt: 'Enter stash message',
+						placeHolder: 'Stash message'
+					});
+					if (message === undefined) { return; }
+				}
+			}
+
+			// 2d: Three-way stash mode QuickPick
+			const defaultUntracked = getConfig<boolean>('defaultIncludeUntracked', false);
+			const modeItems: vscode.QuickPickItem[] = [
+				{ label: 'All Changes', description: 'Stash all tracked changes' },
+				{ label: 'Include Untracked', description: 'Also stash untracked files (--include-untracked)' },
+				{ label: 'Staged Only', description: 'Only stash staged changes (--staged, git 2.35+)' },
+			];
+			// Pre-select based on setting
+			const defaultIndex = defaultUntracked ? 1 : 0;
+
+			const modeQuickPick = vscode.window.createQuickPick();
+			modeQuickPick.items = modeItems;
+			modeQuickPick.activeItems = [modeItems[defaultIndex]];
+			modeQuickPick.placeholder = 'What to include in the stash?';
+
+			const modeChoice = await new Promise<vscode.QuickPickItem | undefined>((resolve) => {
+				modeQuickPick.onDidAccept(() => {
+					resolve(modeQuickPick.selectedItems[0]);
+					modeQuickPick.dispose();
+				});
+				modeQuickPick.onDidHide(() => {
+					resolve(undefined);
+					modeQuickPick.dispose();
+				});
+				modeQuickPick.show();
 			});
 
+			// 2e: Escape on mode picker → cancel
+			if (!modeChoice) { return; }
+
+			const modeMap: Record<string, 'all' | 'staged' | 'untracked'> = {
+				'All Changes': 'all',
+				'Staged Only': 'staged',
+				'Include Untracked': 'untracked',
+			};
+			const mode = modeMap[modeChoice.label] ?? 'all';
+
+			// Use empty string as undefined for createStash (no -m flag)
+			const stashMessage = message || undefined;
+
+			// 2f: Progress indicator wrapping only the git call
 			try {
-				await gitService.createStash(message, includeUntracked === 'Yes');
+				await vscode.window.withProgress(
+					{ location: vscode.ProgressLocation.Notification, title: 'Creating stash…', cancellable: false },
+					async () => {
+						await gitService.createStash(stashMessage, mode);
+					}
+				);
 				vscode.window.showInformationMessage('Stash created successfully');
 				stashProvider.refresh('post-command');
-			} catch (error: any) {
-				vscode.window.showErrorMessage(`Failed to create stash: ${error.message}`);
+			} catch (error: unknown) {
+				const msg = error instanceof Error ? error.message : 'Unknown error';
+				vscode.window.showErrorMessage(`Failed to create stash: ${msg}`);
 			}
 		})
 	);
@@ -89,13 +177,23 @@ export function activate(context: vscode.ExtensionContext) {
 				item = new StashItem(entry);
 			}
 
-			try {
-				await gitService.applyStash(item.stashEntry.index);
+			// 3d: Progress indicator
+			const result = await vscode.window.withProgress(
+				{ location: vscode.ProgressLocation.Notification, title: `Applying ${item.stashEntry.name}…`, cancellable: false },
+				async () => gitService.applyStash(item.stashEntry.index)
+			);
+
+			// 3c: Conflict detection
+			if (result.success && result.conflicts) {
+				vscode.window.showWarningMessage(
+					`Applied ${item.stashEntry.name} with merge conflicts. Resolve them manually.`
+				);
+			} else if (result.success) {
 				vscode.window.showInformationMessage(`Applied ${item.stashEntry.name}`);
-				stashProvider.refresh('post-command');
-			} catch (error: any) {
-				vscode.window.showErrorMessage(`Failed to apply stash: ${error.message}`);
+			} else {
+				vscode.window.showErrorMessage(`Failed to apply stash: ${result.message}`);
 			}
+			stashProvider.refresh('post-command');
 		})
 	);
 
@@ -107,13 +205,23 @@ export function activate(context: vscode.ExtensionContext) {
 				item = new StashItem(entry);
 			}
 
-			try {
-				await gitService.popStash(item.stashEntry.index);
+			// 4d: Progress indicator
+			const result = await vscode.window.withProgress(
+				{ location: vscode.ProgressLocation.Notification, title: `Popping ${item.stashEntry.name}…`, cancellable: false },
+				async () => gitService.popStash(item.stashEntry.index)
+			);
+
+			// 4c: Conflict detection — stash remains in list on conflict
+			if (result.success && result.conflicts) {
+				vscode.window.showWarningMessage(
+					`Stash applied with conflicts but was NOT removed. Resolve conflicts, then drop manually.`
+				);
+			} else if (result.success) {
 				vscode.window.showInformationMessage(`Popped ${item.stashEntry.name}`);
-				stashProvider.refresh('post-command');
-			} catch (error: any) {
-				vscode.window.showErrorMessage(`Failed to pop stash: ${error.message}`);
+			} else {
+				vscode.window.showErrorMessage(`Failed to pop stash: ${result.message}`);
 			}
+			stashProvider.refresh('post-command');
 		})
 	);
 
@@ -125,14 +233,17 @@ export function activate(context: vscode.ExtensionContext) {
 				item = new StashItem(entry);
 			}
 
-			const confirm = await vscode.window.showWarningMessage(
-				`Are you sure you want to drop ${item.stashEntry.name}?`,
-				{ modal: true },
-				'Yes', 'No'
-			);
+			// 9a-ii: Respect confirmOnDrop setting
+			if (getConfig<boolean>('confirmOnDrop', true)) {
+				const confirm = await vscode.window.showWarningMessage(
+					`Are you sure you want to drop ${item.stashEntry.name}?`,
+					{ modal: true },
+					'Yes', 'No'
+				);
 
-			if (confirm !== 'Yes') {
-				return;
+				if (confirm !== 'Yes') {
+					return;
+				}
 			}
 
 			try {
@@ -202,6 +313,36 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	);
 
+	// 6f: Show stash summary (stat view)
+	context.subscriptions.push(
+		vscode.commands.registerCommand('mystash.showStats', async (item?: StashItem) => {
+			if (!item) {
+				const entry = await pickStash(gitService, 'Select a stash to show stats for');
+				if (!entry) { return; }
+				item = new StashItem(entry);
+			}
+
+			try {
+				const { stdout, exitCode } = await gitService.execGitPublic(
+					`stash show --stat "stash@{${item.stashEntry.index}}"`
+				);
+				if (exitCode !== 0 || !stdout) {
+					vscode.window.showInformationMessage('No stats available for this stash.');
+					return;
+				}
+				const header = `Stash: ${item.stashEntry.name} — ${item.stashEntry.message}\nBranch: ${item.stashEntry.branch}\n${'─'.repeat(60)}\n`;
+				const document = await vscode.workspace.openTextDocument({
+					content: header + stdout,
+					language: 'plaintext'
+				});
+				await vscode.window.showTextDocument(document, { preview: true });
+			} catch (error: unknown) {
+				const msg = error instanceof Error ? error.message : 'Unknown error';
+				vscode.window.showErrorMessage(`Failed to show stash stats: ${msg}`);
+			}
+		})
+	);
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand('mystash.clear', async () => {
 			const stashes = await gitService.getStashList();
@@ -210,14 +351,17 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			const confirm = await vscode.window.showWarningMessage(
-				`Are you sure you want to clear all ${stashes.length} stash(es)? This cannot be undone.`,
-				{ modal: true },
-				'Yes', 'No'
-			);
+			// 9a-ii: Respect confirmOnClear setting
+			if (getConfig<boolean>('confirmOnClear', true)) {
+				const confirm = await vscode.window.showWarningMessage(
+					`Are you sure you want to clear all ${stashes.length} stash(es)? This cannot be undone.`,
+					{ modal: true },
+					'Yes', 'No'
+				);
 
-			if (confirm !== 'Yes') {
-				return;
+				if (confirm !== 'Yes') {
+					return;
+				}
 			}
 
 			try {

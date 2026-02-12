@@ -1,204 +1,154 @@
-# MyStash - Git Stash Management for VS Code
+# MyStash — Git Stash Management for VS Code
 
-![Version](https://img.shields.io/badge/version-0.0.1-blue)
-![VS Code](https://img.shields.io/badge/VS%20Code-^1.109.0-blue)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![VS Code](https://img.shields.io/badge/VS%20Code-^1.106.0-blue)
 
-MyStash is a Visual Studio Code extension that provides a user-friendly interface for managing git stashes. Easily create, view, apply, and manage your git stashes without leaving the editor.
+MyStash gives you a rich sidebar UI and a full webview panel for managing git stashes — create, browse, apply, pop, drop, and inspect stash contents with side-by-side diffs — all without leaving VS Code.
 
-## Features
+## ✨ Features
 
-- **View Stashes**: See all your git stashes in a dedicated tree view in the activity bar
-- **Create Stash**: Create new stashes with custom messages, optionally including untracked files
-- **Apply Stash**: Apply a stash without removing it from the stash list
-- **Pop Stash**: Apply and remove a stash in one operation
-- **Drop Stash**: Remove a stash from the list
-- **Show Stash Contents**: View the diff of what a stash contains
-- **Clear All Stashes**: Remove all stashes at once
+### Sidebar Tree View
+- Browse all git stashes in a dedicated **Activity Bar** container with badge count and dynamic title.
+- Expand a stash to see its files with **M/A/D/R/C status icons**.
+- Click any file to open a **side-by-side diff** (parent ↔ stash version).
+- Lazy-loaded stats in **rich MarkdownString tooltips** (files changed, insertions, deletions).
+- **Welcome views** for no-workspace, no-git-repo, and no-stashes states.
 
-## Usage
+### Webview Panel
+- Open a **React + Tailwind CSS** panel in an editor tab (`MyStash: Open Stash Panel`).
+- **Search & filter** stashes by message, branch, or filename.
+- **Inline stash creation form** — message input + mode selector (All / Staged / Untracked).
+- **Loading skeletons** during refresh.
+- **Keyboard navigation** — Arrow keys, Enter to expand, Escape to clear search, `a`/`p`/`d` shortcuts on focused cards.
 
-### Tree View
+### Stash Operations
+| Action | Tree View | Command Palette | Webview |
+|--------|-----------|-----------------|---------|
+| Create | Title bar `+` | `MyStash: Create New Stash` | Inline form |
+| Apply | Inline ✓ | `MyStash: Apply Stash` | Hover button |
+| Pop | Inline ↑ | `MyStash: Pop Stash` | Hover button |
+| Drop | Inline 🗑 | `MyStash: Drop Stash` | Hover button |
+| Show diff | Inline 👁 | `MyStash: Show Stash Contents` | — |
+| Show stats | Context menu | `MyStash: Show Stash Stats` | — |
+| Clear all | Title bar | `MyStash: Clear All Stashes` | Footer link |
+| Refresh | Title bar ↻ | `MyStash: Refresh Stash List` | Button |
 
-1. Click on the MyStash icon in the Activity Bar (archive icon)
-2. View all your stashes in the tree view
-3. Expand a stash to see the files it contains
-4. Right-click on a stash for available actions
+### Create Stash Modes
+- **All Changes** — stash everything (default)
+- **Staged Only** — `git stash push --staged` (git 2.35+)
+- **Include Untracked** — `git stash push --include-untracked`
 
-### Commands
+### Conflict Detection
+- Apply/Pop detect `CONFLICT` in git output → show a **warning** instead of an error.
+- On pop with conflicts, the stash is **not removed** — resolve conflicts, then drop manually.
+
+### Auto-Refresh
+- File system watcher on `.git/refs/stash` triggers refresh.
+- Window focus triggers refresh (configurable).
+- Settings changes trigger refresh.
+
+### Status Bar
+- Shows `$(archive) N` in the status bar — click to focus the tree view.
+- Hidden when there are no stashes.
+
+### Keyboard Shortcut
+- **`Cmd+Shift+S`** (Mac) / **`Ctrl+Shift+S`** (Win/Linux) → Create a new stash.
+
+## ⚙️ Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `mystash.autoRefresh` | boolean | `true` | Auto-refresh on git changes or window focus |
+| `mystash.confirmOnDrop` | boolean | `true` | Confirm before dropping a stash |
+| `mystash.confirmOnClear` | boolean | `true` | Confirm before clearing all stashes |
+| `mystash.showFileStatus` | boolean | `true` | Show M/A/D status indicators on file items |
+| `mystash.defaultIncludeUntracked` | boolean | `false` | Default to Include Untracked on create |
+| `mystash.sortOrder` | `newest` / `oldest` | `newest` | Sort order for the stash list |
+| `mystash.showBranchInDescription` | boolean | `true` | Show branch name in tree item description |
+
+## 📋 Commands
 
 All commands are available via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`):
 
 | Command | Description |
 |---------|-------------|
-| `MyStash: Refresh Stash List` | Refresh the list of stashes |
-| `MyStash: Create New Stash` | Create a new stash with an optional message |
-| `MyStash: Apply Stash` | Apply a stash (keeps it in the list) |
+| `MyStash: Refresh Stash List` | Refresh the stash list |
+| `MyStash: Create New Stash` | Create a new stash (3-way mode picker) |
+| `MyStash: Apply Stash` | Apply a stash (keep in list) |
 | `MyStash: Pop Stash` | Apply and remove a stash |
-| `MyStash: Drop Stash` | Remove a stash |
-| `MyStash: Show Stash Contents` | View the diff of a stash |
+| `MyStash: Drop Stash` | Drop a stash permanently |
+| `MyStash: Show Stash Contents` | View full stash diff |
+| `MyStash: Show Stash Stats` | View stash stat summary |
+| `MyStash: Open Stash Panel` | Open the rich webview panel |
 | `MyStash: Clear All Stashes` | Remove all stashes |
 
-### Context Menu Actions
+## 📦 Requirements
 
-Right-click on a stash item to access:
-- Apply
-- Pop
-- Show Contents
-- Drop
+- **Git** installed and available in your system PATH.
+- **VS Code** 1.106.0 or higher.
+- A workspace folder with a git repository initialized.
 
-### Title Bar Actions
-
-The view title bar includes quick access buttons for:
-- Refresh (sync icon)
-- Create New Stash (plus icon)
-
-## Requirements
-
-- Git must be installed and available in your system PATH
-- A workspace with a git repository initialized
-
-## Extension Settings
-
-This extension currently does not add any VS Code settings.
-
-## Known Issues
-
-None reported yet.
-
-## Release Notes
-
-### 0.0.1
-
-Initial release of MyStash:
-- View git stashes in tree view
-- Create, apply, pop, drop stashes
-- Show stash diff
-- Clear all stashes
-
----
-
-## Development
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v18.x or higher recommended)
-- [npm](https://www.npmjs.com/) (comes with Node.js)
-- [Visual Studio Code](https://code.visualstudio.com/) (v1.109.0 or higher)
-- [Git](https://git-scm.com/)
+## 🏗️ Development
 
 ### Setup
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/mystash.git
-   cd mystash
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Install the recommended VS Code extension for problem matching:
-   - Open VS Code in the project folder
-   - Install `connor4312.esbuild-problem-matchers` extension
-
-### Available npm Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run compile` | Compile TypeScript and bundle with esbuild |
-| `npm run watch` | Watch mode - recompiles on file changes |
-| `npm run watch:esbuild` | Watch mode for esbuild only |
-| `npm run watch:tsc` | Watch mode for TypeScript type checking |
-| `npm run package` | Build production bundle |
-| `npm run compile-tests` | Compile test files |
-| `npm run watch-tests` | Watch mode for test compilation |
-| `npm run test` | Run tests |
-| `npm run lint` | Run ESLint on source files |
-| `npm run check-types` | TypeScript type checking without emit |
-| `npm run vscode:prepublish` | Prepare extension for publishing |
-
-### Building
-
 ```bash
+git clone https://github.com/shanemiller89/mystash.git
+cd mystash
 npm install
-npm run compile
 ```
 
-### Running in Debug Mode
-
-1. Open the project in VS Code
-2. Press `F5` to open a new VS Code window with the extension loaded
-3. Open a folder with a git repository
-4. Click on the MyStash icon in the Activity Bar
-5. Set breakpoints in `src/` files to debug
-
-### Watch Mode (Recommended for Development)
-
-Run in watch mode to automatically recompile on changes:
+### Build & Watch
 
 ```bash
-npm run watch
+npm run compile        # One-shot compile (extension + webview + Tailwind)
+npm run watch          # Watch mode for extension
+npm run build:webview  # Build the React webview bundle
+npm run build:css      # Build Tailwind CSS
 ```
 
-Or use VS Code tasks:
-- Press `Cmd+Shift+B` (macOS) / `Ctrl+Shift+B` (Windows/Linux)
-- Select "watch" task
+### Debug
 
-### Running Tests
+Press **F5** in VS Code to launch an Extension Development Host.
+
+### Test
 
 ```bash
-npm test
+npm run compile-tests && npm test
 ```
 
-### Linting
+### Package
 
 ```bash
-npm run lint
-```
-
-### Packaging the Extension
-
-To create a `.vsix` package for distribution:
-
-```bash
-npm install -g @vscode/vsce
-vsce package
+npx @vscode/vsce package
 ```
 
 ### Project Structure
 
 ```
 MyStash/
-├── .github/
-│   └── copilot-instructions.md   # AI assistant instructions
-├── .vscode/
-│   ├── launch.json               # Debug configurations
-│   ├── tasks.json                # Build tasks
-│   ├── settings.json             # Workspace settings
-│   └── extensions.json           # Recommended extensions
 ├── src/
-│   ├── extension.ts              # Extension entry point
-│   ├── gitService.ts             # Git operations wrapper
-│   ├── stashProvider.ts          # Tree data provider for stash list
-│   ├── stashItem.ts              # Stash item model classes
+│   ├── extension.ts            # Activate/deactivate, command registration
+│   ├── gitService.ts           # All git CLI operations (injectable ExecFn)
+│   ├── stashProvider.ts        # TreeDataProvider for the sidebar
+│   ├── stashItem.ts            # StashItem & StashFileItem tree items
+│   ├── stashContentProvider.ts # TextDocumentContentProvider (mystash: URI)
+│   ├── stashPanel.ts           # WebviewPanel host (React app)
+│   ├── uiUtils.ts              # pickStash() QuickPick helper
+│   ├── utils.ts                # formatRelativeTime(), getConfig()
 │   └── test/
-│       └── extension.test.ts     # Extension tests
-├── dist/                         # Compiled output (generated)
-├── package.json                  # Extension manifest & dependencies
-├── tsconfig.json                 # TypeScript configuration
-├── esbuild.js                    # Build script
-├── eslint.config.mjs             # ESLint configuration
-└── README.md                     # This file
+│       ├── extension.test.ts   # Integration tests
+│       ├── gitService.test.ts  # GitService unit tests (mocked exec)
+│       ├── stashItem.test.ts   # Tree item property tests
+│       └── utils.test.ts       # Utility function tests
+├── webview-ui/src/             # React + Zustand + Tailwind CSS 4
+├── dist/                       # Built output (extension + webview)
+├── images/                     # Extension icon
+└── package.json                # Extension manifest
 ```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
 MIT
 
-**Enjoy!**
+**Enjoy managing your stashes! 📦**

@@ -1,15 +1,59 @@
 import * as assert from 'assert';
-
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
 import * as vscode from 'vscode';
-// import * as myExtension from '../../extension';
 
-suite('Extension Test Suite', () => {
-	vscode.window.showInformationMessage('Start all tests.');
+/**
+ * Integration tests for the MyStash extension.
+ * These run in the VS Code extension host via @vscode/test-electron.
+ *
+ * 10c-i: Extension activation
+ * 10c-ii: Tree view population (requires a git repo with stashes — smoke only)
+ * 10c-iii: Command execution smoke tests
+ */
+suite('Extension Integration Tests', () => {
 
-	test('Sample test', () => {
-		assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-		assert.strictEqual(-1, [1, 2, 3].indexOf(0));
+	// 10c-i: Extension activation
+	test('Extension should be present', () => {
+		const ext = vscode.extensions.getExtension('shanemiller89.mystash');
+		assert.ok(ext, 'Extension should be found by ID');
+	});
+
+	test('Extension should activate', async () => {
+		const ext = vscode.extensions.getExtension('shanemiller89.mystash');
+		assert.ok(ext);
+		if (!ext.isActive) {
+			await ext.activate();
+		}
+		assert.ok(ext.isActive, 'Extension should be active after activation');
+	});
+
+	test('All expected commands should be registered', async () => {
+		const commands = await vscode.commands.getCommands(true);
+		const expected = [
+			'mystash.refresh',
+			'mystash.stash',
+			'mystash.apply',
+			'mystash.pop',
+			'mystash.drop',
+			'mystash.show',
+			'mystash.clear',
+			'mystash.showFile',
+			'mystash.openPanel',
+			'mystash.showStats',
+		];
+
+		for (const cmd of expected) {
+			assert.ok(
+				commands.includes(cmd),
+				`Command "${cmd}" should be registered`
+			);
+		}
+	});
+
+	// 10c-iii: Command execution smoke tests
+	test('mystash.refresh should not throw', async () => {
+		// refresh may fail silently if no git repo — that's OK for a smoke test
+		await assert.doesNotReject(
+			async () => vscode.commands.executeCommand('mystash.refresh')
+		);
 	});
 });
