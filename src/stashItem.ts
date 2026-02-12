@@ -6,9 +6,21 @@ import { formatRelativeTime, getConfig } from './utils';
 export class StashItem extends vscode.TreeItem {
     constructor(
         public readonly stashEntry: StashEntry,
-        public readonly collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.Collapsed
+        public readonly collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.Collapsed,
+        searchQuery?: string
     ) {
-        super(stashEntry.message || '(no message)', collapsibleState);
+        // Use TreeItemLabel with highlights if there's a search query match
+        const label = stashEntry.message || '(no message)';
+        const highlights = searchQuery ? computeHighlights(label, searchQuery) : undefined;
+        super(
+            highlights && highlights.length > 0
+                ? { label, highlights } as vscode.TreeItemLabel
+                : label,
+            collapsibleState
+        );
+
+        // Stable identity — preserves expand/scroll/selection across refreshes
+        this.id = `stash-${stashEntry.index}`;
 
         // Description: stash@{n} · branch · relative time (branch conditional on setting)
         const showBranch = getConfig<boolean>('showBranchInDescription', true);
@@ -22,6 +34,12 @@ export class StashItem extends vscode.TreeItem {
 
         this.iconPath = new vscode.ThemeIcon('archive');
         this.contextValue = 'stashItem';
+
+        // Accessibility: rich screen reader description
+        this.accessibilityInformation = {
+            label: `Stash ${stashEntry.index}: ${label}, on branch ${stashEntry.branch}, created ${formatRelativeTime(stashEntry.date)}${stashEntry.stats ? `, ${stashEntry.stats.filesChanged} files changed` : ''}`,
+            role: 'treeitem'
+        };
     }
 
     private _buildTooltip(): vscode.MarkdownString {
@@ -79,12 +97,27 @@ function fileStatusLabel(status: FileStatus): string {
 }
 
 export class StashFileItem extends vscode.TreeItem {
+    /**
+     * Custom URI for FileDecorationProvider — allows SCM-style colored badges.
+     * Format: mystash-file:/<filePath>?index=N&status=M
+     */
+    public readonly decorationUri: vscode.Uri;
+
     constructor(
         public readonly filePath: string,
         public readonly stashIndex: number,
         public readonly status?: FileStatus
     ) {
         super(path.basename(filePath), vscode.TreeItemCollapsibleState.None);
+
+        // Stable identity across refreshes
+        this.id = `stash-${stashIndex}-file-${filePath}`;
+
+        // resourceUri enables FileDecorationProvider
+        this.decorationUri = vscode.Uri.parse(
+            `mystash-file:///${filePath}?index=${stashIndex}&status=${status ?? ''}`
+        );
+        this.resourceUri = this.decorationUri;
 
         // Description: directory portion + optional status word
         const dir = path.dirname(filePath);
@@ -99,11 +132,20 @@ export class StashFileItem extends vscode.TreeItem {
         }
         this.description = parts.join(' · ');
 
+        // Override label since resourceUri takes precedence for rendering
+        this.label = path.basename(filePath);
+
         this.tooltip = `${filePath}${status ? ` (${fileStatusLabel(status)})` : ''}`;
         this.iconPath = status && showStatus
             ? fileStatusIcon(status)
             : new vscode.ThemeIcon('file');
         this.contextValue = 'stashFileItem';
+
+        // Accessibility: rich screen reader label
+        this.accessibilityInformation = {
+            label: `${path.basename(filePath)}${status ? `, ${fileStatusLabel(status)}` : ''}, in ${dir === '.' ? 'root' : dir}`,
+            role: 'treeitem'
+        };
 
         // Wire click to mystash.showFile
         this.command = {
@@ -112,4 +154,23 @@ export class StashFileItem extends vscode.TreeItem {
             arguments: [this]
         };
     }
+}
+
+/**
+ * Compute case-insensitive highlight ranges for a search query within a label.
+ * Returns an array of [startIndex, endIndex) tuples for TreeItemLabel.highlights.
+ */
+function computeHighlights(label: string, query: string): [number, number][] {
+    if (!query) { return []; }
+    const highlights: [number, number][] = [];
+    const lowerLabel = label.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    let startIdx = 0;
+    while (true) {
+        const idx = lowerLabel.indexOf(lowerQuery, startIdx);
+        if (idx === -1) { break; }
+        highlights.push([idx, idx + lowerQuery.length]);
+        startIdx = idx + 1;
+    }
+    return highlights;
 }

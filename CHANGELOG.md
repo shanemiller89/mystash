@@ -4,6 +4,34 @@ All notable changes to the "mystash" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.2.0] — 2026-02-12
+
+### Changed
+
+- **Rebranded to Workstash** — the extension broadens from stash-only to a general workspace toolkit. All user-facing labels (Command Palette, Activity Bar, panel titles, status bar) now read "Workstash" instead of "MyStash". Internal command/setting IDs (`mystash.*`) remain unchanged for backward compatibility.
+
+### Added
+
+- **Gist Notes — full CRUD** — create, edit, save, and delete Markdown notes backed by GitHub Gists, with GitHub OAuth authentication via `vscode.authentication`.
+- **Gist Notes tree view** — dedicated "Gist Notes" sidebar view in the Workstash Activity Bar container, with:
+  - Badge count, dynamic title, search/filter, welcome views for unauthenticated and empty states.
+  - `GistNoteItem` with visibility icon (🌐 public / 📝 secret), relative timestamps, rich MarkdownString tooltip.
+  - Context menu: Open, Copy Link, Toggle Visibility, Delete.
+- **Webview Notes tab** — new tab bar in the Workstash panel with Stashes and Notes tabs:
+  - **Notes list** — search, create inline, note cards with title/snippet/time/visibility badge.
+  - **Note editor** — edit/preview toggle, Markdown rendering (markdown-it + highlight.js), title editing.
+  - **Autosave** — 30-second debounce with countdown indicator (configurable via `workstash.notes.autosaveDelay`).
+  - **Dirty state** — unsaved changes dot indicator, Cmd+S manual save, confirmation before switching notes.
+  - **Responsive layout** — 640px breakpoint, narrow (replace) vs wide (50/50) mode.
+  - **Auth gate** — sign-in prompt when not authenticated.
+- **Markdown rendering** — `markdown-it` with `highlight.js` syntax highlighting, VS Code theme-aware `.markdown-body` CSS.
+- **Toggle visibility** — delete-and-recreate gist to switch between public/secret, with user warning about ID/comments/stars loss.
+- **Copy Gist link** — copy the GitHub Gist URL to clipboard from tree or editor.
+- **GistService** — injectable `FetchFn` for testability, paginated listing (200 cap), rate-limit monitoring, structured error mapping.
+- **2 new settings** — `workstash.notes.autosaveDelay` (seconds), `workstash.notes.defaultVisibility` (`secret`/`public`).
+- **9 new commands** — `workstash.notes.create`, `.open`, `.delete`, `.copyLink`, `.toggleVisibility`, `.refresh`, `.search`, `.clearSearch`, plus existing `.signIn`/`.signOut`.
+- **Unit tests** — `GistService` (list, get, create, update, delete, toggle visibility, error handling), `GistNoteItem` (label, icon, context value, highlights, accessibility).
+
 ## [0.1.0] — 2026-02-11
 
 ### Added

@@ -380,4 +380,35 @@ suite('GitService Unit Tests', () => {
             assert.strictEqual(isRepo, false);
         });
     });
+
+    // ─── getCurrentBranch ────────────────────────────────────────
+
+    suite('getCurrentBranch', () => {
+        test('returns branch name on success', async () => {
+            const exec = mockExec([{ stdout: 'main' }]);
+            const svc = new GitService('/fake/root', undefined, exec);
+            const branch = await svc.getCurrentBranch();
+            assert.strictEqual(branch, 'main');
+        });
+
+        test('returns "HEAD (detached)" for detached HEAD (empty stdout)', async () => {
+            const exec = mockExec([{ stdout: '' }]);
+            const svc = new GitService('/fake/root', undefined, exec);
+            const branch = await svc.getCurrentBranch();
+            assert.strictEqual(branch, 'HEAD (detached)');
+        });
+
+        test('returns undefined when not a git repo', async () => {
+            const exec = mockExecError('not a git repo');
+            const svc = new GitService('/fake/root', undefined, exec);
+            const branch = await svc.getCurrentBranch();
+            assert.strictEqual(branch, undefined);
+        });
+
+        test('returns undefined when no workspace root', async () => {
+            const svc = new GitService(undefined, undefined, mockExec([]));
+            const branch = await svc.getCurrentBranch();
+            assert.strictEqual(branch, undefined);
+        });
+    });
 });

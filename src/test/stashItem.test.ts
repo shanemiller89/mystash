@@ -66,6 +66,34 @@ suite('StashItem Tests', () => {
         assert.strictEqual(item.stashEntry.index, 5);
     });
 
+    test('id is set to stash-{index}', () => {
+        const item = new StashItem(makeEntry({ index: 3 }));
+        assert.strictEqual(item.id, 'stash-3');
+    });
+
+    test('accessibilityInformation is set', () => {
+        const item = new StashItem(makeEntry({ message: 'fix login', branch: 'main' }));
+        assert.ok(item.accessibilityInformation);
+        assert.ok(item.accessibilityInformation!.label.includes('fix login'));
+        assert.ok(item.accessibilityInformation!.label.includes('main'));
+    });
+
+    test('search query produces TreeItemLabel with highlights', () => {
+        const item = new StashItem(makeEntry({ message: 'fix login bug' }), vscode.TreeItemCollapsibleState.Collapsed, 'login');
+        // When highlights are found, label is a TreeItemLabel object
+        assert.ok(typeof item.label === 'object' && item.label !== null);
+        const treeLabel = item.label as vscode.TreeItemLabel;
+        assert.strictEqual(treeLabel.label, 'fix login bug');
+        assert.ok(treeLabel.highlights && treeLabel.highlights.length > 0);
+        assert.deepStrictEqual(treeLabel.highlights![0], [4, 9]);
+    });
+
+    test('search query with no match produces plain string label', () => {
+        const item = new StashItem(makeEntry({ message: 'fix login bug' }), vscode.TreeItemCollapsibleState.Collapsed, 'zzz');
+        // No highlights found — label should be a plain string
+        assert.strictEqual(item.label, 'fix login bug');
+    });
+
     test('updateTooltipWithStats rebuilds tooltip', () => {
         const entry = makeEntry();
         const item = new StashItem(entry);
@@ -141,5 +169,28 @@ suite('StashFileItem Tests', () => {
             typeof item.tooltip === 'string' && item.tooltip.includes('src/folder/file.ts'),
             `Expected filepath in tooltip, got "${item.tooltip}"`
         );
+    });
+
+    test('id is set to stash-{index}-file-{path}', () => {
+        const item = new StashFileItem('src/app.ts', 2, 'M');
+        assert.strictEqual(item.id, 'stash-2-file-src/app.ts');
+    });
+
+    test('resourceUri is set for FileDecorationProvider', () => {
+        const item = new StashFileItem('src/app.ts', 1, 'A');
+        assert.ok(item.resourceUri);
+        assert.strictEqual(item.resourceUri!.scheme, 'mystash-file');
+    });
+
+    test('decorationUri encodes status in query', () => {
+        const item = new StashFileItem('src/app.ts', 1, 'D');
+        assert.ok(item.decorationUri.query.includes('status=D'));
+    });
+
+    test('accessibilityInformation is set', () => {
+        const item = new StashFileItem('src/folder/file.ts', 0, 'M');
+        assert.ok(item.accessibilityInformation);
+        assert.ok(item.accessibilityInformation!.label.includes('file.ts'));
+        assert.ok(item.accessibilityInformation!.label.includes('Modified'));
     });
 });

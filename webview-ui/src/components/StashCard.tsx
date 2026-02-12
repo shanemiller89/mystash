@@ -8,13 +8,17 @@ export const StashCard: React.FC<{
     tabIndex?: number;
     isFocused?: boolean;
 }> = ({ stash, tabIndex = -1, isFocused = false }) => {
-    const { expandedIndices, toggleExpanded } = useStashStore();
+    const { expandedIndices, toggleExpanded, selectStash, selectedStashIndex } = useStashStore();
     const isExpanded = expandedIndices.has(stash.index);
+    const isSelected = selectedStashIndex === stash.index;
     const isWip = stash.message.toLowerCase().startsWith('wip');
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         switch (e.key) {
             case 'Enter':
+                e.preventDefault();
+                selectStash(stash.index);
+                break;
             case ' ':
                 e.preventDefault();
                 toggleExpanded(stash.index);
@@ -37,19 +41,26 @@ export const StashCard: React.FC<{
     return (
         <div
             className={`group rounded-md border bg-card transition-colors outline-none ${
-                isFocused ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent'
+                isSelected
+                    ? 'border-accent ring-1 ring-accent bg-accent/5'
+                    : isFocused
+                      ? 'border-accent ring-1 ring-accent'
+                      : 'border-border hover:border-accent'
             }`}
             data-stash-card
             tabIndex={tabIndex}
             role="option"
-            aria-selected={isFocused}
+            aria-selected={isSelected}
             aria-expanded={isExpanded}
             onKeyDown={handleKeyDown}
         >
             {/* Header */}
             <div
                 className="flex items-stretch gap-2.5 p-3 cursor-pointer select-none min-h-[52px] leading-normal"
-                onClick={() => toggleExpanded(stash.index)}
+                onClick={() => {
+                    toggleExpanded(stash.index);
+                    selectStash(stash.index);
+                }}
             >
                 {/* Color indicator */}
                 <div
@@ -94,11 +105,16 @@ export const StashCard: React.FC<{
                     />
                 </div>
 
-                {/* Chevron */}
+                {/* Chevron — toggles inline expand */}
                 <span
-                    className={`text-[10px] opacity-40 transition-transform self-center ${
+                    className={`text-[10px] opacity-40 transition-transform self-center cursor-pointer hover:opacity-80 ${
                         isExpanded ? 'rotate-90' : ''
                     }`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpanded(stash.index);
+                    }}
+                    title={isExpanded ? 'Collapse files' : 'Expand files'}
                 >
                     ▶
                 </span>

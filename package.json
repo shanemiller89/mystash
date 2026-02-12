@@ -1,7 +1,7 @@
 {
   "name": "mystash",
-  "displayName": "MyStash",
-  "description": "Git Stash Management for VS Code",
+  "displayName": "Workstash",
+  "description": "Git Stash Management & Gist Notes for VS Code",
   "version": "0.0.1",
   "publisher": "mystash",
   "icon": "images/icon.png",
@@ -28,7 +28,7 @@
   "main": "./dist/extension.js",
   "contributes": {
     "configuration": {
-      "title": "MyStash",
+      "title": "Workstash",
       "properties": {
         "mystash.autoRefresh": {
           "type": "boolean",
@@ -72,6 +72,26 @@
           "type": "boolean",
           "default": true,
           "description": "Show the branch name in the stash item description."
+        },
+        "workstash.notes.autosaveDelay": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "description": "Autosave delay in seconds for note editing. Set to 0 to disable autosave."
+        },
+        "workstash.notes.defaultVisibility": {
+          "type": "string",
+          "default": "secret",
+          "enum": [
+            "secret",
+            "public"
+          ],
+          "enumDescriptions": [
+            "New notes are created as secret Gists (default)",
+            "New notes are created as public Gists"
+          ],
+          "description": "Default visibility for newly created notes."
         }
       }
     },
@@ -79,7 +99,7 @@
       "activitybar": [
         {
           "id": "mystash-container",
-          "title": "MyStash",
+          "title": "Workstash",
           "icon": "$(archive)"
         }
       ]
@@ -90,7 +110,14 @@
           "id": "mystashView",
           "name": "Git Stashes",
           "icon": "$(archive)",
-          "contextualTitle": "MyStash"
+          "contextualTitle": "Workstash"
+        },
+        {
+          "id": "gistNotesView",
+          "name": "Gist Notes",
+          "icon": "$(note)",
+          "contextualTitle": "Workstash",
+          "visibility": "visible"
         }
       ]
     },
@@ -109,67 +136,161 @@
         "view": "mystashView",
         "contents": "No stashes yet.\nStash your changes to save them for later.\n[Create Stash](command:mystash.stash)",
         "when": "mystash.isGitRepo && !mystash.hasStashes"
+      },
+      {
+        "view": "gistNotesView",
+        "contents": "Sign in to GitHub to sync your notes as Gists.\n[Sign In to GitHub](command:workstash.notes.signIn)",
+        "when": "!workstash.isAuthenticated"
+      },
+      {
+        "view": "gistNotesView",
+        "contents": "No notes yet.\nCreate a note to get started.\n[Create Note](command:workstash.notes.create)",
+        "when": "workstash.isAuthenticated && !workstash.hasNotes"
       }
     ],
     "commands": [
       {
         "command": "mystash.refresh",
         "title": "Refresh Stash List",
-        "category": "MyStash",
+        "category": "Workstash",
         "icon": "$(refresh)"
       },
       {
         "command": "mystash.stash",
         "title": "Create New Stash",
-        "category": "MyStash",
+        "category": "Workstash",
         "icon": "$(add)"
       },
       {
         "command": "mystash.apply",
         "title": "Apply Stash",
-        "category": "MyStash",
+        "category": "Workstash",
         "icon": "$(check)"
       },
       {
         "command": "mystash.pop",
         "title": "Pop Stash",
-        "category": "MyStash",
+        "category": "Workstash",
         "icon": "$(arrow-up)"
       },
       {
         "command": "mystash.drop",
         "title": "Drop Stash",
-        "category": "MyStash",
+        "category": "Workstash",
         "icon": "$(trash)"
       },
       {
         "command": "mystash.show",
         "title": "Show Stash Contents",
-        "category": "MyStash",
+        "category": "Workstash",
         "icon": "$(eye)"
       },
       {
         "command": "mystash.clear",
         "title": "Clear All Stashes",
-        "category": "MyStash",
+        "category": "Workstash",
         "icon": "$(clear-all)"
       },
       {
         "command": "mystash.showFile",
         "title": "Show File Diff",
-        "category": "MyStash"
+        "category": "Workstash"
       },
       {
         "command": "mystash.openPanel",
         "title": "Open Stash Panel",
-        "category": "MyStash",
+        "category": "Workstash",
         "icon": "$(open-preview)"
       },
       {
         "command": "mystash.showStats",
         "title": "Show Stash Stats",
-        "category": "MyStash",
+        "category": "Workstash",
         "icon": "$(graph)"
+      },
+      {
+        "command": "mystash.search",
+        "title": "Search Stashes",
+        "category": "Workstash",
+        "icon": "$(search)"
+      },
+      {
+        "command": "mystash.clearSearch",
+        "title": "Clear Stash Search",
+        "category": "Workstash",
+        "icon": "$(close)"
+      },
+      {
+        "command": "mystash.applySelected",
+        "title": "Apply Selected Stashes",
+        "category": "Workstash",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "mystash.dropSelected",
+        "title": "Drop Selected Stashes",
+        "category": "Workstash",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "workstash.notes.signIn",
+        "title": "Sign In to GitHub",
+        "category": "Workstash",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "workstash.notes.signOut",
+        "title": "Sign Out of GitHub",
+        "category": "Workstash",
+        "icon": "$(sign-out)"
+      },
+      {
+        "command": "workstash.notes.create",
+        "title": "Create Note",
+        "category": "Workstash",
+        "icon": "$(add)"
+      },
+      {
+        "command": "workstash.notes.open",
+        "title": "Open Note",
+        "category": "Workstash",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "workstash.notes.delete",
+        "title": "Delete Note",
+        "category": "Workstash",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "workstash.notes.copyLink",
+        "title": "Copy Gist Link",
+        "category": "Workstash",
+        "icon": "$(link)"
+      },
+      {
+        "command": "workstash.notes.toggleVisibility",
+        "title": "Toggle Note Visibility",
+        "category": "Workstash",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "workstash.notes.refresh",
+        "title": "Refresh Notes",
+        "category": "Workstash",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "workstash.notes.search",
+        "title": "Search Notes",
+        "category": "Workstash",
+        "icon": "$(search)"
+      },
+      {
+        "command": "workstash.notes.clearSearch",
+        "title": "Clear Notes Search",
+        "category": "Workstash",
+        "icon": "$(close)"
       }
     ],
     "menus": {
@@ -190,8 +311,47 @@
           "group": "navigation"
         },
         {
+          "command": "mystash.search",
+          "when": "view == mystashView && !mystash.isSearching",
+          "group": "navigation"
+        },
+        {
+          "command": "mystash.clearSearch",
+          "when": "view == mystashView && mystash.isSearching",
+          "group": "navigation"
+        },
+        {
           "command": "mystash.clear",
           "when": "view == mystashView"
+        },
+        {
+          "command": "workstash.notes.refresh",
+          "when": "view == gistNotesView",
+          "group": "navigation"
+        },
+        {
+          "command": "workstash.notes.create",
+          "when": "view == gistNotesView && workstash.isAuthenticated",
+          "group": "navigation"
+        },
+        {
+          "command": "workstash.notes.search",
+          "when": "view == gistNotesView && !workstash.notes.isSearching",
+          "group": "navigation"
+        },
+        {
+          "command": "workstash.notes.clearSearch",
+          "when": "view == gistNotesView && workstash.notes.isSearching",
+          "group": "navigation"
+        },
+        {
+          "command": "workstash.notes.signIn",
+          "when": "view == gistNotesView && !workstash.isAuthenticated",
+          "group": "navigation"
+        },
+        {
+          "command": "workstash.notes.signOut",
+          "when": "view == gistNotesView && workstash.isAuthenticated"
         }
       ],
       "view/item/context": [
@@ -239,6 +399,51 @@
           "command": "mystash.drop",
           "when": "view == mystashView && viewItem == stashItem",
           "group": "2_destructive"
+        },
+        {
+          "command": "mystash.applySelected",
+          "when": "view == mystashView && viewItem == stashItem && listMultiSelection",
+          "group": "3_batch@1"
+        },
+        {
+          "command": "mystash.dropSelected",
+          "when": "view == mystashView && viewItem == stashItem && listMultiSelection",
+          "group": "3_batch@2"
+        },
+        {
+          "command": "workstash.notes.open",
+          "when": "view == gistNotesView && viewItem =~ /^gistNote/",
+          "group": "inline@1"
+        },
+        {
+          "command": "workstash.notes.copyLink",
+          "when": "view == gistNotesView && viewItem =~ /^gistNote/",
+          "group": "inline@2"
+        },
+        {
+          "command": "workstash.notes.delete",
+          "when": "view == gistNotesView && viewItem =~ /^gistNote/",
+          "group": "inline@3"
+        },
+        {
+          "command": "workstash.notes.open",
+          "when": "view == gistNotesView && viewItem =~ /^gistNote/",
+          "group": "1_note@1"
+        },
+        {
+          "command": "workstash.notes.copyLink",
+          "when": "view == gistNotesView && viewItem =~ /^gistNote/",
+          "group": "1_note@2"
+        },
+        {
+          "command": "workstash.notes.toggleVisibility",
+          "when": "view == gistNotesView && viewItem =~ /^gistNote/",
+          "group": "1_note@3"
+        },
+        {
+          "command": "workstash.notes.delete",
+          "when": "view == gistNotesView && viewItem =~ /^gistNote/",
+          "group": "2_destructive"
         }
       ],
       "commandPalette": [
@@ -281,6 +486,62 @@
         {
           "command": "mystash.showStats",
           "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.search",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.clearSearch",
+          "when": "workspaceFolderCount > 0 && mystash.isSearching"
+        },
+        {
+          "command": "mystash.applySelected",
+          "when": "false"
+        },
+        {
+          "command": "mystash.dropSelected",
+          "when": "false"
+        },
+        {
+          "command": "workstash.notes.signIn",
+          "when": "workspaceFolderCount > 0 && !workstash.isAuthenticated"
+        },
+        {
+          "command": "workstash.notes.signOut",
+          "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+        },
+        {
+          "command": "workstash.notes.create",
+          "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+        },
+        {
+          "command": "workstash.notes.open",
+          "when": "false"
+        },
+        {
+          "command": "workstash.notes.delete",
+          "when": "false"
+        },
+        {
+          "command": "workstash.notes.copyLink",
+          "when": "false"
+        },
+        {
+          "command": "workstash.notes.toggleVisibility",
+          "when": "false"
+        },
+        {
+          "command": "workstash.notes.refresh",
+          "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+        },
+        {
+          "command": "workstash.notes.search",
+          "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+        },
+        {
+          "command": "workstash.notes.clearSearch",
+          "when": "workspaceFolderCount > 0 && workstash.notes.isSearching"
         }
       ]
     },
@@ -313,6 +574,7 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
+    "@types/markdown-it": "^14.1.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/react": "^19.2.14",
@@ -321,16 +583,18 @@
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
     "autoprefixer": "^10.4.24",
+    "date-fns": "^4.1.0",
     "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.1",
     "npm-run-all": "^4.1.5",
     "postcss": "^8.5.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0",
-    "date-fns": "^4.1.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
     "zustand": "^5.0.11"
   }
 }

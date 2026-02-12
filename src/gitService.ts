@@ -243,6 +243,26 @@ export class GitService {
             });
     }
 
+    async getStashFileNumstat(index: number): Promise<{ path: string; insertions: number; deletions: number }[]> {
+        const { stdout, exitCode } = await this.execGit(`stash show --numstat "stash@{${index}}"`);
+        if (exitCode !== 0 || !stdout) {
+            return [];
+        }
+
+        return stdout.split('\n')
+            .filter(line => line.trim())
+            .map(line => {
+                // Format: "12\t5\tpath/to/file" (insertions, deletions, path)
+                // Binary files show "-\t-\tpath"
+                const [ins, del, ...pathParts] = line.split('\t');
+                return {
+                    path: pathParts.join('\t').trim(),
+                    insertions: ins === '-' ? 0 : parseInt(ins ?? '0', 10),
+                    deletions: del === '-' ? 0 : parseInt(del ?? '0', 10),
+                };
+            });
+    }
+
     async getStashFileContent(index: number, filePath: string): Promise<string> {
         const { stdout, stderr, exitCode } = await this.execGit(`show "stash@{${index}}":"${filePath}"`);
         if (exitCode !== 0) {
@@ -252,11 +272,20 @@ export class GitService {
     }
 
     async getStashFileDiff(index: number, filePath: string): Promise<string> {
-        const { stdout, stderr, exitCode } = await this.execGit(`stash show -p "stash@{${index}}" -- "${filePath}"`);
-        if (exitCode !== 0) {
-            throw new Error(stderr || 'Failed to get stash file diff');
+        // Try per-file diff first
+        const { stdout, exitCode } = await this.execGit(`stash show -p "stash@{${index}}" -- "${filePath}"`);
+        if (exitCode === 0 && stdout.trim()) {
+            return stdout;
         }
-        return stdout;
+
+        // Fallback: diff stash commit against its parent directly
+        // This handles added/deleted files that stash show -p may not cover
+        const fallback = await this.execGit(`diff "stash@{${index}}^" "stash@{${index}}" -- "${filePath}"`);
+        if (fallback.exitCode === 0 && fallback.stdout.trim()) {
+            return fallback.stdout;
+        }
+
+        return '';
     }
 
     async hasChanges(): Promise<boolean> {
@@ -267,5 +296,15 @@ export class GitService {
     async isGitRepository(): Promise<boolean> {
         const { exitCode } = await this.execGit('rev-parse --is-inside-work-tree');
         return exitCode === 0;
+    }
+
+    /**
+     * Return the current branch name, or 'HEAD' if detached, or undefined if not a git repo.
+     */
+    async getCurrentBranch(): Promise<string | undefined> {
+        const { stdout, exitCode } = await this.execGit('branch --show-current');
+        if (exitCode !== 0) { return undefined; }
+        // --show-current returns empty string on detached HEAD
+        return stdout || 'HEAD (detached)';
     }
 }

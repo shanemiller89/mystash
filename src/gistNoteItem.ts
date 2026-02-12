@@ -1,0 +1,98 @@
+import * as vscode from 'vscode';
+import { GistNote } from './gistService';
+import { formatRelativeTime } from './utils';
+
+/**
+ * Tree item representing a single Gist Note in the sidebar tree view.
+ * Click opens the note in the webview panel Notes tab.
+ */
+export class GistNoteItem extends vscode.TreeItem {
+    constructor(
+        public readonly note: GistNote,
+        searchQuery?: string
+    ) {
+        const label = note.title || 'Untitled';
+        const highlights = searchQuery ? computeHighlights(label, searchQuery) : undefined;
+        super(
+            highlights && highlights.length > 0
+                ? { label, highlights } as vscode.TreeItemLabel
+                : label,
+            vscode.TreeItemCollapsibleState.None
+        );
+
+        // Stable identity — preserves selection across refreshes
+        this.id = `gist-note-${note.id}`;
+
+        // Description: relative time
+        this.description = formatRelativeTime(note.updatedAt);
+
+        // Rich tooltip
+        this.tooltip = this._buildTooltip();
+
+        // Icon: globe for public, lock for secret
+        this.iconPath = note.isPublic
+            ? new vscode.ThemeIcon('globe')
+            : new vscode.ThemeIcon('note');
+
+        // Context value for menu filtering
+        this.contextValue = note.isPublic ? 'gistNotePublic' : 'gistNote';
+
+        // Click → open note in webview
+        this.command = {
+            command: 'workstash.notes.open',
+            title: 'Open Note',
+            arguments: [this],
+        };
+
+        // Accessibility
+        this.accessibilityInformation = {
+            label: `Note: ${label}, ${note.isPublic ? 'public' : 'secret'}, updated ${formatRelativeTime(note.updatedAt)}`,
+            role: 'treeitem',
+        };
+    }
+
+    private _buildTooltip(): vscode.MarkdownString {
+        const md = new vscode.MarkdownString();
+        md.supportThemeIcons = true;
+        md.appendMarkdown(`**${this.note.title || 'Untitled'}**\n\n`);
+
+        if (this.note.isPublic) {
+            md.appendMarkdown(`$(globe) Public\n\n`);
+        } else {
+            md.appendMarkdown(`$(lock) Secret\n\n`);
+        }
+
+        // Preview snippet (first 120 chars of content)
+        if (this.note.content) {
+            const snippet = this.note.content.slice(0, 120).replace(/\n/g, ' ');
+            md.appendMarkdown(`${snippet}${this.note.content.length > 120 ? '…' : ''}\n\n`);
+        }
+
+        md.appendMarkdown(`---\n\n`);
+        md.appendMarkdown(`$(calendar) Created: ${this.note.createdAt.toLocaleDateString()}\n\n`);
+        md.appendMarkdown(`$(history) Updated: ${formatRelativeTime(this.note.updatedAt)}\n\n`);
+        md.appendMarkdown(`[Open on GitHub](${this.note.htmlUrl})`);
+
+        return md;
+    }
+}
+
+/**
+ * Compute highlight ranges for search query matches in a label string.
+ * Returns array of [start, end] pairs for TreeItemLabel.highlights.
+ */
+function computeHighlights(label: string, query: string): [number, number][] {
+    const highlights: [number, number][] = [];
+    const lower = label.toLowerCase();
+    const q = query.toLowerCase();
+    let startIndex = 0;
+
+    while (true) {
+        const idx = lower.indexOf(q, startIndex);
+        if (idx === -1) { break; }
+        highlights.push([idx, idx + q.length]);
+        startIndex = idx + 1;
+    }
+
+    return highlights;
+}

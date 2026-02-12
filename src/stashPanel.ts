@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import { GitService, StashEntry, StashFileEntry } from './gitService';
+import { AuthService } from './authService';
+import { GistService } from './gistService';
 import { formatRelativeTime, getConfig } from './utils';
 
 /**
- * Manages the MyStash webview panel — a rich, interactive stash explorer
+ * Manages the Workstash webview panel — a rich, interactive stash explorer
  * that opens as an editor tab, powered by a React + Zustand + Tailwind UI.
  */
 export class StashPanel {
@@ -12,9 +14,16 @@ export class StashPanel {
     private static _instance: StashPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _gitService: GitService;
+    private readonly _authService: AuthService | undefined;
+    private readonly _gistService: GistService | undefined;
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
     private _isReady = false;
+
+    /** Access the current panel instance (e.g. for openNote deep-links). */
+    public static get currentPanel(): StashPanel | undefined {
+        return StashPanel._instance;
+    }
 
     /**
      * 8b-iii: Refresh the webview panel if it is currently open.
@@ -28,7 +37,9 @@ export class StashPanel {
 
     public static createOrShow(
         extensionUri: vscode.Uri,
-        gitService: GitService
+        gitService: GitService,
+        authService?: AuthService,
+        gistService?: GistService
     ): StashPanel {
         const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -40,7 +51,7 @@ export class StashPanel {
 
         const panel = vscode.window.createWebviewPanel(
             StashPanel.viewType,
-            'MyStash',
+            'Workstash',
             column,
             {
                 enableScripts: true,
@@ -51,18 +62,22 @@ export class StashPanel {
             }
         );
 
-        StashPanel._instance = new StashPanel(panel, extensionUri, gitService);
+        StashPanel._instance = new StashPanel(panel, extensionUri, gitService, authService, gistService);
         return StashPanel._instance;
     }
 
     private constructor(
         panel: vscode.WebviewPanel,
         extensionUri: vscode.Uri,
-        gitService: GitService
+        gitService: GitService,
+        authService?: AuthService,
+        gistService?: GistService
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._gitService = gitService;
+        this._authService = authService;
+        this._gistService = gistService;
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
         this._panel.webview.html = this._getHtml();
@@ -77,6 +92,13 @@ export class StashPanel {
         this._panel.onDidDispose(() => this._dispose(), null, this._disposables);
     }
 
+    /** Deep-link: switch to Notes tab and select a specific note. */
+    public openNote(noteId: string): void {
+        if (this._isReady) {
+            this._panel.webview.postMessage({ type: 'openNote', noteId });
+        }
+    }
+
     /** Gather stash data and post it to the webview as a single message. */
     private async _refresh(): Promise<void> {
         // Tell webview we're loading
@@ -89,11 +111,11 @@ export class StashPanel {
 
             // 8b-vi: Update panel title with stash count
             this._panel.title = stashes.length > 0
-                ? `MyStash (${stashes.length})`
-                : 'MyStash';
+                ? `Workstash (${stashes.length})`
+                : 'Workstash';
         } catch {
             this._panel.webview.postMessage({ type: 'stashData', payload: [] });
-            this._panel.title = 'MyStash';
+            this._panel.title = 'Workstash';
         }
     }
 
@@ -111,6 +133,11 @@ export class StashPanel {
                 if (stats) { entry.stats = stats; }
             } catch { /* optional */ }
 
+            let numstat: { path: string; insertions: number; deletions: number }[] = [];
+            try {
+                numstat = await this._gitService.getStashFileNumstat(entry.index);
+            } catch { /* optional */ }
+
             result.push({
                 index: entry.index,
                 name: entry.name,
@@ -120,6 +147,7 @@ export class StashPanel {
                 relativeDate: formatRelativeTime(entry.date),
                 stats: entry.stats,
                 files: files.map(f => ({ path: f.path, status: f.status })),
+                numstat: numstat.map(n => ({ path: n.path, insertions: n.insertions, deletions: n.deletions })),
             });
         }
         return result;
@@ -131,11 +159,19 @@ export class StashPanel {
         filePath?: string;
         message?: string;
         mode?: string;
+        // Notes message properties
+        noteId?: string;
+        title?: string;
+        content?: string;
+        isPublic?: boolean;
+        targetNoteId?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
                 this._isReady = true;
                 await this._refresh();
+                await this._sendAuthStatus();
+                await this._refreshNotes();
                 break;
 
             case 'refresh':
@@ -223,6 +259,19 @@ export class StashPanel {
                 }
                 break;
 
+            case 'getFileDiff':
+                if (msg.index !== undefined && msg.filePath) {
+                    const diffKey = `${msg.index}:${msg.filePath}`;
+                    try {
+                        const diff = await this._gitService.getStashFileDiff(msg.index, msg.filePath);
+                        this._panel.webview.postMessage({ type: 'fileDiff', key: diffKey, diff: diff || '' });
+                    } catch (e: unknown) {
+                        // Git service logs errors to its own output channel
+                        this._panel.webview.postMessage({ type: 'fileDiff', key: diffKey, diff: '' });
+                    }
+                }
+                break;
+
             case 'createStash':
                 await vscode.commands.executeCommand('mystash.stash');
                 await this._refresh();
@@ -251,6 +300,159 @@ export class StashPanel {
                 await vscode.commands.executeCommand('mystash.clear');
                 await this._refresh();
                 break;
+
+            // ─── Notes messages from webview ───
+
+            case 'notes.signIn':
+                await vscode.commands.executeCommand('workstash.notes.signIn');
+                await this._sendAuthStatus();
+                await this._refreshNotes();
+                break;
+
+            case 'notes.signOut':
+                await vscode.commands.executeCommand('workstash.notes.signOut');
+                await this._sendAuthStatus();
+                break;
+
+            case 'notes.refresh':
+                await this._refreshNotes();
+                break;
+
+            case 'notes.create':
+                if (msg.title && this._gistService) {
+                    try {
+                        this._panel.webview.postMessage({ type: 'notesLoading' });
+                        const note = await this._gistService.createNote(
+                            msg.title,
+                            msg.content ?? '',
+                            msg.isPublic ?? false
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'noteCreated',
+                            note: GistService.toData(note)
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to create note: ${m}`);
+                        this._panel.webview.postMessage({ type: 'notesError', message: m });
+                    }
+                }
+                break;
+
+            case 'notes.save':
+                if (msg.noteId && this._gistService) {
+                    try {
+                        this._panel.webview.postMessage({ type: 'notesSaving' });
+                        await this._gistService.updateNote(
+                            msg.noteId,
+                            msg.title ?? '',
+                            msg.content ?? ''
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'noteSaved',
+                            noteId: msg.noteId,
+                            updatedAt: new Date().toISOString()
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to save note: ${m}`);
+                        this._panel.webview.postMessage({ type: 'notesError', message: m });
+                    }
+                }
+                break;
+
+            case 'notes.delete':
+                if (msg.noteId && this._gistService) {
+                    const confirm = await vscode.window.showWarningMessage(
+                        'Delete this note? This cannot be undone.',
+                        { modal: true },
+                        'Delete', 'Cancel'
+                    );
+                    if (confirm !== 'Delete') { break; }
+                    try {
+                        await this._gistService.deleteNote(msg.noteId);
+                        this._panel.webview.postMessage({
+                            type: 'noteDeleted',
+                            noteId: msg.noteId
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to delete note: ${m}`);
+                        this._panel.webview.postMessage({ type: 'notesError', message: m });
+                    }
+                }
+                break;
+
+            case 'notes.copyLink':
+                if (msg.noteId && this._gistService) {
+                    try {
+                        const note = await this._gistService.getNote(msg.noteId);
+                        if (note) {
+                            await vscode.env.clipboard.writeText(note.htmlUrl);
+                            vscode.window.showInformationMessage('Gist link copied to clipboard');
+                        }
+                    } catch {
+                        vscode.window.showErrorMessage('Failed to copy link');
+                    }
+                }
+                break;
+
+            case 'notes.getTabSize': {
+                const tabSize = vscode.workspace.getConfiguration('editor').get<number>('tabSize', 4);
+                this._panel.webview.postMessage({ type: 'tabSize', tabSize });
+                break;
+            }
+
+            case 'notes.confirmDirtySwitch':
+                if (msg.targetNoteId) {
+                    const choice = await vscode.window.showWarningMessage(
+                        'You have unsaved changes. Discard them?',
+                        'Discard', 'Cancel'
+                    );
+                    this._panel.webview.postMessage({
+                        type: 'confirmDirtySwitchResult',
+                        confirmed: choice === 'Discard',
+                        targetNoteId: msg.targetNoteId
+                    });
+                }
+                break;
+        }
+    }
+
+    /** Send current auth status to the webview. */
+    private async _sendAuthStatus(): Promise<void> {
+        if (!this._authService) { return; }
+        try {
+            const isAuth = await this._authService.isAuthenticated();
+            const session = isAuth ? await this._authService.getSession() : null;
+            this._panel.webview.postMessage({
+                type: 'authStatus',
+                authenticated: isAuth,
+                username: session?.account.label ?? null
+            });
+        } catch {
+            this._panel.webview.postMessage({
+                type: 'authStatus',
+                authenticated: false,
+                username: null
+            });
+        }
+    }
+
+    /** Fetch notes from GistService and send to webview. */
+    private async _refreshNotes(): Promise<void> {
+        if (!this._gistService || !this._authService) { return; }
+        try {
+            const isAuth = await this._authService.isAuthenticated();
+            if (!isAuth) { return; }
+
+            this._panel.webview.postMessage({ type: 'notesLoading' });
+            const notes = await this._gistService.listNotes();
+            const payload = notes.map(n => GistService.toData(n));
+            this._panel.webview.postMessage({ type: 'notesData', payload });
+        } catch (e: unknown) {
+            const m = e instanceof Error ? e.message : 'Unknown error';
+            this._panel.webview.postMessage({ type: 'notesError', message: m });
         }
     }
 
@@ -274,7 +476,7 @@ export class StashPanel {
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
     <link rel="stylesheet" href="${styleUri}">
-    <title>MyStash</title>
+    <title>Workstash</title>
 </head>
 <body>
     <div id="root"></div>
