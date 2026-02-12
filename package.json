@@ -7,7 +7,7 @@
   "icon": "images/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/mystash"
+    "url": "https://github.com/shanemiller89/mystash"
   },
   "engines": {
     "vscode": "^1.109.0"
