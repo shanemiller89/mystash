@@ -21,6 +21,7 @@ export interface PullRequestData {
     changedFiles: number;
     labels: { name: string; color: string }[];
     isDraft: boolean;
+    requestedReviewers: { login: string; avatarUrl: string }[];
 }
 
 export interface PRCommentData {
@@ -36,9 +37,25 @@ export interface PRCommentData {
     path?: string;
     line?: number | null;
     diffHunk?: string;
+    /** Threading: the review comment this is a reply to (review comments only) */
+    inReplyToId?: number;
+    /** The GraphQL node ID of the review thread this comment belongs to */
+    threadId?: string;
+    /** Whether this comment's thread is resolved (null for issue comments) */
+    isResolved?: boolean | null;
+    /** Who resolved the thread */
+    resolvedBy?: string | null;
 }
 
 export type PRStateFilter = 'open' | 'closed' | 'merged' | 'all';
+export type CommentResolvedFilter = 'all' | 'resolved' | 'unresolved';
+
+/** A group of comments sharing the same author */
+export interface CommentGroup {
+    author: string;
+    authorAvatarUrl: string;
+    comments: PRCommentData[];
+}
 
 interface PRStore {
     prs: PullRequestData[];
@@ -52,6 +69,15 @@ interface PRStore {
     isRepoNotFound: boolean;
     searchQuery: string;
 
+    // Comment filter / grouping state
+    commentUserFilter: string[];
+    commentResolvedFilter: CommentResolvedFilter;
+    commentGroupByUser: boolean;
+
+    // Reviewer state
+    collaborators: { login: string; avatarUrl: string }[];
+    isRequestingReview: boolean;
+
     // Actions
     setPRs: (prs: PullRequestData[]) => void;
     selectPR: (prNumber: number) => void;
@@ -59,14 +85,27 @@ interface PRStore {
     setPRDetail: (pr: PullRequestData) => void;
     setComments: (comments: PRCommentData[]) => void;
     addComment: (comment: PRCommentData) => void;
+    updateComment: (id: number, patch: Partial<PRCommentData>) => void;
+    updateThreadResolved: (threadId: string, isResolved: boolean, resolvedBy: string | null) => void;
     setStateFilter: (filter: PRStateFilter) => void;
     setLoading: (loading: boolean) => void;
     setCommentsLoading: (loading: boolean) => void;
     setCommentSaving: (saving: boolean) => void;
     setRepoNotFound: (notFound: boolean) => void;
     setSearchQuery: (query: string) => void;
+    setCommentUserFilter: (users: string[]) => void;
+    setCommentResolvedFilter: (filter: CommentResolvedFilter) => void;
+    setCommentGroupByUser: (grouped: boolean) => void;
+    setCollaborators: (collaborators: { login: string; avatarUrl: string }[]) => void;
+    setRequestingReview: (requesting: boolean) => void;
+    updateRequestedReviewers: (reviewers: { login: string; avatarUrl: string }[]) => void;
     filteredPRs: () => PullRequestData[];
     selectedPR: () => PullRequestData | undefined;
+
+    // Comment selectors
+    commentAuthors: () => string[];
+    filteredComments: () => PRCommentData[];
+    groupedComments: () => CommentGroup[];
 }
 
 export const usePRStore = create<PRStore>((set, get) => ({
@@ -80,6 +119,11 @@ export const usePRStore = create<PRStore>((set, get) => ({
     isCommentSaving: false,
     isRepoNotFound: false,
     searchQuery: '',
+    commentUserFilter: [],
+    commentResolvedFilter: 'all',
+    commentGroupByUser: false,
+    collaborators: [],
+    isRequestingReview: false,
 
     setPRs: (prs) => {
         const { selectedPRNumber } = get();
@@ -115,6 +159,8 @@ export const usePRStore = create<PRStore>((set, get) => ({
             selectedPRDetail: null,
             comments: [],
             isCommentsLoading: false,
+            commentUserFilter: [],
+            commentResolvedFilter: 'all',
         }),
 
     setPRDetail: (pr) => set({ selectedPRDetail: pr }),
@@ -125,6 +171,18 @@ export const usePRStore = create<PRStore>((set, get) => ({
         set((state) => ({
             comments: [...state.comments, comment],
             isCommentSaving: false,
+        })),
+
+    updateComment: (id, patch) =>
+        set((state) => ({
+            comments: state.comments.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        })),
+
+    updateThreadResolved: (threadId, isResolved, resolvedBy) =>
+        set((state) => ({
+            comments: state.comments.map((c) =>
+                c.threadId === threadId ? { ...c, isResolved, resolvedBy } : c,
+            ),
         })),
 
     setStateFilter: (stateFilter) =>
@@ -144,6 +202,24 @@ export const usePRStore = create<PRStore>((set, get) => ({
 
     setSearchQuery: (searchQuery) => set({ searchQuery }),
 
+    setCommentUserFilter: (commentUserFilter) => set({ commentUserFilter }),
+    setCommentResolvedFilter: (commentResolvedFilter) => set({ commentResolvedFilter }),
+    setCommentGroupByUser: (commentGroupByUser) => set({ commentGroupByUser }),
+
+    setCollaborators: (collaborators) => set({ collaborators }),
+    setRequestingReview: (isRequestingReview) => set({ isRequestingReview }),
+    updateRequestedReviewers: (reviewers) => {
+        const { selectedPRDetail } = get();
+        if (selectedPRDetail) {
+            set({
+                selectedPRDetail: { ...selectedPRDetail, requestedReviewers: reviewers },
+                isRequestingReview: false,
+            });
+        } else {
+            set({ isRequestingReview: false });
+        }
+    },
+
     filteredPRs: () => {
         const { prs, searchQuery } = get();
         const q = searchQuery.trim().toLowerCase();
@@ -160,5 +236,54 @@ export const usePRStore = create<PRStore>((set, get) => ({
         const { prs, selectedPRNumber } = get();
         if (selectedPRNumber === null) return undefined;
         return prs.find((pr) => pr.number === selectedPRNumber);
+    },
+
+    /** Unique sorted list of comment authors */
+    commentAuthors: () => {
+        const { comments } = get();
+        const authors = [...new Set(comments.map((c) => c.author))];
+        return authors.sort((a, b) => a.localeCompare(b));
+    },
+
+    /** Comments after applying user + resolved filters */
+    filteredComments: () => {
+        const { comments, commentUserFilter, commentResolvedFilter } = get();
+        let result = comments;
+
+        // User filter (multiselect — empty = show all)
+        if (commentUserFilter.length > 0) {
+            result = result.filter((c) => commentUserFilter.includes(c.author));
+        }
+
+        // Resolved filter
+        if (commentResolvedFilter === 'resolved') {
+            result = result.filter((c) => c.isResolved === true);
+        } else if (commentResolvedFilter === 'unresolved') {
+            // Show issue comments (isResolved is null/undefined) + unresolved review threads
+            result = result.filter((c) => c.isResolved !== true);
+        }
+
+        return result;
+    },
+
+    /** Filtered comments grouped by author, preserving chronological order within groups */
+    groupedComments: () => {
+        const filtered = get().filteredComments();
+        const groupMap = new Map<string, CommentGroup>();
+
+        for (const comment of filtered) {
+            const existing = groupMap.get(comment.author);
+            if (existing) {
+                existing.comments.push(comment);
+            } else {
+                groupMap.set(comment.author, {
+                    author: comment.author,
+                    authorAvatarUrl: comment.authorAvatarUrl,
+                    comments: [comment],
+                });
+            }
+        }
+
+        return [...groupMap.values()];
     },
 }));

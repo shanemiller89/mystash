@@ -191,6 +191,14 @@ export class StashPanel {
         prNumber?: number;
         body?: string;
         state?: string;
+        // PR comment threading properties
+        commentId?: number;
+        threadId?: string;
+        isResolved?: boolean;
+        resolvedBy?: string | null;
+        // PR reviewer properties
+        reviewers?: string[];
+        reviewer?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -558,6 +566,75 @@ export class StashPanel {
                 }
                 break;
 
+            case 'prs.replyToComment':
+                if (msg.prNumber !== undefined && msg.commentId !== undefined && msg.body && this._prService) {
+                    try {
+                        const repoInfo = await this._gitService.getGitHubRepo();
+                        if (!repoInfo) {
+                            break;
+                        }
+                        this._panel.webview.postMessage({ type: 'prCommentSaving' });
+                        const reply = await this._prService.replyToReviewComment(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.prNumber,
+                            msg.commentId,
+                            msg.body,
+                        );
+                        // Inherit thread data from the parent comment
+                        if (msg.threadId) {
+                            reply.threadId = msg.threadId;
+                            reply.isResolved = msg.isResolved ?? false;
+                            reply.resolvedBy = msg.resolvedBy ?? null;
+                        }
+                        this._panel.webview.postMessage({
+                            type: 'prCommentCreated',
+                            comment: PrService.toCommentData(reply),
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to post reply: ${m}`);
+                        this._panel.webview.postMessage({ type: 'prError', message: m });
+                    }
+                }
+                break;
+
+            case 'prs.resolveThread':
+                if (msg.threadId && this._prService) {
+                    try {
+                        const result = await this._prService.resolveReviewThread(msg.threadId);
+                        this._panel.webview.postMessage({
+                            type: 'prThreadResolved',
+                            threadId: msg.threadId,
+                            isResolved: result.isResolved,
+                            resolvedBy: result.resolvedBy,
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to resolve thread: ${m}`);
+                        this._panel.webview.postMessage({ type: 'prError', message: m });
+                    }
+                }
+                break;
+
+            case 'prs.unresolveThread':
+                if (msg.threadId && this._prService) {
+                    try {
+                        const result = await this._prService.unresolveReviewThread(msg.threadId);
+                        this._panel.webview.postMessage({
+                            type: 'prThreadResolved',
+                            threadId: msg.threadId,
+                            isResolved: result.isResolved,
+                            resolvedBy: result.resolvedBy,
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to unresolve thread: ${m}`);
+                        this._panel.webview.postMessage({ type: 'prError', message: m });
+                    }
+                }
+                break;
+
             case 'prs.openInBrowser':
                 if (msg.prNumber !== undefined) {
                     const repoInfo = await this._gitService.getGitHubRepo();
@@ -579,6 +656,76 @@ export class StashPanel {
                 if (msg.body) {
                     await vscode.env.clipboard.writeText(msg.body);
                     vscode.window.showInformationMessage('All comments copied to clipboard');
+                }
+                break;
+
+            case 'prs.getCollaborators':
+                if (this._prService) {
+                    try {
+                        const repoInfo = await this._gitService.getGitHubRepo();
+                        if (!repoInfo) { break; }
+                        const collaborators = await this._prService.getCollaborators(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'prCollaborators',
+                            collaborators,
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to fetch collaborators: ${m}`);
+                    }
+                }
+                break;
+
+            case 'prs.requestReview':
+                if (msg.prNumber !== undefined && msg.reviewers?.length && this._prService) {
+                    try {
+                        const repoInfo = await this._gitService.getGitHubRepo();
+                        if (!repoInfo) { break; }
+                        this._panel.webview.postMessage({ type: 'prRequestingReview' });
+                        const reviewers = await this._prService.requestReviewers(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.prNumber,
+                            msg.reviewers,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'prReviewRequested',
+                            reviewers,
+                        });
+                        vscode.window.showInformationMessage(
+                            `Review requested from ${msg.reviewers.join(', ')}`,
+                        );
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to request review: ${m}`);
+                        this._panel.webview.postMessage({ type: 'prError', message: m });
+                    }
+                }
+                break;
+
+            case 'prs.removeReviewRequest':
+                if (msg.prNumber !== undefined && msg.reviewer && this._prService) {
+                    try {
+                        const repoInfo = await this._gitService.getGitHubRepo();
+                        if (!repoInfo) { break; }
+                        await this._prService.removeReviewRequest(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.prNumber,
+                            [msg.reviewer],
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'prReviewRequestRemoved',
+                            reviewer: msg.reviewer,
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to remove review request: ${m}`);
+                        this._panel.webview.postMessage({ type: 'prError', message: m });
+                    }
                 }
                 break;
         }
@@ -680,10 +827,10 @@ export class StashPanel {
 
             this._panel.webview.postMessage({ type: 'prCommentsLoading', prNumber });
 
-            // Get both the full PR detail and the comments
+            // Get both the full PR detail and the comments (with thread data)
             const [pr, comments] = await Promise.all([
                 this._prService.getPullRequest(repoInfo.owner, repoInfo.repo, prNumber),
-                this._prService.getComments(repoInfo.owner, repoInfo.repo, prNumber),
+                this._prService.getCommentsWithThreads(repoInfo.owner, repoInfo.repo, prNumber),
             ]);
 
             this._panel.webview.postMessage({

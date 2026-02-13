@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useStashStore, type StashData } from './store';
 import { useNotesStore, type GistNoteData } from './notesStore';
 import { usePRStore, type PullRequestData, type PRCommentData } from './prStore';
@@ -9,28 +9,12 @@ import { StashDetail } from './components/StashDetail';
 import { TabBar } from './components/TabBar';
 import { NotesTab } from './components/NotesTab';
 import { PRsTab } from './components/PRsTab';
-
-/** Breakpoint: below this the layout switches to narrow (replace) mode */
-const NARROW_BREAKPOINT = 640;
+import { ResizableLayout } from './components/ResizableLayout';
 
 /** Stash master-detail pane (extracted from old App root) */
 const StashesTab: React.FC = () => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [isNarrow, setIsNarrow] = useState(false);
     const selectedStashIndex = useStashStore((s) => s.selectedStashIndex);
     const clearSelection = useStashStore((s) => s.clearSelection);
-
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        const observer = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                setIsNarrow(entry.contentRect.width < NARROW_BREAKPOINT);
-            }
-        });
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, []);
 
     const handleCloseDetail = useCallback(() => {
         clearSelection();
@@ -38,45 +22,15 @@ const StashesTab: React.FC = () => {
 
     const hasSelection = selectedStashIndex !== null;
 
-    if (isNarrow) {
-        return (
-            <div ref={containerRef} className="h-full bg-bg text-fg text-[13px]">
-                {hasSelection ? (
-                    <div className="h-full flex flex-col">
-                        <div className="px-3 py-1.5 border-b border-border flex-shrink-0">
-                            <button
-                                className="text-[11px] text-accent hover:underline flex items-center gap-1"
-                                onClick={handleCloseDetail}
-                            >
-                                ← Back to list
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <StashDetail onClose={handleCloseDetail} />
-                        </div>
-                    </div>
-                ) : (
-                    <StashList />
-                )}
-            </div>
-        );
-    }
-
     return (
-        <div ref={containerRef} className="h-full bg-bg text-fg text-[13px] flex">
-            <div
-                className={`h-full overflow-hidden flex-shrink-0 transition-all duration-200 ${
-                    hasSelection ? 'w-1/2 border-r border-border' : 'w-full'
-                }`}
-            >
-                <StashList />
-            </div>
-            {hasSelection && (
-                <div className="w-1/2 h-full overflow-hidden">
-                    <StashDetail onClose={handleCloseDetail} />
-                </div>
-            )}
-        </div>
+        <ResizableLayout
+            storageKey="stashes"
+            hasSelection={hasSelection}
+            backLabel="Back to list"
+            onBack={handleCloseDetail}
+            listContent={<StashList />}
+            detailContent={<StashDetail onClose={handleCloseDetail} />}
+        />
     );
 };
 
@@ -231,11 +185,53 @@ export const App: React.FC = () => {
                     prStore.addComment(msg.comment as PRCommentData);
                     break;
                 }
+                case 'prThreadResolved': {
+                    const prStore = usePRStore.getState();
+                    prStore.updateThreadResolved(
+                        msg.threadId as string,
+                        msg.isResolved as boolean,
+                        (msg.resolvedBy as string | null) ?? null,
+                    );
+                    break;
+                }
                 case 'prError': {
                     const prStore = usePRStore.getState();
                     prStore.setLoading(false);
                     prStore.setCommentsLoading(false);
                     prStore.setCommentSaving(false);
+                    prStore.setRequestingReview(false);
+                    break;
+                }
+
+                // ─── PR reviewer messages ───
+                case 'prCollaborators': {
+                    const prStore = usePRStore.getState();
+                    prStore.setCollaborators(
+                        msg.collaborators as { login: string; avatarUrl: string }[],
+                    );
+                    break;
+                }
+                case 'prRequestingReview': {
+                    const prStore = usePRStore.getState();
+                    prStore.setRequestingReview(true);
+                    break;
+                }
+                case 'prReviewRequested': {
+                    const prStore = usePRStore.getState();
+                    prStore.updateRequestedReviewers(
+                        msg.reviewers as { login: string; avatarUrl: string }[],
+                    );
+                    break;
+                }
+                case 'prReviewRequestRemoved': {
+                    const prStore = usePRStore.getState();
+                    const detail = prStore.selectedPRDetail;
+                    if (detail) {
+                        const updated = detail.requestedReviewers.filter(
+                            (r) => r.login !== (msg.reviewer as string),
+                        );
+                        prStore.updateRequestedReviewers(updated);
+                    }
                     break;
                 }
 

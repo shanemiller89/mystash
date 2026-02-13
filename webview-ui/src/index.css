@@ -48,6 +48,29 @@
     --color-button-hover: var(--color-vscode-button-hover);
 }
 
+/* ─── Resizable panel handle ─── */
+.resize-handle {
+    width: 4px;
+    background: var(--color-vscode-border);
+    transition: background 0.15s ease;
+    position: relative;
+    cursor: col-resize;
+}
+
+.resize-handle:hover,
+.resize-handle[data-resize-handle-active] {
+    background: var(--color-vscode-accent);
+}
+
+.resize-handle::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -3px;
+    right: -3px;
+    bottom: 0;
+}
+
 body {
     margin: 0;
     padding: 0;

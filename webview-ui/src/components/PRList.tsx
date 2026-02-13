@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { usePRStore, type PRStateFilter } from '../prStore';
 import { useNotesStore } from '../notesStore';
 import { postMessage } from '../vscode';
@@ -57,17 +57,27 @@ function StateIcon({
 }
 
 export const PRList: React.FC = () => {
-    const prs = usePRStore((s) => s.filteredPRs());
     const allPRs = usePRStore((s) => s.prs);
+    const searchQuery = usePRStore((s) => s.searchQuery);
     const isLoading = usePRStore((s) => s.isLoading);
     const isRepoNotFound = usePRStore((s) => s.isRepoNotFound);
     const stateFilter = usePRStore((s) => s.stateFilter);
     const setStateFilter = usePRStore((s) => s.setStateFilter);
     const selectPR = usePRStore((s) => s.selectPR);
     const selectedPRNumber = usePRStore((s) => s.selectedPRNumber);
-    const searchQuery = usePRStore((s) => s.searchQuery);
     const setSearchQuery = usePRStore((s) => s.setSearchQuery);
     const isAuthenticated = useNotesStore((s) => s.isAuthenticated);
+
+    const prs = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return allPRs;
+        return allPRs.filter(
+            (pr) =>
+                pr.title.toLowerCase().includes(q) ||
+                `#${pr.number}`.includes(q) ||
+                pr.branch.toLowerCase().includes(q),
+        );
+    }, [allPRs, searchQuery]);
 
     const handleFilterChange = useCallback(
         (filter: PRStateFilter) => {

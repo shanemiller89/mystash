@@ -29,6 +29,7 @@ export interface PullRequest {
     changedFiles: number;
     labels: { name: string; color: string }[];
     isDraft: boolean;
+    requestedReviewers: { login: string; avatarUrl: string }[];
 }
 
 export interface PRComment {
@@ -44,6 +45,14 @@ export interface PRComment {
     path?: string;
     line?: number | null;
     diffHunk?: string;
+    /** Threading: the review comment this is a reply to (review comments only) */
+    inReplyToId?: number;
+    /** The GraphQL node ID of the review thread this comment belongs to */
+    threadId?: string;
+    /** Whether this comment's thread is resolved (null for issue comments) */
+    isResolved?: boolean | null;
+    /** Who resolved the thread */
+    resolvedBy?: string | null;
 }
 
 /** Lightweight version sent to webview (dates as ISO strings) */
@@ -67,6 +76,7 @@ export interface PullRequestData {
     changedFiles: number;
     labels: { name: string; color: string }[];
     isDraft: boolean;
+    requestedReviewers: { login: string; avatarUrl: string }[];
 }
 
 export interface PRCommentData {
@@ -82,6 +92,14 @@ export interface PRCommentData {
     path?: string;
     line?: number | null;
     diffHunk?: string;
+    /** Threading: the review comment this is a reply to (review comments only) */
+    inReplyToId?: number;
+    /** The GraphQL node ID of the review thread this comment belongs to */
+    threadId?: string;
+    /** Whether this comment's thread is resolved (null for issue comments) */
+    isResolved?: boolean | null;
+    /** Who resolved the thread */
+    resolvedBy?: string | null;
 }
 
 // ─── GitHub API Response Types ────────────────────────────────────
@@ -107,6 +125,7 @@ interface GitHubPR {
     deletions?: number;
     changed_files?: number;
     labels: { name: string; color: string }[];
+    requested_reviewers?: { login: string; avatar_url: string }[];
 }
 
 /** Raw GitHub issue comment response */
@@ -122,6 +141,7 @@ interface GitHubComment {
 /** Raw GitHub pull request review comment response */
 interface GitHubReviewComment {
     id: number;
+    node_id: string;
     body: string;
     html_url: string;
     user: { login: string; avatar_url: string } | null;
@@ -131,6 +151,8 @@ interface GitHubReviewComment {
     line: number | null;
     original_line: number | null;
     diff_hunk: string;
+    in_reply_to_id?: number;
+    pull_request_review_id: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────
@@ -288,6 +310,10 @@ export class PrService {
             changedFiles: pr.changed_files ?? 0,
             labels: pr.labels.map((l) => ({ name: l.name, color: l.color })),
             isDraft: pr.draft,
+            requestedReviewers: (pr.requested_reviewers ?? []).map((r) => ({
+                login: r.login,
+                avatarUrl: r.avatar_url,
+            })),
         };
     }
 
@@ -317,6 +343,7 @@ export class PrService {
             path: comment.path,
             line: comment.line ?? comment.original_line,
             diffHunk: comment.diff_hunk,
+            inReplyToId: comment.in_reply_to_id,
         };
     }
 
@@ -423,6 +450,266 @@ export class PrService {
         return data.login;
     }
 
+    // ─── GraphQL ──────────────────────────────────────────────────
+
+    /** Execute a GitHub GraphQL query/mutation. */
+    private async _graphql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+        const token = await this._getToken();
+
+        this._outputChannel.appendLine(`[PR-GQL] query (${query.slice(0, 60).replace(/\n/g, ' ')}…)`);
+
+        const response = await this._fetchFn('https://api.github.com/graphql', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query, variables }),
+        });
+
+        if (!response.ok) {
+            await this._handleHttpError(response);
+        }
+
+        const json = (await response.json()) as { data?: T; errors?: { message: string }[] };
+        if (json.errors?.length) {
+            const msg = json.errors.map((e) => e.message).join('; ');
+            this._outputChannel.appendLine(`[PR-GQL] Error: ${msg}`);
+            throw new Error(`GraphQL error: ${msg}`);
+        }
+
+        return json.data as T;
+    }
+
+    /**
+     * Fetch review threads for a PR via GraphQL.
+     * Returns a map: review-comment databaseId → { threadId, isResolved, resolvedBy }.
+     */
+    async getReviewThreads(
+        owner: string,
+        repo: string,
+        prNumber: number,
+    ): Promise<Map<number, { threadId: string; isResolved: boolean; resolvedBy: string | null }>> {
+        const query = `
+            query($owner: String!, $repo: String!, $prNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $prNumber) {
+                        reviewThreads(first: 100) {
+                            nodes {
+                                id
+                                isResolved
+                                resolvedBy { login }
+                                comments(first: 100) {
+                                    nodes { databaseId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        `;
+
+        interface GQLResponse {
+            repository: {
+                pullRequest: {
+                    reviewThreads: {
+                        nodes: {
+                            id: string;
+                            isResolved: boolean;
+                            resolvedBy: { login: string } | null;
+                            comments: { nodes: { databaseId: number }[] };
+                        }[];
+                    };
+                };
+            };
+        }
+
+        const data = await this._graphql<GQLResponse>(query, { owner, repo, prNumber });
+        const threads = data.repository.pullRequest.reviewThreads.nodes;
+
+        const map = new Map<number, { threadId: string; isResolved: boolean; resolvedBy: string | null }>();
+        for (const thread of threads) {
+            for (const comment of thread.comments.nodes) {
+                map.set(comment.databaseId, {
+                    threadId: thread.id,
+                    isResolved: thread.isResolved,
+                    resolvedBy: thread.resolvedBy?.login ?? null,
+                });
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Resolve a review thread via GraphQL mutation.
+     */
+    async resolveReviewThread(threadId: string): Promise<{ isResolved: boolean; resolvedBy: string | null }> {
+        const mutation = `
+            mutation($threadId: ID!) {
+                resolveReviewThread(input: { threadId: $threadId }) {
+                    thread {
+                        isResolved
+                        resolvedBy { login }
+                    }
+                }
+            }
+        `;
+
+        interface MutationResponse {
+            resolveReviewThread: {
+                thread: { isResolved: boolean; resolvedBy: { login: string } | null };
+            };
+        }
+
+        const data = await this._graphql<MutationResponse>(mutation, { threadId });
+        const thread = data.resolveReviewThread.thread;
+        return { isResolved: thread.isResolved, resolvedBy: thread.resolvedBy?.login ?? null };
+    }
+
+    /**
+     * Unresolve a review thread via GraphQL mutation.
+     */
+    async unresolveReviewThread(threadId: string): Promise<{ isResolved: boolean; resolvedBy: string | null }> {
+        const mutation = `
+            mutation($threadId: ID!) {
+                unresolveReviewThread(input: { threadId: $threadId }) {
+                    thread {
+                        isResolved
+                        resolvedBy { login }
+                    }
+                }
+            }
+        `;
+
+        interface MutationResponse {
+            unresolveReviewThread: {
+                thread: { isResolved: boolean; resolvedBy: { login: string } | null };
+            };
+        }
+
+        const data = await this._graphql<MutationResponse>(mutation, { threadId });
+        const thread = data.unresolveReviewThread.thread;
+        return { isResolved: thread.isResolved, resolvedBy: thread.resolvedBy?.login ?? null };
+    }
+
+    // ─── Reply to Review Comment ──────────────────────────────────
+
+    /**
+     * Reply to an existing review comment on a pull request (REST API).
+     */
+    async replyToReviewComment(
+        owner: string,
+        repo: string,
+        prNumber: number,
+        commentId: number,
+        body: string,
+    ): Promise<PRComment> {
+        const { data } = await this._request<GitHubReviewComment>(
+            'POST',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/comments/${commentId}/replies`,
+            { body },
+        );
+        return this._parseReviewComment(data);
+    }
+
+    /**
+     * Get ALL comments on a pull request — both issue comments (main thread)
+     * and review comments (inline code comments). Merged and sorted chronologically.
+     * Also fetches GraphQL thread data to populate resolved state.
+     */
+    async getCommentsWithThreads(
+        owner: string,
+        repo: string,
+        prNumber: number,
+    ): Promise<PRComment[]> {
+        // Fetch REST comments and GraphQL threads in parallel
+        const [issueRes, reviewRes, threadMap] = await Promise.all([
+            this._request<GitHubComment[]>(
+                'GET',
+                `/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100&sort=created&direction=asc`,
+            ),
+            this._request<GitHubReviewComment[]>(
+                'GET',
+                `/repos/${owner}/${repo}/pulls/${prNumber}/comments?per_page=100&sort=created&direction=asc`,
+            ),
+            this.getReviewThreads(owner, repo, prNumber).catch((err) => {
+                this._outputChannel.appendLine(`[PR] Warning: Failed to fetch thread data: ${err}`);
+                return new Map<number, { threadId: string; isResolved: boolean; resolvedBy: string | null }>();
+            }),
+        ]);
+
+        const issueComments = issueRes.data.map((c) => this._parseComment(c));
+        const reviewComments = reviewRes.data.map((c) => {
+            const parsed = this._parseReviewComment(c);
+            // Merge in thread data from GraphQL
+            const threadData = threadMap.get(parsed.id);
+            if (threadData) {
+                parsed.threadId = threadData.threadId;
+                parsed.isResolved = threadData.isResolved;
+                parsed.resolvedBy = threadData.resolvedBy;
+            }
+            return parsed;
+        });
+
+        // Merge and sort by creation date
+        const all = [...issueComments, ...reviewComments];
+        all.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        return all;
+    }
+
+    // ─── Reviewers ─────────────────────────────────────────────────
+
+    /**
+     * Request review from one or more users on a pull request.
+     * Returns the updated list of requested reviewers.
+     */
+    async requestReviewers(
+        owner: string,
+        repo: string,
+        prNumber: number,
+        reviewers: string[],
+    ): Promise<{ login: string; avatarUrl: string }[]> {
+        const { data } = await this._request<{
+            users: { login: string; avatar_url: string }[];
+        }>(
+            'POST',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`,
+            { reviewers },
+        );
+        return data.users.map((u) => ({ login: u.login, avatarUrl: u.avatar_url }));
+    }
+
+    /**
+     * Remove a review request from a pull request.
+     */
+    async removeReviewRequest(
+        owner: string,
+        repo: string,
+        prNumber: number,
+        reviewers: string[],
+    ): Promise<void> {
+        await this._request(
+            'DELETE',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`,
+            { reviewers },
+        );
+    }
+
+    /**
+     * List collaborators for a repository (users who can be requested as reviewers).
+     */
+    async getCollaborators(
+        owner: string,
+        repo: string,
+    ): Promise<{ login: string; avatarUrl: string }[]> {
+        const { data } = await this._request<{ login: string; avatar_url: string }[]>(
+            'GET',
+            `/repos/${owner}/${repo}/collaborators?per_page=100&affiliation=all`,
+        );
+        return data.map((u) => ({ login: u.login, avatarUrl: u.avatar_url }));
+    }
+
     // ─── Static Converters ────────────────────────────────────────
 
     /** Convert a PullRequest to its webview-safe data shape. */
@@ -447,6 +734,7 @@ export class PrService {
             changedFiles: pr.changedFiles,
             labels: pr.labels,
             isDraft: pr.isDraft,
+            requestedReviewers: pr.requestedReviewers,
         };
     }
 
@@ -464,6 +752,10 @@ export class PrService {
             path: comment.path,
             line: comment.line,
             diffHunk: comment.diffHunk,
+            inReplyToId: comment.inReplyToId,
+            threadId: comment.threadId,
+            isResolved: comment.isResolved,
+            resolvedBy: comment.resolvedBy,
         };
     }
 }
