@@ -336,4 +336,42 @@ export class GitService {
         // --show-current returns empty string on detached HEAD
         return stdout || 'HEAD (detached)';
     }
+
+    /**
+     * Return the remote URL for 'origin' (or undefined if not set).
+     */
+    async getRemoteUrl(): Promise<string | undefined> {
+        const { stdout, exitCode } = await this.execGit('remote get-url origin');
+        if (exitCode !== 0 || !stdout) {
+            return undefined;
+        }
+        return stdout;
+    }
+
+    /**
+     * Parse the GitHub owner/repo from the origin remote URL.
+     * Supports HTTPS (`https://github.com/owner/repo.git`) and
+     * SSH (`git@github.com:owner/repo.git`) formats.
+     *
+     * Returns `{ owner, repo }` or `undefined` if not a GitHub remote.
+     */
+    async getGitHubRepo(): Promise<{ owner: string; repo: string } | undefined> {
+        const url = await this.getRemoteUrl();
+        if (!url) {
+            return undefined;
+        }
+        return GitService.parseGitHubUrl(url);
+    }
+
+    /**
+     * Static parser for GitHub remote URLs. Useful for testing.
+     */
+    static parseGitHubUrl(url: string): { owner: string; repo: string } | undefined {
+        // HTTPS: https://github.com/owner/repo.git
+        const httpsMatch = url.match(/github\.com[/:]([^/]+)\/([^/.]+?)(?:\.git)?$/i);
+        if (httpsMatch) {
+            return { owner: httpsMatch[1], repo: httpsMatch[2] };
+        }
+        return undefined;
+    }
 }

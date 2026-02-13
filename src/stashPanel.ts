@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { GitService, StashEntry, StashFileEntry } from './gitService';
 import { AuthService } from './authService';
 import { GistService } from './gistService';
+import { PrService } from './prService';
 import { formatRelativeTime, getConfig } from './utils';
 
 /**
@@ -16,6 +17,7 @@ export class StashPanel {
     private readonly _gitService: GitService;
     private readonly _authService: AuthService | undefined;
     private readonly _gistService: GistService | undefined;
+    private readonly _prService: PrService | undefined;
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
     private _isReady = false;
@@ -40,6 +42,7 @@ export class StashPanel {
         gitService: GitService,
         authService?: AuthService,
         gistService?: GistService,
+        prService?: PrService,
     ): StashPanel {
         const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -61,6 +64,7 @@ export class StashPanel {
             gitService,
             authService,
             gistService,
+            prService,
         );
         return StashPanel._instance;
     }
@@ -71,12 +75,14 @@ export class StashPanel {
         gitService: GitService,
         authService?: AuthService,
         gistService?: GistService,
+        prService?: PrService,
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._gitService = gitService;
         this._authService = authService;
         this._gistService = gistService;
+        this._prService = prService;
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
         this._panel.webview.html = this._getHtml();
@@ -95,6 +101,13 @@ export class StashPanel {
     public openNote(noteId: string): void {
         if (this._isReady) {
             this._panel.webview.postMessage({ type: 'openNote', noteId });
+        }
+    }
+
+    /** Deep-link: switch to PRs tab and select a specific PR. */
+    public openPR(prNumber: number): void {
+        if (this._isReady) {
+            this._panel.webview.postMessage({ type: 'openPR', prNumber });
         }
     }
 
@@ -174,6 +187,10 @@ export class StashPanel {
         content?: string;
         isPublic?: boolean;
         targetNoteId?: string;
+        // PR message properties
+        prNumber?: number;
+        body?: string;
+        state?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -181,6 +198,7 @@ export class StashPanel {
                 await this._refresh();
                 await this._sendAuthStatus();
                 await this._refreshNotes();
+                await this._refreshPRs();
                 break;
 
             case 'refresh':
@@ -488,6 +506,81 @@ export class StashPanel {
                     });
                 }
                 break;
+
+            // ─── PR messages from webview ───
+
+            case 'prs.refresh':
+                await this._refreshPRs();
+                break;
+
+            case 'prs.signIn':
+                await vscode.commands.executeCommand('workstash.prs.signIn');
+                await this._sendAuthStatus();
+                await this._refreshPRs();
+                break;
+
+            case 'prs.filter':
+                // State filter changed in webview — re-fetch with new filter
+                if (msg.state) {
+                    await this._refreshPRs(msg.state as 'open' | 'closed' | 'merged' | 'all');
+                }
+                break;
+
+            case 'prs.getComments':
+                if (msg.prNumber !== undefined) {
+                    await this._sendPRComments(msg.prNumber);
+                }
+                break;
+
+            case 'prs.createComment':
+                if (msg.prNumber !== undefined && msg.body && this._prService) {
+                    try {
+                        const repoInfo = await this._gitService.getGitHubRepo();
+                        if (!repoInfo) {
+                            break;
+                        }
+                        this._panel.webview.postMessage({ type: 'prCommentSaving' });
+                        const comment = await this._prService.createComment(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.prNumber,
+                            msg.body,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'prCommentCreated',
+                            comment: PrService.toCommentData(comment),
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to post comment: ${m}`);
+                        this._panel.webview.postMessage({ type: 'prError', message: m });
+                    }
+                }
+                break;
+
+            case 'prs.openInBrowser':
+                if (msg.prNumber !== undefined) {
+                    const repoInfo = await this._gitService.getGitHubRepo();
+                    if (repoInfo) {
+                        const url = `https://github.com/${repoInfo.owner}/${repoInfo.repo}/pull/${msg.prNumber}`;
+                        await vscode.env.openExternal(vscode.Uri.parse(url));
+                    }
+                }
+                break;
+
+            case 'prs.copyComment':
+                if (msg.body) {
+                    await vscode.env.clipboard.writeText(msg.body);
+                    vscode.window.showInformationMessage('Comment copied to clipboard');
+                }
+                break;
+
+            case 'prs.copyAllComments':
+                if (msg.body) {
+                    await vscode.env.clipboard.writeText(msg.body);
+                    vscode.window.showInformationMessage('All comments copied to clipboard');
+                }
+                break;
         }
     }
 
@@ -534,6 +627,77 @@ export class StashPanel {
         }
     }
 
+    /** Fetch PRs from PrService and send to webview. */
+    private async _refreshPRs(state?: 'open' | 'closed' | 'merged' | 'all'): Promise<void> {
+        if (!this._prService || !this._authService) {
+            return;
+        }
+        try {
+            const isAuth = await this._authService.isAuthenticated();
+            if (!isAuth) {
+                return;
+            }
+
+            const repoInfo = await this._gitService.getGitHubRepo();
+            if (!repoInfo) {
+                this._panel.webview.postMessage({ type: 'prRepoNotFound' });
+                return;
+            }
+
+            this._panel.webview.postMessage({ type: 'prsLoading' });
+
+            let username: string | undefined;
+            try {
+                username = await this._prService.getAuthenticatedUser();
+            } catch {
+                /* fallback: no author filter */
+            }
+
+            const prs = await this._prService.listPullRequests(
+                repoInfo.owner,
+                repoInfo.repo,
+                state ?? 'open',
+                username,
+            );
+            const payload = prs.map((pr) => PrService.toData(pr));
+            this._panel.webview.postMessage({ type: 'prsData', payload });
+        } catch (e: unknown) {
+            const m = e instanceof Error ? e.message : 'Unknown error';
+            this._panel.webview.postMessage({ type: 'prError', message: m });
+        }
+    }
+
+    /** Fetch comments for a specific PR and send to webview. */
+    private async _sendPRComments(prNumber: number): Promise<void> {
+        if (!this._prService) {
+            return;
+        }
+        try {
+            const repoInfo = await this._gitService.getGitHubRepo();
+            if (!repoInfo) {
+                return;
+            }
+
+            this._panel.webview.postMessage({ type: 'prCommentsLoading', prNumber });
+
+            // Get both the full PR detail and the comments
+            const [pr, comments] = await Promise.all([
+                this._prService.getPullRequest(repoInfo.owner, repoInfo.repo, prNumber),
+                this._prService.getComments(repoInfo.owner, repoInfo.repo, prNumber),
+            ]);
+
+            this._panel.webview.postMessage({
+                type: 'prComments',
+                prNumber,
+                prDetail: PrService.toData(pr),
+                comments: comments.map((c) => PrService.toCommentData(c)),
+            });
+        } catch (e: unknown) {
+            const m = e instanceof Error ? e.message : 'Unknown error';
+            this._panel.webview.postMessage({ type: 'prError', message: m });
+        }
+    }
+
     /** Build the shell HTML that loads the bundled React app + Tailwind CSS. */
     private _getHtml(): string {
         const webview = this._panel.webview;
@@ -552,7 +716,7 @@ export class StashPanel {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+        content="default-src 'none'; img-src https://avatars.githubusercontent.com ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
     <link rel="stylesheet" href="${styleUri}">
     <title>Workstash</title>
 </head>

@@ -7,7 +7,7 @@
 
 MyStash is a VS Code extension that gives users a rich sidebar UI for managing git stashes — creating, viewing, applying, popping, dropping, and inspecting stash contents with side-by-side diffs.
 
-- **Repository**: `shanemiller89/mystash` on GitHub
+- **Repository**: `shanemiller89/workstash` on GitHub
 - **Branch strategy**: `main` (single branch for now)
 - **Punch list**: See `PUNCHLIST.md` for the full task tracker with dependency graph and implementation order.
 

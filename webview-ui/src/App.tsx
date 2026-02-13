@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useStashStore, type StashData } from './store';
 import { useNotesStore, type GistNoteData } from './notesStore';
+import { usePRStore, type PullRequestData, type PRCommentData } from './prStore';
 import { useAppStore } from './appStore';
 import { onMessage, postMessage } from './vscode';
 import { StashList } from './components/StashList';
 import { StashDetail } from './components/StashDetail';
 import { TabBar } from './components/TabBar';
 import { NotesTab } from './components/NotesTab';
+import { PRsTab } from './components/PRsTab';
 
 /** Breakpoint: below this the layout switches to narrow (replace) mode */
 const NARROW_BREAKPOINT = 640;
@@ -189,6 +191,63 @@ export const App: React.FC = () => {
                         notesStore.selectNote(msg.targetNoteId as string);
                     }
                     break;
+
+                // ─── PR messages ───
+                case 'prsData': {
+                    const prStore = usePRStore.getState();
+                    prStore.setPRs(msg.payload as PullRequestData[]);
+                    break;
+                }
+                case 'prsLoading': {
+                    const prStore = usePRStore.getState();
+                    prStore.setLoading(true);
+                    break;
+                }
+                case 'prRepoNotFound': {
+                    const prStore = usePRStore.getState();
+                    prStore.setRepoNotFound(true);
+                    break;
+                }
+                case 'prComments': {
+                    const prStore = usePRStore.getState();
+                    if (msg.prDetail) {
+                        prStore.setPRDetail(msg.prDetail as PullRequestData);
+                    }
+                    prStore.setComments(msg.comments as PRCommentData[]);
+                    break;
+                }
+                case 'prCommentsLoading': {
+                    const prStore = usePRStore.getState();
+                    prStore.setCommentsLoading(true);
+                    break;
+                }
+                case 'prCommentSaving': {
+                    const prStore = usePRStore.getState();
+                    prStore.setCommentSaving(true);
+                    break;
+                }
+                case 'prCommentCreated': {
+                    const prStore = usePRStore.getState();
+                    prStore.addComment(msg.comment as PRCommentData);
+                    break;
+                }
+                case 'prError': {
+                    const prStore = usePRStore.getState();
+                    prStore.setLoading(false);
+                    prStore.setCommentsLoading(false);
+                    prStore.setCommentSaving(false);
+                    break;
+                }
+
+                // ─── Deep-link: open a specific PR ───
+                case 'openPR':
+                    appStore.setActiveTab('prs');
+                    if (msg.prNumber) {
+                        const prStore = usePRStore.getState();
+                        prStore.selectPR(msg.prNumber as number);
+                        postMessage('prs.getComments', { prNumber: msg.prNumber });
+                    }
+                    break;
             }
         });
 
@@ -202,7 +261,13 @@ export const App: React.FC = () => {
         <div className="h-screen bg-bg text-fg text-[13px] flex flex-col">
             <TabBar />
             <div className="flex-1 overflow-hidden">
-                {activeTab === 'stashes' ? <StashesTab /> : <NotesTab />}
+                {activeTab === 'stashes' ? (
+                    <StashesTab />
+                ) : activeTab === 'notes' ? (
+                    <NotesTab />
+                ) : (
+                    <PRsTab />
+                )}
             </div>
         </div>
     );

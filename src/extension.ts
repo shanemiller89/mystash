@@ -12,6 +12,9 @@ import { AuthService } from './authService';
 import { GistService } from './gistService';
 import { GistNotesProvider } from './gistNotesProvider';
 import { GistNoteItem } from './gistNoteItem';
+import { PrService } from './prService';
+import { PrProvider } from './prProvider';
+import { PrItem } from './prItem';
 import { pickStash } from './uiUtils';
 import { getConfig } from './utils';
 
@@ -61,6 +64,38 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         authService.onDidChangeAuthentication(() => {
             gistNotesProvider.refresh('auth-changed');
+        }),
+    );
+
+    // ─── PR Feature ───────────────────────────────────────────────
+
+    // PrService — GitHub Pull Request API
+    const prService = new PrService(authService, outputChannel);
+
+    // PrProvider — tree data provider for PRs sidebar
+    const prProvider = new PrProvider(prService, gitService, authService, outputChannel);
+    context.subscriptions.push(prProvider);
+
+    // Register the pull requests tree view
+    const prTreeView = vscode.window.createTreeView('pullRequestsView', {
+        treeDataProvider: prProvider,
+        showCollapseAll: false,
+        canSelectMany: false,
+    });
+    context.subscriptions.push(prTreeView);
+    prProvider.setTreeView(prTreeView);
+
+    // Set isGitHubRepo context key
+    const updateGitHubRepoContext = async () => {
+        const ghRepo = await gitService.getGitHubRepo();
+        await vscode.commands.executeCommand('setContext', 'workstash.isGitHubRepo', !!ghRepo);
+    };
+    updateGitHubRepoContext();
+
+    // Refresh PRs when auth state changes
+    context.subscriptions.push(
+        authService.onDidChangeAuthentication(() => {
+            prProvider.refresh('auth-changed');
         }),
     );
 
@@ -118,6 +153,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.onDidChangeWindowState((state) => {
             if (state.focused && getConfig<boolean>('autoRefresh', true)) {
                 stashProvider.refresh('window-focus');
+                prProvider.refresh('window-focus');
             }
         }),
     );
@@ -427,7 +463,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('mystash.openPanel', () => {
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService);
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService);
         }),
     );
 
@@ -659,7 +695,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the note in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService);
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService);
             StashPanel.currentPanel?.openNote(item.note.id);
         }),
     );
@@ -842,6 +878,96 @@ export function activate(context: vscode.ExtensionContext) {
                 stashProvider.refresh('post-command');
             },
         ),
+    );
+
+    // ─── PR commands ───
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.prs.refresh', () => {
+            prProvider.refresh('manual');
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.prs.open', async (item?: PrItem) => {
+            if (!item) {
+                return;
+            }
+            // Open the PR in the webview panel
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService);
+            StashPanel.currentPanel?.openPR(item.pr.number);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.prs.openInBrowser', async (item?: PrItem) => {
+            if (!item) {
+                return;
+            }
+            await vscode.env.openExternal(vscode.Uri.parse(item.pr.htmlUrl));
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.prs.signIn', async () => {
+            const session = await authService.signIn();
+            if (session) {
+                vscode.window.showInformationMessage(
+                    `Signed in to GitHub as ${session.account.label}`,
+                );
+            }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.prs.filter', async () => {
+            const current = prProvider.stateFilter;
+            const items: vscode.QuickPickItem[] = [
+                { label: 'Open', description: current === 'open' ? '(current)' : '' },
+                { label: 'Merged', description: current === 'merged' ? '(current)' : '' },
+                { label: 'Closed', description: current === 'closed' ? '(current)' : '' },
+                { label: 'All', description: current === 'all' ? '(current)' : '' },
+            ];
+            const choice = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Filter pull requests by state',
+            });
+            if (!choice) {
+                return;
+            }
+            const stateMap: Record<string, 'open' | 'merged' | 'closed' | 'all'> = {
+                Open: 'open',
+                Merged: 'merged',
+                Closed: 'closed',
+                All: 'all',
+            };
+            prProvider.setStateFilter(stateMap[choice.label] ?? 'open');
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.prs.search', async () => {
+            const query = await vscode.window.showInputBox({
+                prompt: 'Search pull requests by title, number, or branch',
+                placeHolder: 'e.g. fix, #42, feature/auth',
+                value: prProvider.searchQuery,
+            });
+            if (query === undefined) {
+                return;
+            }
+            prProvider.setSearchQuery(query);
+            await vscode.commands.executeCommand(
+                'setContext',
+                'workstash.prs.isSearching',
+                query.length > 0,
+            );
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.prs.clearSearch', () => {
+            prProvider.setSearchQuery('');
+            vscode.commands.executeCommand('setContext', 'workstash.prs.isSearching', false);
+        }),
     );
 }
 

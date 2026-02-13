@@ -121,7 +121,7 @@ All commands are available via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+
 ### Setup
 
 ```bash
-git clone https://github.com/shanemiller89/mystash.git
+git clone https://github.com/shanemiller89/workstash.git
 cd mystash
 npm install
 ```

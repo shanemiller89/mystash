@@ -12,11 +12,11 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/shanemiller89/mystash"
+        "url": "https://github.com/shanemiller89/workstash"
     },
-    "homepage": "https://github.com/shanemiller89/mystash#readme",
+    "homepage": "https://github.com/shanemiller89/workstash#readme",
     "bugs": {
-        "url": "https://github.com/shanemiller89/mystash/issues"
+        "url": "https://github.com/shanemiller89/workstash/issues"
     },
     "engines": {
         "vscode": "^1.106.0"
@@ -130,6 +130,13 @@
                     "icon": "$(note)",
                     "contextualTitle": "Workstash",
                     "visibility": "visible"
+                },
+                {
+                    "id": "pullRequestsView",
+                    "name": "Pull Requests",
+                    "icon": "$(git-pull-request)",
+                    "contextualTitle": "Workstash",
+                    "visibility": "visible"
                 }
             ]
         },
@@ -158,6 +165,21 @@
                 "view": "gistNotesView",
                 "contents": "No notes yet.\nCreate a note to get started.\n[Create Note](command:workstash.notes.create)",
                 "when": "workstash.isAuthenticated && !workstash.hasNotes"
+            },
+            {
+                "view": "pullRequestsView",
+                "contents": "Sign in to GitHub to see your pull requests.\n[Sign In to GitHub](command:workstash.prs.signIn)",
+                "when": "!workstash.isAuthenticated"
+            },
+            {
+                "view": "pullRequestsView",
+                "contents": "Not a GitHub repository.\nPull requests require a GitHub remote.",
+                "when": "workstash.isAuthenticated && !workstash.isGitHubRepo"
+            },
+            {
+                "view": "pullRequestsView",
+                "contents": "No pull requests found.\n[Refresh](command:workstash.prs.refresh)",
+                "when": "workstash.isAuthenticated && workstash.isGitHubRepo && !workstash.hasPRs"
             }
         ],
         "commands": [
@@ -303,6 +325,48 @@
                 "title": "Clear Notes Search",
                 "category": "Workstash",
                 "icon": "$(close)"
+            },
+            {
+                "command": "workstash.prs.refresh",
+                "title": "Refresh Pull Requests",
+                "category": "Workstash",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "workstash.prs.open",
+                "title": "Open Pull Request",
+                "category": "Workstash",
+                "icon": "$(go-to-file)"
+            },
+            {
+                "command": "workstash.prs.openInBrowser",
+                "title": "Open PR in Browser",
+                "category": "Workstash",
+                "icon": "$(link-external)"
+            },
+            {
+                "command": "workstash.prs.signIn",
+                "title": "Sign In for Pull Requests",
+                "category": "Workstash",
+                "icon": "$(sign-in)"
+            },
+            {
+                "command": "workstash.prs.filter",
+                "title": "Filter Pull Requests",
+                "category": "Workstash",
+                "icon": "$(filter)"
+            },
+            {
+                "command": "workstash.prs.search",
+                "title": "Search Pull Requests",
+                "category": "Workstash",
+                "icon": "$(search)"
+            },
+            {
+                "command": "workstash.prs.clearSearch",
+                "title": "Clear PR Search",
+                "category": "Workstash",
+                "icon": "$(close)"
             }
         ],
         "menus": {
@@ -364,6 +428,31 @@
                 {
                     "command": "workstash.notes.signOut",
                     "when": "view == gistNotesView && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.prs.refresh",
+                    "when": "view == pullRequestsView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.prs.filter",
+                    "when": "view == pullRequestsView && workstash.isAuthenticated",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.prs.search",
+                    "when": "view == pullRequestsView && !workstash.prs.isSearching",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.prs.clearSearch",
+                    "when": "view == pullRequestsView && workstash.prs.isSearching",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.prs.signIn",
+                    "when": "view == pullRequestsView && !workstash.isAuthenticated",
+                    "group": "navigation"
                 }
             ],
             "view/item/context": [
@@ -456,6 +545,26 @@
                     "command": "workstash.notes.delete",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "2_destructive"
+                },
+                {
+                    "command": "workstash.prs.open",
+                    "when": "view == pullRequestsView && viewItem =~ /^prItem/",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "workstash.prs.openInBrowser",
+                    "when": "view == pullRequestsView && viewItem =~ /^prItem/",
+                    "group": "inline@2"
+                },
+                {
+                    "command": "workstash.prs.open",
+                    "when": "view == pullRequestsView && viewItem =~ /^prItem/",
+                    "group": "1_pr@1"
+                },
+                {
+                    "command": "workstash.prs.openInBrowser",
+                    "when": "view == pullRequestsView && viewItem =~ /^prItem/",
+                    "group": "1_pr@2"
                 }
             ],
             "commandPalette": [
@@ -554,6 +663,34 @@
                 {
                     "command": "workstash.notes.clearSearch",
                     "when": "workspaceFolderCount > 0 && workstash.notes.isSearching"
+                },
+                {
+                    "command": "workstash.prs.refresh",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.prs.open",
+                    "when": "false"
+                },
+                {
+                    "command": "workstash.prs.openInBrowser",
+                    "when": "false"
+                },
+                {
+                    "command": "workstash.prs.signIn",
+                    "when": "workspaceFolderCount > 0 && !workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.prs.filter",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.prs.search",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.prs.clearSearch",
+                    "when": "workspaceFolderCount > 0 && workstash.prs.isSearching"
                 }
             ]
         },

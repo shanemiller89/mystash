@@ -10,6 +10,9 @@
 				"npm: watch:esbuild",
 				"npm: watch:webview"
 			],
+			"dependsOrder": "parallel",
+			"isBackground": true,
+			"problemMatcher": [],
 			"presentation": {
 				"reveal": "never"
 			},
@@ -51,6 +54,18 @@
 			"presentation": {
 				"group": "watch",
 				"reveal": "never"
+			},
+			"problemMatcher": {
+				"owner": "vite-watch",
+				"fileLocation": "absolute",
+				"pattern": {
+					"regexp": "^$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "\\[watch\\] build started",
+					"endsPattern": "\\[watch\\] build finished"
+				}
 			}
 		},
 		{
