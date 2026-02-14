@@ -109,6 +109,16 @@
                     "type": "string",
                     "default": "",
                     "description": "Mattermost server URL (e.g. https://mattermost.example.com). Required for Mattermost integration."
+                },
+                "workstash.ai.includeSecretGists": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Include secret Gist note content when gathering AI context for summaries, chat, and agent analysis. When disabled, only public notes are shared with the language model."
+                },
+                "workstash.ai.includePrivateMessages": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Include direct messages and group messages from Mattermost when gathering AI context. When disabled, only public and private channel posts are shared with the language model."
                 }
             }
         },

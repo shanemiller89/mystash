@@ -7,6 +7,7 @@ import { ProjectDetail } from './ProjectDetail';
 import { ProjectBoardView } from './ProjectBoardView';
 import { ProjectTableView } from './ProjectTableView';
 import { ResizableLayout } from './ResizableLayout';
+import { TabWithSummary } from './TabWithSummary';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {
@@ -139,8 +140,9 @@ export const ProjectsTab: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col">
-            {/* ── Shared header ─────────────────────────────────── */}
+        <TabWithSummary tabKey="projects">
+            <div className="h-full flex flex-col">
+                {/* ── Shared header ─────────────────────────────────── */}
             <div className="flex-shrink-0 border-b border-border">
                 {/* Project selector */}
                 {availableProjects.length > 1 && (
@@ -269,6 +271,7 @@ export const ProjectsTab: React.FC = () => {
                 )}
             </div>
         </div>
+        </TabWithSummary>
     );
 };
 

@@ -3,6 +3,7 @@ import { useIssueStore } from '../issueStore';
 import { IssueList } from './IssueList';
 import { IssueDetail } from './IssueDetail';
 import { ResizableLayout } from './ResizableLayout';
+import { TabWithSummary } from './TabWithSummary';
 
 export const IssuesTab: React.FC = () => {
     const selectedIssueNumber = useIssueStore((s) => s.selectedIssueNumber);
@@ -15,13 +16,15 @@ export const IssuesTab: React.FC = () => {
     const hasSelection = selectedIssueNumber !== null;
 
     return (
-        <ResizableLayout
-            storageKey="issues"
-            hasSelection={hasSelection}
-            backLabel="Back to Issues"
-            onBack={handleCloseDetail}
-            listContent={<IssueList />}
-            detailContent={<IssueDetail onClose={handleCloseDetail} />}
-        />
+        <TabWithSummary tabKey="issues">
+            <ResizableLayout
+                storageKey="issues"
+                hasSelection={hasSelection}
+                backLabel="Back to Issues"
+                onBack={handleCloseDetail}
+                listContent={<IssueList />}
+                detailContent={<IssueDetail onClose={handleCloseDetail} />}
+            />
+        </TabWithSummary>
     );
 };

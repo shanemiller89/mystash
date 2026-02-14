@@ -1,0 +1,344 @@
+import * as vscode from 'vscode';
+
+/** Lightweight model descriptor safe for serialization to the webview. */
+export interface AiModelInfo {
+    id: string;
+    name: string;
+    vendor: string;
+    family: string;
+}
+
+/** Which purpose a model is assigned to. */
+export type AiModelPurpose = 'summary' | 'chat' | 'agent';
+
+/**
+ * AiService — uses the VS Code Language Model API (Copilot) to generate
+ * summaries and answer questions about workspace data.
+ */
+export class AiService {
+    private readonly _outputChannel: vscode.OutputChannel;
+
+    /** Per-purpose model overrides. Key = purpose, value = model id. */
+    private _modelOverrides: Record<string, string> = {};
+
+    constructor(outputChannel: vscode.OutputChannel) {
+        this._outputChannel = outputChannel;
+    }
+
+    // ─── Model management ─────────────────────────────────────────
+
+    /** List all available chat models. */
+    async listModels(): Promise<AiModelInfo[]> {
+        try {
+            const models = await vscode.lm.selectChatModels();
+            return models.map((m) => ({
+                id: m.id,
+                name: m.name,
+                vendor: m.vendor,
+                family: m.family,
+            }));
+        } catch (e: unknown) {
+            this._outputChannel.appendLine(
+                `[AI] Failed to list models: ${e instanceof Error ? e.message : e}`,
+            );
+            return [];
+        }
+    }
+
+    /** Set a model override for a specific purpose. Pass empty string to clear. */
+    setModel(purpose: AiModelPurpose, modelId: string): void {
+        if (modelId) {
+            this._modelOverrides[purpose] = modelId;
+            this._outputChannel.appendLine(`[AI] Model for ${purpose} set to: ${modelId}`);
+        } else {
+            delete this._modelOverrides[purpose];
+            this._outputChannel.appendLine(`[AI] Model for ${purpose} reset to default`);
+        }
+    }
+
+    /** Get the current model assignments. */
+    getModelAssignments(): Record<string, string> {
+        return { ...this._modelOverrides };
+    }
+
+    /**
+     * Select a chat model for a specific purpose.
+     * Uses the per-purpose override if set, otherwise falls back to gpt-4o → any copilot.
+     */
+    private async _selectModel(purpose?: AiModelPurpose): Promise<vscode.LanguageModelChat | undefined> {
+        try {
+            // Check for per-purpose override
+            const overrideId = purpose ? this._modelOverrides[purpose] : undefined;
+            if (overrideId) {
+                const byId = await vscode.lm.selectChatModels({ id: overrideId });
+                if (byId.length > 0) {
+                    this._outputChannel.appendLine(`[AI] Using override model for ${purpose}: ${byId[0].name}`);
+                    return byId[0];
+                }
+                this._outputChannel.appendLine(`[AI] Override model ${overrideId} not found, falling back`);
+            }
+
+            // Try gpt-4o first
+            const preferred = await vscode.lm.selectChatModels({
+                vendor: 'copilot',
+                family: 'gpt-4o',
+            });
+            if (preferred.length > 0) {
+                return preferred[0];
+            }
+
+            // Fall back to any copilot model
+            const fallback = await vscode.lm.selectChatModels({ vendor: 'copilot' });
+            if (fallback.length > 0) {
+                return fallback[0];
+            }
+
+            this._outputChannel.appendLine('[AI] No language models available');
+            return undefined;
+        } catch (e: unknown) {
+            this._outputChannel.appendLine(
+                `[AI] Failed to select model: ${e instanceof Error ? e.message : e}`,
+            );
+            return undefined;
+        }
+    }
+
+    /**
+     * Generate a summary for a specific tab's data.
+     */
+    async summarize(
+        tabKey: string,
+        contextData: string,
+        customSystemPrompt?: string,
+        token?: vscode.CancellationToken,
+    ): Promise<string> {
+        const model = await this._selectModel('summary');
+        if (!model) {
+            throw new Error('No AI model available. Make sure GitHub Copilot is installed and signed in.');
+        }
+
+        const systemPrompt = customSystemPrompt?.trim() ||
+            `You are a concise development assistant embedded in a VS Code extension called WorkStash. 
+Your job is to summarize workspace data into a brief, actionable status card.
+Use short, scannable bullet points — not full sentences. Use emoji sparingly for visual cues.
+Focus on what's actionable: what needs attention, what changed recently, key stats.
+You may use **bold** for emphasis and bullet lists. Keep it under 150 words.
+Do NOT use markdown headers (##) in brief summaries.`;
+
+        const userPrompt = this._buildSummaryPrompt(tabKey, contextData);
+
+        const messages = [
+            vscode.LanguageModelChatMessage.User(systemPrompt),
+            vscode.LanguageModelChatMessage.User(userPrompt),
+        ];
+
+        try {
+            const response = await model.sendRequest(messages, {}, token);
+            let result = '';
+            for await (const chunk of response.text) {
+                result += chunk;
+            }
+            return result.trim();
+        } catch (e: unknown) {
+            if (e instanceof vscode.LanguageModelError) {
+                this._outputChannel.appendLine(`[AI] LM error: ${e.message} (${e.code})`);
+                throw new Error(`AI request failed: ${e.message}`);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Chat: answer a user question using all available workspace context.
+     * Streams the response back via a callback.
+     */
+    async chat(
+        question: string,
+        contextData: string,
+        history: Array<{ role: 'user' | 'assistant'; content: string }>,
+        onChunk: (chunk: string) => void,
+        token?: vscode.CancellationToken,
+    ): Promise<string> {
+        const model = await this._selectModel('chat');
+        if (!model) {
+            throw new Error('No AI model available. Make sure GitHub Copilot is installed and signed in.');
+        }
+
+        const systemPrompt = `You are a helpful development assistant embedded in a VS Code extension called WorkStash.
+You have access to the user's workspace data: git stashes, GitHub PRs, Issues, Projects, Gist notes, and Mattermost chat.
+Answer questions about this data concisely and accurately. Reference specific items by number/name when relevant.
+If the data doesn't contain the answer, say so. Use markdown formatting for readability.
+Keep answers focused and under 300 words unless the user asks for detail.`;
+
+        const messages: vscode.LanguageModelChatMessage[] = [
+            vscode.LanguageModelChatMessage.User(systemPrompt),
+            vscode.LanguageModelChatMessage.User(
+                `Here is the current workspace data:\n\n${contextData}\n\nUse this data to answer the user's questions.`,
+            ),
+        ];
+
+        // Add conversation history
+        for (const msg of history.slice(-10)) {
+            if (msg.role === 'user') {
+                messages.push(vscode.LanguageModelChatMessage.User(msg.content));
+            } else {
+                messages.push(vscode.LanguageModelChatMessage.Assistant(msg.content));
+            }
+        }
+
+        // Add current question
+        messages.push(vscode.LanguageModelChatMessage.User(question));
+
+        try {
+            const response = await model.sendRequest(messages, {}, token);
+            let result = '';
+            for await (const chunk of response.text) {
+                result += chunk;
+                onChunk(chunk);
+            }
+            return result.trim();
+        } catch (e: unknown) {
+            if (e instanceof vscode.LanguageModelError) {
+                this._outputChannel.appendLine(`[AI] LM error: ${e.message} (${e.code})`);
+                throw new Error(`AI request failed: ${e.message}`);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Build a tab-specific summary prompt.
+     */
+    private _buildSummaryPrompt(tabKey: string, contextData: string): string {
+        const tabLabels: Record<string, string> = {
+            stashes: 'Git Stashes',
+            prs: 'Pull Requests',
+            issues: 'Issues',
+            projects: 'Projects',
+            notes: 'Gist Notes',
+            mattermost: 'Mattermost Chat',
+        };
+
+        const label = tabLabels[tabKey] ?? tabKey;
+
+        return `Summarize the current state of the user's ${label} data into a brief status card.
+Focus on: counts, what needs attention, recent activity, and any actionable items.
+
+Data:
+${contextData}`;
+    }
+
+    // ─── Agent templates ──────────────────────────────────────────
+
+    private static readonly AGENT_TEMPLATES: Record<string, string> = {
+        sprint: `You are a senior engineering manager creating a sprint status report.
+Analyze ALL the workspace data provided and produce a comprehensive sprint overview with these sections:
+## Sprint Overview
+- Overall velocity and health assessment
+## Pull Requests
+- PRs ready to merge, PRs needing review, stale PRs
+## Issues & Projects
+- Open issues by priority/label, project board status, blockers
+## Code Activity
+- Stash activity (work-in-progress indicators), branch patterns
+## Team Communication
+- Mattermost highlights, unread threads, action items from chat
+## Recommendations
+- Top 3 actions the team should take today
+
+Use markdown formatting. Be specific — reference PR numbers, issue titles, etc.`,
+
+        review: `You are a senior code reviewer analyzing the workspace for code review status.
+Produce a detailed code review report:
+## Review Dashboard
+- PRs awaiting review (list each with age, author, size)
+- PRs with unresolved comments
+- PRs with requested changes
+## Risk Assessment
+- Large PRs (high additions/deletions) that need careful review
+- PRs that have been open longest
+- Draft PRs that might need help
+## Suggested Review Order
+- Prioritized list of which PRs to review first and why
+## Related Issues
+- Link PRs to their related issues where possible
+
+Be specific with PR numbers and issue references.`,
+
+        activity: `You are a team activity analyst reviewing the workspace.
+Produce a team activity summary:
+## Today's Snapshot
+- What changed recently across all data sources
+- New PRs, closed issues, updated projects
+## Work In Progress
+- Active stashes (uncommitted work)
+- Open draft PRs
+- Issues in progress
+## Communication
+- Mattermost channel activity, any mentions or urgent messages
+- Notes recently updated
+## Attention Needed
+- Items that may be blocked or stale
+- Anything that looks unusual or needs follow-up
+
+Keep it scannable with bullet points.`,
+
+        custom: `You are an expert development assistant with deep knowledge of software workflows.
+Analyze the workspace data provided and respond to the user's custom prompt.
+Be thorough, specific, and reference actual data items by name/number.
+Use markdown formatting with clear sections.`,
+    };
+
+    /**
+     * Agent: deep analysis using a template or custom prompt.
+     * Streams the response back via a callback.
+     */
+    async agentAnalysis(
+        template: string,
+        customPrompt: string,
+        contextData: string,
+        onChunk: (chunk: string) => void,
+        token?: vscode.CancellationToken,
+        customSystemPrompt?: string,
+    ): Promise<string> {
+        const model = await this._selectModel('agent');
+        if (!model) {
+            throw new Error('No AI model available. Make sure GitHub Copilot is installed and signed in.');
+        }
+
+        const systemPrompt = customSystemPrompt?.trim() ||
+            AiService.AGENT_TEMPLATES[template] ||
+            AiService.AGENT_TEMPLATES['custom'];
+
+        const messages: vscode.LanguageModelChatMessage[] = [
+            vscode.LanguageModelChatMessage.User(systemPrompt),
+            vscode.LanguageModelChatMessage.User(
+                `Here is the complete workspace data to analyze:\n\n${contextData}`,
+            ),
+        ];
+
+        if (customPrompt.trim()) {
+            messages.push(
+                vscode.LanguageModelChatMessage.User(
+                    `Additional instructions from the user:\n${customPrompt}`,
+                ),
+            );
+        }
+
+        try {
+            const response = await model.sendRequest(messages, {}, token);
+            let result = '';
+            for await (const chunk of response.text) {
+                result += chunk;
+                onChunk(chunk);
+            }
+            return result.trim();
+        } catch (e: unknown) {
+            if (e instanceof vscode.LanguageModelError) {
+                this._outputChannel.appendLine(`[AI] Agent LM error: ${e.message} (${e.code})`);
+                throw new Error(`AI request failed: ${e.message}`);
+            }
+            throw e;
+        }
+    }
+}

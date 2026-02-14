@@ -5,6 +5,7 @@ import { MattermostChannelList } from './MattermostChannelList';
 import { MattermostChat } from './MattermostChat';
 import { MattermostThreadPanel } from './MattermostThreadPanel';
 import { ErrorBoundary } from './ErrorBoundary';
+import { TabWithSummary } from './TabWithSummary';
 import { MessageSquare } from 'lucide-react';
 
 const NARROW_BREAKPOINT = 640;
@@ -135,54 +136,58 @@ export const MattermostTab: React.FC = () => {
     // Narrow mode: show either list OR chat
     if (isNarrow) {
         return (
-            <div ref={containerRef} className="h-full bg-bg text-fg text-[13px]">
-                {hasSelection ? (
-                    <ChatWithThread onClose={handleCloseDetail} />
-                ) : (
-                    <ErrorBoundary label="Channel List">
-                        <MattermostChannelList />
-                    </ErrorBoundary>
-                )}
-            </div>
+            <TabWithSummary tabKey="mattermost">
+                <div ref={containerRef} className="h-full flex flex-col bg-bg text-fg text-[13px]">
+                    {hasSelection ? (
+                        <ChatWithThread onClose={handleCloseDetail} />
+                    ) : (
+                        <ErrorBoundary label="Channel List">
+                            <MattermostChannelList />
+                        </ErrorBoundary>
+                    )}
+                </div>
+            </TabWithSummary>
         );
     }
 
     // Wide mode: always show list + detail (chat or empty state)
     return (
-        <div ref={containerRef} className="h-full bg-bg text-fg text-[13px]">
-            <Group
-                id="workstash-mattermost"
-                orientation="horizontal"
-                onLayoutChanged={handleLayoutChanged}
-            >
-                <Panel
-                    id="list"
-                    defaultSize={`${defaultListPercent}%`}
-                    minSize="15%"
+        <TabWithSummary tabKey="mattermost">
+            <div ref={containerRef} className="h-full flex flex-col bg-bg text-fg text-[13px]">
+                <Group
+                    id="workstash-mattermost"
+                    orientation="horizontal"
+                    onLayoutChanged={handleLayoutChanged}
                 >
-                    <div className="h-full overflow-hidden">
-                        <ErrorBoundary label="Channel List">
-                            <MattermostChannelList />
-                        </ErrorBoundary>
-                    </div>
-                </Panel>
-                <Separator className="resize-handle" />
-                <Panel
-                    id="detail"
-                    defaultSize={`${100 - defaultListPercent}%`}
-                    minSize="30%"
-                >
-                    <div className="h-full overflow-hidden">
-                        {hasSelection ? (
-                            <ErrorBoundary label="Chat">
-                                <ChatWithThread onClose={handleCloseDetail} />
+                    <Panel
+                        id="list"
+                        defaultSize={`${defaultListPercent}%`}
+                        minSize="15%"
+                    >
+                        <div className="h-full overflow-hidden">
+                            <ErrorBoundary label="Channel List">
+                                <MattermostChannelList />
                             </ErrorBoundary>
-                        ) : (
-                            <EmptyChat />
-                        )}
-                    </div>
-                </Panel>
-            </Group>
-        </div>
+                        </div>
+                    </Panel>
+                    <Separator className="resize-handle" />
+                    <Panel
+                        id="detail"
+                        defaultSize={`${100 - defaultListPercent}%`}
+                        minSize="30%"
+                    >
+                        <div className="h-full overflow-hidden">
+                            {hasSelection ? (
+                                <ErrorBoundary label="Chat">
+                                    <ChatWithThread onClose={handleCloseDetail} />
+                                </ErrorBoundary>
+                            ) : (
+                                <EmptyChat />
+                            )}
+                        </div>
+                    </Panel>
+                </Group>
+            </div>
+        </TabWithSummary>
     );
 };

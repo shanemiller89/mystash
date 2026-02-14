@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAppStore } from '../appStore';
-import { Archive, StickyNote, GitPullRequest, CircleDot, MessageSquare, Kanban } from 'lucide-react';
+import { useAIStore } from '../aiStore';
+import { Archive, StickyNote, GitPullRequest, CircleDot, MessageSquare, Kanban, Bot, Wand2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { RepoSwitcher } from './RepoSwitcher';
 
@@ -10,6 +11,7 @@ const tabs = [
     { key: 'prs' as const, label: 'PRs', Icon: GitPullRequest },
     { key: 'issues' as const, label: 'Issues', Icon: CircleDot },
     { key: 'projects' as const, label: 'Projects', Icon: Kanban },
+    { key: 'agent' as const, label: 'Agent', Icon: Wand2 },
 ] as const;
 
 export const TabBar: React.FC = () => {
@@ -17,6 +19,8 @@ export const TabBar: React.FC = () => {
     const setActiveTab = useAppStore((s) => s.setActiveTab);
 
     const isStashActive = activeTab === 'stashes';
+    const chatPanelOpen = useAIStore((s) => s.chatPanelOpen);
+    const toggleChatPanel = useAIStore((s) => s.toggleChatPanel);
 
     return (
         <div className="flex border-b border-border bg-card flex-shrink-0 select-none">
@@ -57,6 +61,18 @@ export const TabBar: React.FC = () => {
                     title="Stashes"
                 >
                     <Archive size={14} />
+                </Button>
+                <Button
+                    variant="ghost"
+                    className={`rounded-none h-auto px-3 py-2 border-b-2 ${
+                        chatPanelOpen
+                            ? 'border-accent text-accent'
+                            : 'border-transparent text-fg/50 hover:text-fg/80'
+                    }`}
+                    onClick={toggleChatPanel}
+                    title={chatPanelOpen ? 'Close AI Chat' : 'Open AI Chat'}
+                >
+                    <Bot size={14} />
                 </Button>
             </div>
         </div>

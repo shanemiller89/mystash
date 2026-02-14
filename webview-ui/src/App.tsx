@@ -28,6 +28,10 @@ import { ProjectsTab } from './components/ProjectsTab';
 import { MattermostTab } from './components/MattermostTab';
 import { ResizableLayout } from './components/ResizableLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { useAIStore } from './aiStore';
+import { FloatingChat } from './components/FloatingChat';
+import { AgentTab } from './components/AgentTab';
+import { TabWithSummary } from './components/TabWithSummary';
 
 /** Stash master-detail pane (extracted from old App root) */
 const StashesTab: React.FC = () => {
@@ -41,14 +45,16 @@ const StashesTab: React.FC = () => {
     const hasSelection = selectedStashIndex !== null;
 
     return (
-        <ResizableLayout
-            storageKey="stashes"
-            hasSelection={hasSelection}
-            backLabel="Back to list"
-            onBack={handleCloseDetail}
-            listContent={<StashList />}
-            detailContent={<StashDetail onClose={handleCloseDetail} />}
-        />
+        <TabWithSummary tabKey="stashes">
+            <ResizableLayout
+                storageKey="stashes"
+                hasSelection={hasSelection}
+                backLabel="Back to list"
+                onBack={handleCloseDetail}
+                listContent={<StashList />}
+                detailContent={<StashDetail onClose={handleCloseDetail} />}
+            />
+        </TabWithSummary>
     );
 };
 
@@ -816,6 +822,73 @@ export const App: React.FC = () => {
                         });
                     }
                     break;
+
+                // ─── AI Summary & Chat ────────────────────────────────
+                case 'aiSummaryResult': {
+                    const ai = useAIStore.getState();
+                    ai.setSummaryContent(
+                        msg.tabKey as string,
+                        msg.content as string,
+                    );
+                    break;
+                }
+                case 'aiSummaryError': {
+                    const ai = useAIStore.getState();
+                    ai.setSummaryError(
+                        msg.tabKey as string,
+                        msg.error as string,
+                    );
+                    break;
+                }
+                case 'aiChatChunk': {
+                    const ai = useAIStore.getState();
+                    ai.appendToAssistantMessage(
+                        msg.messageId as string,
+                        msg.chunk as string,
+                    );
+                    break;
+                }
+                case 'aiChatDone': {
+                    const ai = useAIStore.getState();
+                    ai.finishAssistantMessage(msg.messageId as string);
+                    break;
+                }
+                case 'aiChatError': {
+                    const ai = useAIStore.getState();
+                    ai.setAssistantError(
+                        msg.messageId as string,
+                        msg.error as string,
+                    );
+                    break;
+                }
+                case 'aiChatStarted': {
+                    const ai = useAIStore.getState();
+                    ai.addAssistantMessage(msg.messageId as string);
+                    break;
+                }
+                case 'aiAgentStarted': {
+                    useAIStore.getState().agentStarted();
+                    break;
+                }
+                case 'aiAgentChunk': {
+                    useAIStore.getState().agentAppendChunk(msg.chunk as string);
+                    break;
+                }
+                case 'aiAgentDone': {
+                    useAIStore.getState().agentDone(msg.content as string);
+                    break;
+                }
+                case 'aiAgentError': {
+                    useAIStore.getState().agentFailed(msg.error as string);
+                    break;
+                }
+                case 'aiModelList': {
+                    useAIStore.getState().setModelList(
+                        msg.models as import('./aiStore').AIModelInfo[],
+                        msg.assignments as Record<string, string>,
+                    );
+                    break;
+                }
             }
         });
 
@@ -825,35 +898,48 @@ export const App: React.FC = () => {
         return dispose;
     }, []);
 
+    const chatPanelOpen = useAIStore((s) => s.chatPanelOpen);
+
     return (
         <div className="h-screen bg-bg text-fg text-[13px] flex flex-col">
             <ErrorBoundary label="TabBar">
                 <TabBar />
             </ErrorBoundary>
-            <div className="flex-1 overflow-hidden">
-                {activeTab === 'stashes' ? (
-                    <ErrorBoundary key="stashes" label="Stashes">
-                        <StashesTab />
-                    </ErrorBoundary>
-                ) : activeTab === 'notes' ? (
-                    <ErrorBoundary key="notes" label="Notes">
-                        <NotesTab />
-                    </ErrorBoundary>
-                ) : activeTab === 'prs' ? (
-                    <ErrorBoundary key="prs" label="Pull Requests">
-                        <PRsTab />
-                    </ErrorBoundary>
-                ) : activeTab === 'issues' ? (
-                    <ErrorBoundary key="issues" label="Issues">
-                        <IssuesTab />
-                    </ErrorBoundary>
-                ) : activeTab === 'projects' ? (
-                    <ErrorBoundary key="projects" label="Projects">
-                        <ProjectsTab />
-                    </ErrorBoundary>
-                ) : (
-                    <ErrorBoundary key="mattermost" label="Mattermost">
-                        <MattermostTab />
+            <div className="flex-1 overflow-hidden relative">
+                <div className="h-full overflow-hidden">
+                    {activeTab === 'stashes' ? (
+                        <ErrorBoundary key="stashes" label="Stashes">
+                            <StashesTab />
+                        </ErrorBoundary>
+                    ) : activeTab === 'notes' ? (
+                        <ErrorBoundary key="notes" label="Notes">
+                            <NotesTab />
+                        </ErrorBoundary>
+                    ) : activeTab === 'prs' ? (
+                        <ErrorBoundary key="prs" label="Pull Requests">
+                            <PRsTab />
+                        </ErrorBoundary>
+                    ) : activeTab === 'issues' ? (
+                        <ErrorBoundary key="issues" label="Issues">
+                            <IssuesTab />
+                        </ErrorBoundary>
+                    ) : activeTab === 'projects' ? (
+                        <ErrorBoundary key="projects" label="Projects">
+                            <ProjectsTab />
+                        </ErrorBoundary>
+                    ) : activeTab === 'agent' ? (
+                        <ErrorBoundary key="agent" label="Agent">
+                            <AgentTab />
+                        </ErrorBoundary>
+                    ) : (
+                        <ErrorBoundary key="mattermost" label="Mattermost">
+                            <MattermostTab />
+                        </ErrorBoundary>
+                    )}
+                </div>
+                {chatPanelOpen && (
+                    <ErrorBoundary label="AI Chat">
+                        <FloatingChat />
                     </ErrorBoundary>
                 )}
             </div>

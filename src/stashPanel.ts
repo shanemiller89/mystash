@@ -7,6 +7,7 @@ import { IssueService } from './issueService';
 import { MattermostService, MattermostPostData, MattermostChannelData } from './mattermostService';
 import { MattermostWebSocket, MmWsPostedData, MmWsReactionData, MmWsStatusChangeData, MmWsTypingData } from './mattermostWebSocket';
 import { ProjectService } from './projectService';
+import { AiService } from './aiService';
 import { formatRelativeTime, getConfig } from './utils';
 
 /**
@@ -25,6 +26,7 @@ export class StashPanel {
     private readonly _issueService: IssueService | undefined;
     private readonly _mattermostService: MattermostService | undefined;
     private readonly _projectService: ProjectService | undefined;
+    private readonly _aiService: AiService;
     private readonly _extensionUri: vscode.Uri;
     private readonly _outputChannel: vscode.OutputChannel;
     private _disposables: vscode.Disposable[] = [];
@@ -173,6 +175,7 @@ export class StashPanel {
         this._issueService = issueService;
         this._mattermostService = mattermostService;
         this._projectService = projectService;
+        this._aiService = new AiService(outputChannel);
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
         this._panel.webview.html = this._getHtml();
@@ -342,6 +345,13 @@ export class StashPanel {
         // Repo switcher properties
         owner?: string;
         repo?: string;
+        // AI message properties
+        tabKey?: string;
+        question?: string;
+        history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+        purpose?: string;
+        modelId?: string;
+        customPrompt?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -1832,7 +1842,388 @@ export class StashPanel {
                 }
                 break;
             }
+
+            // ─── AI Model Management ─────────────────────────────────
+
+            case 'ai.listModels': {
+                try {
+                    const models = await this._aiService.listModels();
+                    const assignments = this._aiService.getModelAssignments();
+                    this._panel.webview.postMessage({
+                        type: 'aiModelList',
+                        models,
+                        assignments,
+                    });
+                } catch (e: unknown) {
+                    this._outputChannel.appendLine(
+                        `[AI] Failed to list models: ${e instanceof Error ? e.message : e}`,
+                    );
+                }
+                break;
+            }
+
+            case 'ai.setModel': {
+                const purpose = msg.purpose as string | undefined;
+                const modelId = msg.modelId as string | undefined;
+                if (purpose) {
+                    this._aiService.setModel(
+                        purpose as import('./aiService').AiModelPurpose,
+                        modelId ?? '',
+                    );
+                    // Send back updated assignments
+                    const models = await this._aiService.listModels();
+                    const assignments = this._aiService.getModelAssignments();
+                    this._panel.webview.postMessage({
+                        type: 'aiModelList',
+                        models,
+                        assignments,
+                    });
+                }
+                break;
+            }
+
+            // ─── AI Summarize & Chat ──────────────────────────────────
+
+            case 'ai.summarize': {
+                if (!msg.tabKey) {
+                    break;
+                }
+                const tabKey = msg.tabKey;
+                const customPrompt = msg.customPrompt as string | undefined;
+                try {
+                    const contextData = await this._gatherContext(tabKey);
+                    this._outputChannel.appendLine(`[AI] Summarize ${tabKey} — context length: ${contextData.length} chars${customPrompt ? ' (custom prompt)' : ''}`);
+                    const result = await this._aiService.summarize(tabKey, contextData, customPrompt);
+                    this._panel.webview.postMessage({
+                        type: 'aiSummaryResult',
+                        tabKey,
+                        content: result,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'AI error';
+                    this._panel.webview.postMessage({
+                        type: 'aiSummaryError',
+                        tabKey,
+                        error: m,
+                    });
+                }
+                break;
+            }
+
+            case 'ai.chat': {
+                if (!msg.question) {
+                    break;
+                }
+                const question = msg.question;
+                const history = msg.history ?? [];
+                const assistantMsgId = `assist_${Date.now()}`;
+
+                try {
+                    // Gather context from all tabs
+                    const contextData = await this._gatherContext();
+                    this._outputChannel.appendLine(`[AI] Chat — context length: ${contextData.length} chars, history: ${history.length} msgs`);
+                    if (contextData.length < 50) {
+                        this._outputChannel.appendLine(`[AI] Warning: context is very short: "${contextData}"`);
+                    }
+                    // Tell webview an assistant message is starting
+                    this._panel.webview.postMessage({
+                        type: 'aiChatStarted',
+                        messageId: assistantMsgId,
+                    });
+
+                    await this._aiService.chat(
+                        question,
+                        contextData,
+                        history,
+                        (chunk) => {
+                            this._panel.webview.postMessage({
+                                type: 'aiChatChunk',
+                                messageId: assistantMsgId,
+                                chunk,
+                            });
+                        },
+                    );
+
+                    this._panel.webview.postMessage({
+                        type: 'aiChatDone',
+                        messageId: assistantMsgId,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'AI error';
+                    this._panel.webview.postMessage({
+                        type: 'aiChatError',
+                        messageId: assistantMsgId,
+                        error: m,
+                    });
+                }
+                break;
+            }
+
+            case 'ai.agent': {
+                const prompt = (msg.body as string | undefined) ?? '';
+                const template = (msg.mode as string | undefined) ?? 'custom';
+                const customSystemPrompt = (msg.systemPrompt as string | undefined) ?? '';
+                try {
+                    const contextData = await this._gatherContext();
+                    this._outputChannel.appendLine(
+                        `[AI] Agent run — template: ${template}, prompt length: ${prompt.length}, context: ${contextData.length} chars${customSystemPrompt ? ' (custom system prompt)' : ''}`,
+                    );
+                    this._panel.webview.postMessage({ type: 'aiAgentStarted' });
+
+                    const result = await this._aiService.agentAnalysis(
+                        template,
+                        prompt,
+                        contextData,
+                        (chunk) => {
+                            this._panel.webview.postMessage({
+                                type: 'aiAgentChunk',
+                                chunk,
+                            });
+                        },
+                        undefined,
+                        customSystemPrompt || undefined,
+                    );
+
+                    this._panel.webview.postMessage({
+                        type: 'aiAgentDone',
+                        content: result,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'AI error';
+                    this._panel.webview.postMessage({
+                        type: 'aiAgentError',
+                        error: m,
+                    });
+                }
+                break;
+            }
         }
+    }
+
+    /**
+     * Gather context data from services for AI summarization / chat.
+     * If tabKey is provided, only gather data for that specific tab.
+     * Otherwise gather a snapshot of all tabs for the chat context.
+     */
+    private async _gatherContext(tabKey?: string): Promise<string> {
+        this._outputChannel.appendLine(`[AI] Gathering context${tabKey ? ` for tab: ${tabKey}` : ' for all tabs'}`);
+        const sections: string[] = [];
+        const shouldInclude = (key: string) => !tabKey || tabKey === key;
+
+        // Read AI privacy settings
+        const aiConfig = vscode.workspace.getConfiguration('workstash.ai');
+        const includeSecretGists = aiConfig.get<boolean>('includeSecretGists', false);
+        const includePrivateMessages = aiConfig.get<boolean>('includePrivateMessages', false);
+
+        // ─── Stashes ─────────────────────────────────────────
+        if (shouldInclude('stashes')) {
+            try {
+                const stashes = await this._gitService.getStashList();
+                if (stashes.length === 0) {
+                    sections.push('## Stashes\nNo stashes found.');
+                } else {
+                    const lines = stashes.map((s) =>
+                        `- stash@{${s.index}}: "${s.message}" (branch: ${s.branch}, ${formatRelativeTime(s.date)})`,
+                    );
+                    sections.push(`## Stashes (${stashes.length})\n${lines.join('\n')}`);
+                }
+            } catch {
+                sections.push('## Stashes\nUnable to fetch stash data.');
+            }
+        }
+
+        // ─── Pull Requests ───────────────────────────────────
+        if (shouldInclude('prs') && this._prService && this._authService) {
+            try {
+                const repoInfo = await this._getRepoInfo();
+                if (repoInfo) {
+                    let username: string | undefined;
+                    try { username = await this._prService.getAuthenticatedUser(); } catch { /* ok */ }
+                    const prs = await this._prService.listPullRequests(
+                        repoInfo.owner, repoInfo.repo, 'open', username,
+                    );
+                    if (prs.length === 0) {
+                        sections.push('## Pull Requests\nNo open PRs.');
+                    } else {
+                        const lines = prs.map((pr) => {
+                            const data = PrService.toData(pr);
+                            return `- #${data.number}: "${data.title}" by ${data.author} (${data.state}, ${data.commentsCount} comments, +${data.additions}/-${data.deletions})`;
+                        });
+                        sections.push(`## Pull Requests (${prs.length} open)\n${lines.join('\n')}`);
+                    }
+                }
+            } catch {
+                sections.push('## Pull Requests\nUnable to fetch PR data.');
+            }
+        }
+
+        // ─── Issues ──────────────────────────────────────────
+        if (shouldInclude('issues') && this._issueService && this._authService) {
+            try {
+                const repoInfo = await this._getRepoInfo();
+                if (repoInfo) {
+                    const issues = await this._issueService.listIssues(
+                        repoInfo.owner, repoInfo.repo, 'open',
+                    );
+                    if (issues.length === 0) {
+                        sections.push('## Issues\nNo open issues.');
+                    } else {
+                        const lines = issues.map((i) => {
+                            const data = IssueService.toData(i);
+                            const labels = data.labels.length > 0 ? ` [${data.labels.map((l) => l.name).join(', ')}]` : '';
+                            return `- #${data.number}: "${data.title}" by ${data.author}${labels} (${data.commentsCount} comments)`;
+                        });
+                        sections.push(`## Issues (${issues.length} open)\n${lines.join('\n')}`);
+                    }
+                }
+            } catch {
+                sections.push('## Issues\nUnable to fetch issue data.');
+            }
+        }
+
+        // ─── Projects ────────────────────────────────────────
+        if (shouldInclude('projects') && this._projectService && this._authService) {
+            try {
+                const repoInfo = await this._getRepoInfo();
+                if (repoInfo) {
+                    const projects = await this._projectService.listRepositoryProjects(
+                        repoInfo.owner, repoInfo.repo,
+                    );
+                    if (projects.length === 0) {
+                        sections.push('## Projects\nNo projects found.');
+                    } else {
+                        const projLines: string[] = [];
+                        // Summarize first 3 projects
+                        for (const p of projects.slice(0, 3)) {
+                            try {
+                                const itemResult = await this._projectService.listProjectItems(p.id);
+                                const itemData = itemResult.items.map((i: { id: string; type: string; isArchived: boolean }) => i);
+                                const typeCounts: Record<string, number> = {};
+                                for (const item of itemData) {
+                                    typeCounts[item.type] = (typeCounts[item.type] ?? 0) + 1;
+                                }
+                                const typeStr = Object.entries(typeCounts)
+                                    .map(([k, v]) => `${k}: ${v}`)
+                                    .join(', ');
+                                projLines.push(`- "${p.title}" (${itemData.length} items — ${typeStr})`);
+                            } catch {
+                                projLines.push(`- "${p.title}" (unable to load items)`);
+                            }
+                        }
+                        sections.push(`## Projects (${projects.length})\n${projLines.join('\n')}`);
+                    }
+                }
+            } catch {
+                sections.push('## Projects\nUnable to fetch project data.');
+            }
+        }
+
+        // ─── Notes ───────────────────────────────────────────
+        if (shouldInclude('notes') && this._gistService && this._authService) {
+            try {
+                const isAuth = await this._authService.isAuthenticated();
+                if (isAuth) {
+                    const notes = await this._gistService.listNotes();
+                    if (notes.length === 0) {
+                        sections.push('## Notes\nNo notes found.');
+                    } else {
+                        // Filter by visibility setting
+                        const filteredNotes = includeSecretGists
+                            ? notes
+                            : notes.filter((n) => n.isPublic);
+                        if (filteredNotes.length === 0) {
+                            sections.push('## Notes\nNo public notes found. Enable "Include Secret Gists" in settings to include secret notes.');
+                        } else {
+                        // Fetch full content for each note (list API may truncate)
+                        const noteLines: string[] = [];
+                        for (const n of filteredNotes.slice(0, 10)) {
+                            try {
+                                const full = await this._gistService.getNote(n.id);
+                                const content = full.content.trim();
+                                const preview = content.length > 500
+                                    ? content.slice(0, 500) + '…'
+                                    : content;
+                                noteLines.push(
+                                    `### "${full.title}" (${full.isPublic ? 'public' : 'secret'})\n${preview}`,
+                                );
+                            } catch {
+                                noteLines.push(
+                                    `### "${n.title}" (${n.isPublic ? 'public' : 'secret'})\nUnable to load content.`,
+                                );
+                            }
+                        }
+                        if (filteredNotes.length > 10) {
+                            noteLines.push(`…and ${filteredNotes.length - 10} more notes.`);
+                        }
+                        const secretNote = includeSecretGists ? '' : ' (public only)';
+                        sections.push(`## Notes (${filteredNotes.length})${secretNote}\n${noteLines.join('\n\n')}`);
+                        }
+                    }
+                }
+            } catch {
+                sections.push('## Notes\nUnable to fetch notes.');
+            }
+        }
+
+        // ─── Mattermost ─────────────────────────────────────
+        if (shouldInclude('mattermost') && this._mattermostService) {
+            try {
+                const configured = await this._mattermostService.isConfigured();
+                if (configured) {
+                    const teams = await this._mattermostService.getMyTeams();
+                    const teamNames = teams.map((t) => t.displayName).join(', ');
+                    const mmLines: string[] = [`Connected to teams: ${teamNames}`];
+
+                    // Get channels and recent posts for the first team
+                    if (teams.length > 0) {
+                        try {
+                            const channels = await this._mattermostService.getMyChannels(teams[0].id);
+                            // Filter out DMs/group messages unless setting enabled
+                            const eligibleChannels = includePrivateMessages
+                                ? channels
+                                : channels.filter((c) => c.type === 'O' || c.type === 'P');
+                            // Sort by last post time, get most active channels
+                            const activeChannels = eligibleChannels
+                                .filter((c) => c.lastPostAt > 0)
+                                .sort((a, b) => b.lastPostAt - a.lastPostAt)
+                                .slice(0, 5);
+
+                            mmLines.push(`\n${channels.length} channels total, showing recent activity:`);
+
+                            // Fetch recent posts from top active channels
+                            for (const ch of activeChannels) {
+                                try {
+                                    const posts = await this._mattermostService.getChannelPosts(
+                                        ch.id, 0, 5,
+                                    );
+                                    if (posts.length > 0) {
+                                        const postLines = posts.map((p) => {
+                                            const time = new Date(p.createAt).toLocaleString();
+                                            const msg = p.message.length > 200
+                                                ? p.message.slice(0, 200) + '…'
+                                                : p.message;
+                                            return `  - [${time}] ${msg}`;
+                                        });
+                                        mmLines.push(`\n### #${ch.displayName}\n${postLines.join('\n')}`);
+                                    } else {
+                                        mmLines.push(`\n### #${ch.displayName}\nNo recent posts.`);
+                                    }
+                                } catch {
+                                    mmLines.push(`\n### #${ch.displayName}\nUnable to load posts.`);
+                                }
+                            }
+                        } catch { /* ok */ }
+                    }
+                    sections.push(`## Mattermost\n${mmLines.join('\n')}`);
+                } else {
+                    sections.push('## Mattermost\nNot configured.');
+                }
+            } catch {
+                sections.push('## Mattermost\nUnable to fetch Mattermost data.');
+            }
+        }
+
+        return sections.join('\n\n');
     }
 
     /** Send current auth status to the webview. */

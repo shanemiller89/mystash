@@ -3,6 +3,7 @@ import { useNotesStore } from '../notesStore';
 import { NotesList } from './NotesList';
 import { NoteEditor } from './NoteEditor';
 import { ResizableLayout } from './ResizableLayout';
+import { TabWithSummary } from './TabWithSummary';
 
 export const NotesTab: React.FC = () => {
     const selectedNoteId = useNotesStore((s) => s.selectedNoteId);
@@ -25,13 +26,15 @@ export const NotesTab: React.FC = () => {
     }
 
     return (
-        <ResizableLayout
-            storageKey="notes"
-            hasSelection={hasSelection}
-            backLabel="Back to notes"
-            onBack={handleCloseDetail}
-            listContent={<NotesList />}
-            detailContent={<NoteEditor onClose={handleCloseDetail} />}
-        />
+        <TabWithSummary tabKey="notes">
+            <ResizableLayout
+                storageKey="notes"
+                hasSelection={hasSelection}
+                backLabel="Back to notes"
+                onBack={handleCloseDetail}
+                listContent={<NotesList />}
+                detailContent={<NoteEditor onClose={handleCloseDetail} />}
+            />
+        </TabWithSummary>
     );
 };

@@ -265,6 +265,59 @@ body {
     padding-left: 2em;
 }
 
+/* ─── Enhanced report / summary rendering ─── */
+
+/* Tighter spacing for summary cards (small text) */
+.markdown-body h2 + ul,
+.markdown-body h2 + ol,
+.markdown-body h3 + ul,
+.markdown-body h3 + ol {
+    margin-top: 0.2em;
+}
+
+/* Better list item spacing for reports */
+.markdown-body li > p {
+    margin-bottom: 0.3em;
+}
+.markdown-body li > p:only-child {
+    margin-bottom: 0;
+}
+
+/* Nested list tightening */
+.markdown-body li > ul,
+.markdown-body li > ol {
+    margin-top: 0.15em;
+}
+
+/* Bold items in lists (common in AI reports) */
+.markdown-body li > strong:first-child {
+    color: var(--color-fg);
+}
+
+/* Section dividers between report sections */
+.markdown-body h2 {
+    margin-top: 1.4em;
+}
+.markdown-body h2:first-child {
+    margin-top: 0;
+}
+
+/* Table enhancements for reports */
+.markdown-body table {
+    font-size: 0.92em;
+}
+.markdown-body table th {
+    white-space: nowrap;
+}
+
+/* Inline code in reports — subtle pill style */
+.markdown-body li code,
+.markdown-body p code {
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-size: 0.88em;
+}
+
 /* ─── Mermaid Diagrams ─── */
 .markdown-body .mermaid-block {
     margin: 0.8em 0;

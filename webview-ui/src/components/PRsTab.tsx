@@ -3,6 +3,7 @@ import { usePRStore } from '../prStore';
 import { PRList } from './PRList';
 import { PRDetail } from './PRDetail';
 import { ResizableLayout } from './ResizableLayout';
+import { TabWithSummary } from './TabWithSummary';
 
 export const PRsTab: React.FC = () => {
     const selectedPRNumber = usePRStore((s) => s.selectedPRNumber);
@@ -15,13 +16,15 @@ export const PRsTab: React.FC = () => {
     const hasSelection = selectedPRNumber !== null;
 
     return (
-        <ResizableLayout
-            storageKey="prs"
-            hasSelection={hasSelection}
-            backLabel="Back to PRs"
-            onBack={handleCloseDetail}
-            listContent={<PRList />}
-            detailContent={<PRDetail onClose={handleCloseDetail} />}
-        />
+        <TabWithSummary tabKey="prs">
+            <ResizableLayout
+                storageKey="prs"
+                hasSelection={hasSelection}
+                backLabel="Back to PRs"
+                onBack={handleCloseDetail}
+                listContent={<PRList />}
+                detailContent={<PRDetail onClose={handleCloseDetail} />}
+            />
+        </TabWithSummary>
     );
 };
