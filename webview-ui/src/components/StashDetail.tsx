@@ -3,6 +3,8 @@ import { useStashStore, type StashData, type StashFileData } from '../store';
 import { postMessage } from '../vscode';
 import { DiffView } from './DiffView';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
 import {
     Check,
     ArrowUp,
@@ -104,9 +106,9 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         </div>
                         <div className="flex flex-wrap items-center gap-2 ml-3.5 text-[11px] opacity-70">
                             <span className="opacity-60">{stash.name}</span>
-                            <span className="inline-flex items-center gap-1 bg-badge-bg text-badge-fg px-1.5 py-0.5 rounded text-[10px] font-medium">
+                            <Badge variant="secondary" className="gap-1 px-1.5 py-0.5 text-[10px]">
                                 <GitBranch size={10} /> {stash.branch}
-                            </span>
+                            </Badge>
                             <span className="inline-flex items-center gap-0.5" title={fullDate}>
                                 <Clock size={10} /> {stash.relativeDate}
                             </span>
@@ -160,6 +162,8 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     onClick={() => postMessage('drop', { index: stash.index })}
                 />
             </div>
+
+            <Separator />
 
             {/* File list with expandable diffs */}
             <div className="flex-1 overflow-y-auto">

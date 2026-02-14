@@ -580,7 +580,7 @@ export const MattermostChat: React.FC<{
                                 size="icon-sm"
                                 onClick={handleSend}
                                 disabled={!messageText.trim() || isSendingMessage}
-                                className="ml-auto rounded-full h-7 w-7"
+                                className="ml-auto"
                                 title="Send message (Enter)"
                             >
                                 <Send size={14} />

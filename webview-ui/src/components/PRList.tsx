@@ -4,6 +4,7 @@ import { useNotesStore } from '../notesStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Badge } from './ui/badge';
 import {
     GitPullRequest,
     GitMerge,
@@ -214,9 +215,9 @@ export const PRList: React.FC = () => {
                                                 {pr.title}
                                             </span>
                                             {pr.isDraft && (
-                                                <span className="text-[9px] px-1 py-0.5 bg-fg/10 text-fg/50 rounded flex-shrink-0">
+                                                <Badge variant="outline" className="text-[9px] px-1 py-0.5 bg-fg/10 text-fg/50 border-fg/10 flex-shrink-0">
                                                     Draft
-                                                </span>
+                                                </Badge>
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2 mt-0.5 text-[10px] text-fg/40">
@@ -231,17 +232,18 @@ export const PRList: React.FC = () => {
                                         {pr.labels.length > 0 && (
                                             <div className="flex items-center gap-1 mt-1 flex-wrap">
                                                 {pr.labels.slice(0, 3).map((l) => (
-                                                    <span
+                                                    <Badge
                                                         key={l.name}
-                                                        className="text-[9px] px-1.5 py-0.5 rounded-full"
+                                                        variant="outline"
+                                                        className="text-[9px] px-1.5 py-0.5"
                                                         style={{
                                                             backgroundColor: `#${l.color}20`,
                                                             color: `#${l.color}`,
-                                                            border: `1px solid #${l.color}40`,
+                                                            borderColor: `#${l.color}40`,
                                                         }}
                                                     >
                                                         {l.name}
-                                                    </span>
+                                                    </Badge>
                                                 ))}
                                             </div>
                                         )}

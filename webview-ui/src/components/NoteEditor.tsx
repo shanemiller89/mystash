@@ -5,6 +5,9 @@ import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import { Globe, Lock, Link2, Trash2, X, StickyNote, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Separator } from './ui/separator';
 
 // ─── Markdown-it Configuration ────────────────────────────────────
 
@@ -221,12 +224,12 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             <div className="px-3 py-2 border-b border-border flex-shrink-0 space-y-2">
                 {/* Title row */}
                 <div className="flex items-center gap-2">
-                    <input
+                    <Input
                         type="text"
                         value={editingTitle}
                         onChange={(e) => setEditingTitle(e.target.value)}
                         placeholder="Note title…"
-                        className="flex-1 bg-transparent text-[14px] font-semibold outline-none placeholder:opacity-40"
+                        className="flex-1 border-none bg-transparent text-[14px] font-semibold shadow-none focus-visible:ring-0 placeholder:opacity-40"
                     />
                     {onClose && (
                         <Button
@@ -341,12 +344,12 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                         dangerouslySetInnerHTML={{ __html: renderedHtml }}
                     />
                 ) : (
-                    <textarea
+                    <Textarea
                         ref={textareaRef}
                         value={editingContent}
                         onChange={(e) => setEditingContent(e.target.value)}
                         onKeyDown={handleTextareaKeyDown}
-                        className="w-full h-full bg-transparent text-fg font-mono text-[12px] leading-[20px] px-4 py-3 outline-none resize-none"
+                        className="w-full h-full bg-transparent text-fg font-mono text-[12px] leading-[20px] px-4 py-3 border-none shadow-none focus-visible:ring-0 resize-none rounded-none"
                         placeholder="Write your note in Markdown…"
                         spellCheck={false}
                     />

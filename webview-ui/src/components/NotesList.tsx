@@ -4,13 +4,14 @@ import { postMessage } from '../vscode';
 import { Lock, Globe, StickyNote, Plus, X, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Skeleton } from './ui/skeleton';
 
 /** Skeleton card shown while notes are loading */
 const SkeletonCard: React.FC = () => (
-    <div className="rounded-md border border-border bg-card animate-pulse p-3">
+    <div className="rounded-md border border-border bg-card p-3">
         <div className="space-y-2">
-            <div className="h-3 bg-border rounded w-3/4" />
-            <div className="h-2 bg-border rounded w-1/2" />
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-2 w-1/2" />
         </div>
     </div>
 );

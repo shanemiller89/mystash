@@ -140,15 +140,16 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ postId, onClose }) => 
                         )}
                         <div className="grid grid-cols-8 gap-0.5">
                             {filteredQuick.map((emoji) => (
-                                <button
+                                <Button
                                     key={emoji.name}
+                                    variant="ghost"
+                                    size="icon-xs"
                                     onClick={() => handleSelectEmoji(emoji.name)}
                                     title={`:${emoji.name}:`}
-                                    className="w-7 h-7 flex items-center justify-center rounded
-                                        hover:bg-[var(--vscode-list-hoverBackground)] text-sm transition-colors"
+                                    className="w-7 h-7 text-sm"
                                 >
                                     {emoji.char}
-                                </button>
+                                </Button>
                             ))}
                         </div>
                     </>
@@ -164,11 +165,11 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ postId, onClose }) => 
                             {serverSuggestions.map((emoji) => {
                                 const unicode = emojiFromShortcode(emoji.name);
                                 return (
-                                    <button
+                                    <Button
                                         key={emoji.name}
+                                        variant="ghost"
                                         onClick={() => handleSelectEmoji(emoji.name)}
-                                        className="w-full flex items-center gap-2 px-2 py-1 rounded text-left
-                                            hover:bg-[var(--vscode-list-hoverBackground)] transition-colors"
+                                        className="w-full justify-start gap-2 px-2 py-1 h-auto rounded text-left"
                                     >
                                         {unicode ? (
                                             <span className="text-sm w-5 text-center">{unicode}</span>
@@ -178,7 +179,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ postId, onClose }) => 
                                             <span className="w-5 text-center text-fg/30">•</span>
                                         )}
                                         <span className="text-xs font-mono text-fg/60">:{emoji.name}:</span>
-                                    </button>
+                                    </Button>
                                 );
                             })}
                         </div>
@@ -317,15 +318,16 @@ export const ComposeEmojiPicker: React.FC<{
                         )}
                         <div className="grid grid-cols-8 gap-0.5">
                             {filteredQuick.map((emoji) => (
-                                <button
+                                <Button
                                     key={emoji.name}
+                                    variant="ghost"
+                                    size="icon-xs"
                                     onClick={() => handleSelectEmoji(emoji.name)}
                                     title={`:${emoji.name}:`}
-                                    className="w-7 h-7 flex items-center justify-center rounded
-                                        hover:bg-[var(--vscode-list-hoverBackground)] text-sm transition-colors"
+                                    className="w-7 h-7 text-sm"
                                 >
                                     {emoji.char}
-                                </button>
+                                </Button>
                             ))}
                         </div>
                     </>
@@ -339,11 +341,11 @@ export const ComposeEmojiPicker: React.FC<{
                             {serverSuggestions.map((emoji) => {
                                 const unicode = emojiFromShortcode(emoji.name);
                                 return (
-                                    <button
+                                    <Button
                                         key={emoji.name}
+                                        variant="ghost"
                                         onClick={() => handleSelectEmoji(emoji.name)}
-                                        className="w-full flex items-center gap-2 px-2 py-1 rounded text-left
-                                            hover:bg-[var(--vscode-list-hoverBackground)] transition-colors"
+                                        className="w-full justify-start gap-2 px-2 py-1 h-auto rounded text-left"
                                     >
                                         {unicode ? (
                                             <span className="text-sm w-5 text-center">{unicode}</span>
@@ -353,7 +355,7 @@ export const ComposeEmojiPicker: React.FC<{
                                             <span className="w-5 text-center text-fg/30">•</span>
                                         )}
                                         <span className="text-xs font-mono text-fg/60">:{emoji.name}:</span>
-                                    </button>
+                                    </Button>
                                 );
                             })}
                         </div>

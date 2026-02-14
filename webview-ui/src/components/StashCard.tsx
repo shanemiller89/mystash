@@ -4,6 +4,7 @@ import { postMessage } from '../vscode';
 import { StashFiles } from './StashFiles';
 import { Check, ArrowUp, X, ChevronRight, GitBranch, Clock } from 'lucide-react';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 
 export const StashCard: React.FC<{
     stash: StashData;
@@ -78,9 +79,9 @@ export const StashCard: React.FC<{
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] leading-[16px] opacity-75">
                         <span className="opacity-60">{stash.name}</span>
-                        <span className="inline-flex items-center gap-1 bg-badge-bg text-badge-fg px-1.5 py-0.5 rounded text-[10px] font-medium">
+                        <Badge variant="secondary" className="gap-1 px-1.5 py-0.5 text-[10px]">
                             <GitBranch size={10} /> {stash.branch}
-                        </span>
+                        </Badge>
                         <span className="inline-flex items-center gap-0.5">
                             <Clock size={10} /> {stash.relativeDate}
                         </span>
@@ -110,10 +111,10 @@ export const StashCard: React.FC<{
                 </div>
 
                 {/* Chevron — toggles inline expand */}
-                <span
-                    className={`transition-transform self-center cursor-pointer opacity-40 hover:opacity-80 ${
-                        isExpanded ? 'rotate-90' : ''
-                    }`}
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className={`transition-transform self-center opacity-40 hover:opacity-80 ${isExpanded ? 'rotate-90' : ''}`}
                     onClick={(e) => {
                         e.stopPropagation();
                         toggleExpanded(stash.index);
@@ -121,7 +122,7 @@ export const StashCard: React.FC<{
                     title={isExpanded ? 'Collapse files' : 'Expand files'}
                 >
                     <ChevronRight size={12} />
-                </span>
+                </Button>
             </div>
 
             {/* File list */}

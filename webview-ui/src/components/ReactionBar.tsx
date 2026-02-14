@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useMattermostStore, type MattermostReactionData } from '../mattermostStore';
 import { postMessage } from '../vscode';
 import { emojiFromShortcode } from '../emojiMap';
+import { Button } from './ui/button';
 
 /** Render an emoji — Unicode char, custom image, or fallback shortcode */
 const EmojiDisplay: React.FC<{ name: string; size?: number }> = ({ name, size = 14 }) => {
@@ -40,8 +41,10 @@ export const ReactionBar: React.FC<{ postId: string; currentUserId: string | nul
             {grouped.map(([emoji, users]) => {
                 const myReaction = users.some((u) => u.userId === currentUserId);
                 return (
-                    <button
+                    <Button
                         key={emoji}
+                        variant="outline"
+                        size="sm"
                         onClick={() => {
                             if (myReaction) {
                                 postMessage('mattermost.removeReaction', { postId, emojiName: emoji });
@@ -50,7 +53,7 @@ export const ReactionBar: React.FC<{ postId: string; currentUserId: string | nul
                             }
                         }}
                         title={users.map((u) => u.username).join(', ')}
-                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
+                        className={`h-auto gap-1 px-1.5 py-0.5 rounded-full text-[11px] ${
                             myReaction
                                 ? 'border-[var(--vscode-textLink-foreground)] bg-[var(--vscode-textLink-foreground)]/10 text-[var(--vscode-textLink-foreground)]'
                                 : 'border-[var(--vscode-panel-border)] text-fg/60 hover:bg-[var(--vscode-list-hoverBackground)]'
@@ -58,7 +61,7 @@ export const ReactionBar: React.FC<{ postId: string; currentUserId: string | nul
                     >
                         <EmojiDisplay name={emoji} size={14} />
                         <span className="font-medium">{users.length}</span>
-                    </button>
+                    </Button>
                 );
             })}
         </div>

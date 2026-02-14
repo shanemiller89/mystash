@@ -30,6 +30,10 @@ import { MarkdownBody } from './MarkdownBody';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+import { Badge } from './ui/badge';
+import { Checkbox } from './ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Separator } from './ui/separator';
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleString();
@@ -73,9 +77,9 @@ function StateBadge({ state, isDraft }: { state: string; isDraft: boolean }) {
             : 'bg-red-400/15 text-red-400';
     const label = isDraft ? 'Draft' : state.charAt(0).toUpperCase() + state.slice(1);
     return (
-        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${colors}`}>
+        <Badge variant="outline" className={`text-[10px] px-2 py-0.5 border-none font-medium ${colors}`}>
             {label}
-        </span>
+        </Badge>
     );
 }
 
@@ -172,9 +176,9 @@ const CommentCard: React.FC<{ comment: PRCommentData; prNumber: number }> = ({ c
                     )}
                     {/* Resolved badge */}
                     {comment.isReviewComment && comment.threadId && comment.isResolved && (
-                        <span className="ml-auto text-[9px] px-1.5 py-0.5 bg-green-400/15 text-green-400 rounded-full flex items-center gap-0.5">
+                        <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0.5 bg-green-400/15 text-green-400 border-green-400/30 gap-0.5">
                             <CheckCircle2 size={8} /> Resolved
-                        </span>
+                        </Badge>
                     )}
                 </div>
             )}
@@ -195,10 +199,10 @@ const CommentCard: React.FC<{ comment: PRCommentData; prNumber: number }> = ({ c
                 )}
                 <span className="text-[11px] font-medium">{comment.author}</span>
                 {comment.isReviewComment && (
-                    <span className="text-[9px] px-1 py-0.5 bg-blue-400/10 text-blue-400 rounded">review</span>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0.5 bg-blue-400/10 text-blue-400 border-blue-400/20">review</Badge>
                 )}
                 {comment.inReplyToId && (
-                    <span className="text-[9px] px-1 py-0.5 bg-fg/10 text-fg/50 rounded">reply</span>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0.5 bg-fg/10 text-fg/50 border-fg/10">reply</Badge>
                 )}
                 <span className="text-[10px] text-fg/40" title={formatDate(comment.createdAt)}>
                     {formatRelative(comment.createdAt)}
@@ -362,11 +366,9 @@ const UserFilterDropdown: React.FC = () => {
                             key={author}
                             className="flex items-center gap-2 px-2 py-1 text-[10px] hover:bg-fg/5 cursor-pointer"
                         >
-                            <input
-                                type="checkbox"
+                            <Checkbox
                                 checked={userFilter.includes(author)}
-                                onChange={() => toggle(author)}
-                                className="w-3 h-3 rounded"
+                                onCheckedChange={() => toggle(author)}
                             />
                             <span>{author}</span>
                         </label>
@@ -510,9 +512,10 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
             </span>
             {/* Current requested reviewers */}
             {requestedReviewers.map((r) => (
-                <span
+                <Badge
                     key={r.login}
-                    className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-yellow-400/10 text-yellow-400 border border-yellow-400/20 rounded-full"
+                    variant="outline"
+                    className="gap-1 text-[10px] px-1.5 py-0.5 bg-yellow-400/10 text-yellow-400 border-yellow-400/20"
                 >
                     {r.avatarUrl && (
                         <img src={r.avatarUrl} alt={r.login} className="w-3 h-3 rounded-full" />
@@ -527,7 +530,7 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
                     >
                         <X size={8} />
                     </Button>
-                </span>
+                </Badge>
             ))}
             {requestedReviewers.length === 0 && (
                 <span className="text-[10px] text-fg/20">None</span>
@@ -623,7 +626,7 @@ const CommentFilterBar: React.FC<{ totalComments: number; filteredCount: number 
             <Filter size={10} className="text-fg/40" />
             <UserFilterDropdown />
             <ResolvedFilter />
-            <div className="h-3 w-px bg-border" />
+            <Separator orientation="vertical" className="h-3" />
             <Button
                 variant="outline"
                 size="sm"
@@ -829,17 +832,18 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                 {pr.labels.length > 0 && (
                     <div className="flex items-center gap-1 mt-2 flex-wrap">
                         {pr.labels.map((l) => (
-                            <span
+                            <Badge
                                 key={l.name}
-                                className="text-[9px] px-1.5 py-0.5 rounded-full"
+                                variant="outline"
+                                className="text-[9px] px-1.5 py-0.5"
                                 style={{
                                     backgroundColor: `#${l.color}20`,
                                     color: `#${l.color}`,
-                                    border: `1px solid #${l.color}40`,
+                                    borderColor: `#${l.color}40`,
                                 }}
                             >
                                 {l.name}
-                            </span>
+                            </Badge>
                         ))}
                     </div>
                 )}

@@ -4,6 +4,7 @@ import { useNotesStore } from '../notesStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Badge } from './ui/badge';
 import {
     CircleDot,
     CheckCircle2,
@@ -224,17 +225,18 @@ export const IssueList: React.FC = () => {
                                         {issue.labels.length > 0 && (
                                             <div className="flex items-center gap-1 mt-1 flex-wrap">
                                                 {issue.labels.slice(0, 4).map((l) => (
-                                                    <span
+                                                    <Badge
                                                         key={l.name}
-                                                        className="text-[9px] px-1.5 py-0.5 rounded-full"
+                                                        variant="outline"
+                                                        className="text-[9px] px-1.5 py-0.5"
                                                         style={{
                                                             backgroundColor: `#${l.color}20`,
                                                             color: `#${l.color}`,
-                                                            border: `1px solid #${l.color}40`,
+                                                            borderColor: `#${l.color}40`,
                                                         }}
                                                     >
                                                         {l.name}
-                                                    </span>
+                                                    </Badge>
                                                 ))}
                                             </div>
                                         )}

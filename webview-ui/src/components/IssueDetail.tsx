@@ -4,6 +4,8 @@ import { postMessage } from '../vscode';
 import { MarkdownBody } from './MarkdownBody';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
 import {
     CircleDot,
     CheckCircle2,
@@ -210,17 +212,18 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
                 {issue.labels.length > 0 && (
                     <div className="flex items-center gap-1 mt-2 flex-wrap">
                         {issue.labels.map((l) => (
-                            <span
+                            <Badge
                                 key={l.name}
-                                className="text-[9px] px-1.5 py-0.5 rounded-full"
+                                variant="outline"
+                                className="text-[9px] px-1.5 py-0.5"
                                 style={{
                                     backgroundColor: `#${l.color}20`,
                                     color: `#${l.color}`,
-                                    border: `1px solid #${l.color}40`,
+                                    borderColor: `#${l.color}40`,
                                 }}
                             >
                                 {l.name}
-                            </span>
+                            </Badge>
                         ))}
                     </div>
                 )}

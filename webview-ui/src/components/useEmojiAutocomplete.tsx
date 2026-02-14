@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useMattermostStore, type MattermostEmojiData } from '../mattermostStore';
 import { postMessage } from '../vscode';
 import { emojiFromShortcode } from '../emojiMap';
+import { Button } from './ui/button';
 
 /**
  * Hook that provides `:shortcode:` autocomplete for a textarea.
@@ -163,13 +164,14 @@ export const EmojiAutocompleteDropdown: React.FC<{
                 z-50"
         >
             {suggestions.map((emoji, i) => (
-                <button
+                <Button
                     key={emoji.name}
+                    variant="ghost"
                     onMouseDown={(e) => {
                         e.preventDefault(); // Don't blur textarea
                         onSelect(i);
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
+                    className={`w-full justify-start gap-2 px-3 py-1.5 h-auto rounded-none text-xs ${
                         i === selectedIndex
                             ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]'
                             : 'hover:bg-[var(--vscode-list-hoverBackground)]'
@@ -182,7 +184,7 @@ export const EmojiAutocompleteDropdown: React.FC<{
                         return <span className="w-5 text-center text-fg/30">•</span>;
                     })()}
                     <span className="font-mono text-fg/60">:{emoji.name}:</span>
-                </button>
+                </Button>
             ))}
         </div>
     );

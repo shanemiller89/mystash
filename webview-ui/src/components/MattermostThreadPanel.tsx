@@ -240,7 +240,7 @@ export const MattermostThreadPanel: React.FC = () => {
                                 size="icon-sm"
                                 onClick={handleSendReply}
                                 disabled={!replyText.trim() || isSendingMessage}
-                                className="ml-auto rounded-full h-7 w-7"
+                                className="ml-auto"
                                 title="Send reply (Enter)"
                             >
                                 <Send size={14} />

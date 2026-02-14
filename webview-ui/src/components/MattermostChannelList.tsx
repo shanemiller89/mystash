@@ -4,6 +4,14 @@ import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from './ui/select';
+import { Collapsible, CollapsibleContent } from './ui/collapsible';
+import {
     Globe,
     Lock,
     Search,
@@ -336,26 +344,18 @@ export const MattermostChannelList: React.FC = () => {
             {/* Team selector */}
             <div className="flex items-center gap-2 p-3 border-b border-[var(--vscode-panel-border)]">
                 {teams.length > 1 ? (
-                    <div className="relative flex-1">
-                        <select
-                            value={selectedTeamId ?? ''}
-                            onChange={(e) => handleTeamSelect(e.target.value)}
-                            className="w-full px-3 py-1.5 text-sm rounded-md appearance-none
-                                bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]
-                                border border-[var(--vscode-input-border)]
-                                focus:outline-none focus:border-[var(--vscode-focusBorder)]"
-                        >
+                    <Select value={selectedTeamId ?? ''} onValueChange={(v) => { if (v) handleTeamSelect(v); }}>
+                        <SelectTrigger className="flex-1 h-8 text-sm">
+                            <SelectValue placeholder="Select team" />
+                        </SelectTrigger>
+                        <SelectContent>
                             {teams.map((t) => (
-                                <option key={t.id} value={t.id}>
+                                <SelectItem key={t.id} value={t.id}>
                                     {t.displayName}
-                                </option>
+                                </SelectItem>
                             ))}
-                        </select>
-                        <ChevronDown
-                            size={14}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg/50"
-                        />
-                    </div>
+                        </SelectContent>
+                    </Select>
                 ) : selectedTeam ? (
                     <span className="flex-1 text-sm font-medium truncate">
                         {selectedTeam.displayName}
@@ -401,46 +401,50 @@ export const MattermostChannelList: React.FC = () => {
                 ) : (
                     <>
                         {/* Channels section */}
-                        <SectionHeader
-                            title="Channels"
-                            isOpen={channelsOpen}
-                            onToggle={() => setChannelsOpen((v) => !v)}
-                        />
-                        {channelsOpen && (
-                            channels.length === 0 ? (
-                                <div className="px-3 py-2 text-xs text-fg/40">
-                                    {searchQuery ? 'No matching channels' : 'No channels'}
-                                </div>
-                            ) : (
-                                channels.map(renderChannel)
-                            )
-                        )}
+                        <Collapsible open={channelsOpen} onOpenChange={setChannelsOpen}>
+                            <SectionHeader
+                                title="Channels"
+                                isOpen={channelsOpen}
+                                onToggle={() => setChannelsOpen((v) => !v)}
+                            />
+                            <CollapsibleContent>
+                                {channels.length === 0 ? (
+                                    <div className="px-3 py-2 text-xs text-fg/40">
+                                        {searchQuery ? 'No matching channels' : 'No channels'}
+                                    </div>
+                                ) : (
+                                    channels.map(renderChannel)
+                                )}
+                            </CollapsibleContent>
+                        </Collapsible>
 
                         {/* Direct Messages section */}
-                        <SectionHeader
-                            title="Direct Messages"
-                            isOpen={dmsOpen}
-                            onToggle={() => setDmsOpen((v) => !v)}
-                            action={
-                                <Button
-                                    variant="ghost"
-                                    size="icon-xs"
-                                    onClick={() => setShowNewDm(true)}
-                                    title="New Direct Message"
-                                >
-                                    <Plus size={12} />
-                                </Button>
-                            }
-                        />
-                        {dmsOpen && (
-                            dmChannels.length === 0 ? (
-                                <div className="px-3 py-2 text-xs text-fg/40">
-                                    {searchQuery ? 'No matching DMs' : 'No direct messages'}
-                                </div>
-                            ) : (
-                                dmChannels.map(renderChannel)
-                            )
-                        )}
+                        <Collapsible open={dmsOpen} onOpenChange={setDmsOpen}>
+                            <SectionHeader
+                                title="Direct Messages"
+                                isOpen={dmsOpen}
+                                onToggle={() => setDmsOpen((v) => !v)}
+                                action={
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-xs"
+                                        onClick={(e) => { e.stopPropagation(); setShowNewDm(true); }}
+                                        title="New Direct Message"
+                                    >
+                                        <Plus size={12} />
+                                    </Button>
+                                }
+                            />
+                            <CollapsibleContent>
+                                {dmChannels.length === 0 ? (
+                                    <div className="px-3 py-2 text-xs text-fg/40">
+                                        {searchQuery ? 'No matching DMs' : 'No direct messages'}
+                                    </div>
+                                ) : (
+                                    dmChannels.map(renderChannel)
+                                )}
+                            </CollapsibleContent>
+                        </Collapsible>
                     </>
                 )}
             </div>

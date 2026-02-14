@@ -5,15 +5,16 @@ import { postMessage } from '../vscode';
 import { Archive, Plus, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Skeleton } from './ui/skeleton';
 
 /** Animated skeleton card shown while stashes are loading */
 const SkeletonCard: React.FC = () => (
-    <div className="rounded-md border border-border bg-card animate-pulse p-3">
+    <div className="rounded-md border border-border bg-card p-3">
         <div className="flex items-center gap-2.5">
-            <div className="w-1 h-8 rounded-full bg-border" />
+            <Skeleton className="w-1 h-8 rounded-full" />
             <div className="flex-1 space-y-2">
-                <div className="h-3 bg-border rounded w-3/4" />
-                <div className="h-2 bg-border rounded w-1/2" />
+                <Skeleton className="h-3 w-3/4" />
+                <Skeleton className="h-2 w-1/2" />
             </div>
         </div>
     </div>
