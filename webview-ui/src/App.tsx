@@ -13,6 +13,7 @@ import {
     type MattermostUserStatusData,
     type MattermostChannelUnreadData,
     type MattermostEmojiData,
+    type MattermostFileInfoData,
 } from './mattermostStore';
 import { useAppStore } from './appStore';
 import { onMessage, postMessage } from './vscode';
@@ -91,13 +92,9 @@ export const App: React.FC = () => {
                         ...(ncTitle !== undefined ? { title: ncTitle } : {}),
                     });
                     // If this note is currently selected, populate the editor
+                    // Use loadNoteContent to set content+title without marking dirty
                     if (notesStore.selectedNoteId === ncNoteId) {
-                        notesStore.setEditingContent(ncContent);
-                        notesStore.setLoading(false);
-                        notesStore.setDirty(false);
-                        if (ncTitle !== undefined) {
-                            notesStore.setEditingTitle(ncTitle);
-                        }
+                        notesStore.loadNoteContent(ncContent, ncTitle);
                     }
                     break;
                 }
@@ -564,6 +561,84 @@ export const App: React.FC = () => {
                 case 'mattermostMarkedRead': {
                     const mmStore = useMattermostStore.getState();
                     mmStore.markChannelRead(msg.channelId as string);
+                    break;
+                }
+
+                // ─── Mattermost Edit / Delete / Pin ───
+                case 'mattermostPostPinToggled': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.togglePostPin(msg.postId as string, msg.isPinned as boolean);
+                    break;
+                }
+
+                // ─── Mattermost Search Results ───
+                case 'mattermostSearchLoading': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setIsSearchingMessages(true);
+                    break;
+                }
+
+                case 'mattermostSearchResults': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setSearchResults(msg.payload as MattermostPostData[]);
+                    break;
+                }
+
+                // ─── Mattermost Flagged Posts ───
+                case 'mattermostFlaggedPostIds': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setFlaggedPostIds(msg.payload as string[]);
+                    break;
+                }
+
+                case 'mattermostPostFlagged': {
+                    const mmStore = useMattermostStore.getState();
+                    if (msg.flagged) {
+                        mmStore.addFlaggedPostId(msg.postId as string);
+                    } else {
+                        mmStore.removeFlaggedPostId(msg.postId as string);
+                    }
+                    break;
+                }
+
+                // ─── Mattermost User Profile ───
+                case 'mattermostUserProfile': {
+                    // This is handled by the component that requested it
+                    // We use a custom event to deliver it
+                    window.dispatchEvent(new CustomEvent('mattermost-user-profile', {
+                        detail: { user: msg.user, avatarUrl: msg.avatarUrl },
+                    }));
+                    break;
+                }
+
+                // ─── Mattermost Channel Info ───
+                case 'mattermostChannelInfo': {
+                    // Dispatch to the requesting component
+                    window.dispatchEvent(new CustomEvent('mattermost-channel-info', {
+                        detail: msg.payload,
+                    }));
+                    break;
+                }
+
+                // ─── Mattermost File Upload ───
+                case 'mattermostFileUploading': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setIsUploadingFiles(true);
+                    break;
+                }
+
+                case 'mattermostFilesUploaded': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setPendingFiles(
+                        msg.fileIds as string[],
+                        msg.files as MattermostFileInfoData[],
+                    );
+                    break;
+                }
+
+                case 'mattermostFileUploadFailed': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.clearPendingFiles();
                     break;
                 }
 

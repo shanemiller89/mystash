@@ -33,6 +33,7 @@ export interface MattermostPost {
     rootId: string; // parent post ID for threads
     type: string;
     props: Record<string, unknown>;
+    isPinned: boolean;
     fileIds: string[];
 }
 
@@ -128,6 +129,7 @@ export interface MattermostPostData {
     updateAt: string;
     rootId: string;
     type: string;
+    isPinned: boolean;
     files?: MattermostFileInfoData[];
 }
 
@@ -198,6 +200,7 @@ interface MmApiPost {
     root_id: string;
     type: string;
     props: Record<string, unknown>;
+    is_pinned: boolean;
     file_ids?: string[];
     metadata?: {
         files?: MmApiFileInfo[];
@@ -911,16 +914,114 @@ export class MattermostService {
     }
 
     /** Create a new post in a channel */
-    async createPost(channelId: string, message: string, rootId?: string): Promise<MattermostPost> {
-        const body: { channel_id: string; message: string; root_id?: string } = {
+    async createPost(channelId: string, message: string, rootId?: string, fileIds?: string[]): Promise<MattermostPost> {
+        const body: { channel_id: string; message: string; root_id?: string; file_ids?: string[] } = {
             channel_id: channelId,
             message,
         };
         if (rootId) {
             body.root_id = rootId;
         }
+        if (fileIds && fileIds.length > 0) {
+            body.file_ids = fileIds;
+        }
         const raw = await this._request<MmApiPost>('POST', '/posts', body);
         return this._parsePost(raw);
+    }
+
+    /** Edit an existing post's message */
+    async editPost(postId: string, message: string): Promise<MattermostPost> {
+        const raw = await this._request<MmApiPost>('PUT', `/posts/${postId}/patch`, {
+            message,
+        });
+        return this._parsePost(raw);
+    }
+
+    /** Delete a post */
+    async deletePost(postId: string): Promise<void> {
+        await this._request('DELETE', `/posts/${postId}`);
+    }
+
+    /** Pin a post to its channel */
+    async pinPost(postId: string): Promise<void> {
+        await this._request('POST', `/posts/${postId}/pin`);
+    }
+
+    /** Unpin a post from its channel */
+    async unpinPost(postId: string): Promise<void> {
+        await this._request('POST', `/posts/${postId}/unpin`);
+    }
+
+    /** Search posts in a team */
+    async searchPosts(
+        teamId: string,
+        terms: string,
+        isOrSearch = false,
+    ): Promise<MattermostPost[]> {
+        const raw = await this._request<MmApiPostList>(
+            'POST',
+            `/teams/${teamId}/posts/search`,
+            { terms, is_or_search: isOrSearch },
+        );
+        return raw.order
+            .map((id) => raw.posts[id])
+            .filter((p) => p && p.delete_at === 0)
+            .map((p) => this._parsePost(p));
+    }
+
+    /** Get flagged/saved posts for the current user */
+    async getFlaggedPosts(teamId?: string): Promise<MattermostPost[]> {
+        const me = await this.getMe();
+        const teamParam = teamId ? `&team_id=${teamId}` : '';
+        const raw = await this._request<MmApiPostList>(
+            'GET',
+            `/users/${me.id}/posts/flagged?per_page=50${teamParam}`,
+        );
+        return raw.order
+            .map((id) => raw.posts[id])
+            .filter((p) => p && p.delete_at === 0)
+            .map((p) => this._parsePost(p));
+    }
+
+    /** Flag/save a post */
+    async flagPost(postId: string): Promise<void> {
+        const me = await this.getMe();
+        await this._request('PUT', `/users/${me.id}/preferences`, [
+            { user_id: me.id, category: 'flagged_post', name: postId, value: 'true' },
+        ]);
+    }
+
+    /** Unflag/unsave a post */
+    async unflagPost(postId: string): Promise<void> {
+        const me = await this.getMe();
+        await this._request('POST', `/users/${me.id}/preferences/delete`, [
+            { user_id: me.id, category: 'flagged_post', name: postId, value: 'true' },
+        ]);
+    }
+
+    // ─── User Status (set own) ────────────────────────────────────
+
+    /** Set the current user's status */
+    async setOwnStatus(
+        status: 'online' | 'away' | 'offline' | 'dnd',
+        dndEndTime?: number,
+    ): Promise<void> {
+        const me = await this.getMe();
+        await this._request('PUT', `/users/${me.id}/status`, {
+            user_id: me.id,
+            status,
+            dnd_end_time: dndEndTime ?? 0,
+        });
+    }
+
+    /** Get a single user's profile by ID */
+    async getUserProfile(userId: string): Promise<MattermostUser> {
+        return this.getUser(userId);
+    }
+
+    /** Get a user's profile image as a data URI */
+    async getUserProfileImage(userId: string): Promise<string> {
+        return this._fetchAsDataUri(`/users/${userId}/image`);
     }
 
     // ─── Threads ──────────────────────────────────────────────────
@@ -938,6 +1039,61 @@ export class MattermostService {
     }
 
     // ─── User Status ──────────────────────────────────────────────
+
+    // ─── File Upload ──────────────────────────────────────────────
+
+    /** Upload files to a channel. Returns file info objects with IDs to attach to a post. */
+    async uploadFiles(
+        channelId: string,
+        files: { name: string; data: Buffer; mimeType: string }[],
+    ): Promise<MattermostFileInfo[]> {
+        const token = await this._getTokenOrThrow();
+        const baseUrl = await this._getBaseUrl();
+        const url = `${baseUrl}/files`;
+
+        // Build multipart/form-data manually using a boundary
+        const boundary = `----WorkStashUpload${Date.now()}`;
+        const parts: Buffer[] = [];
+
+        // Add channel_id field
+        parts.push(Buffer.from(
+            `--${boundary}\r\nContent-Disposition: form-data; name="channel_id"\r\n\r\n${channelId}\r\n`,
+        ));
+
+        // Add each file
+        for (const file of files) {
+            parts.push(Buffer.from(
+                `--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="${file.name}"\r\nContent-Type: ${file.mimeType}\r\n\r\n`,
+            ));
+            parts.push(file.data);
+            parts.push(Buffer.from('\r\n'));
+        }
+
+        // Close boundary
+        parts.push(Buffer.from(`--${boundary}--\r\n`));
+
+        const body = Buffer.concat(parts);
+
+        this._outputChannel.appendLine(`[Mattermost] POST /files (${files.length} file(s), ${body.length} bytes)`);
+
+        const response = await this._fetchFn(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            },
+            body,
+        });
+
+        this._outputChannel.appendLine(`[Mattermost] POST /files → ${response.status}`);
+
+        if (!response.ok) {
+            await this._handleHttpError(response);
+        }
+
+        const result = (await response.json()) as { file_infos: MmApiFileInfo[] };
+        return result.file_infos.map((f) => this._parseFileInfo(f));
+    }
 
     // ─── File Attachments ─────────────────────────────────────────
 
@@ -1178,6 +1334,7 @@ export class MattermostService {
             rootId: p.root_id,
             type: p.type,
             props: p.props,
+            isPinned: p.is_pinned ?? false,
             fileIds: p.file_ids ?? [],
         };
     }
@@ -1258,6 +1415,7 @@ export class MattermostService {
             updateAt: new Date(post.updateAt).toISOString(),
             rootId: post.rootId,
             type: post.type,
+            isPinned: post.isPinned,
             files: files && files.length > 0 ? files : undefined,
         };
     }

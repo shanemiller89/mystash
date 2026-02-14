@@ -36,6 +36,8 @@ interface NotesStore {
     setAuthenticated: (auth: boolean, username?: string | null) => void;
     setSearchQuery: (query: string) => void;
     setPreviewMode: (preview: boolean) => void;
+    /** Atomically set editor content/title without marking dirty (used when loading from extension) */
+    loadNoteContent: (content: string, title?: string) => void;
     filteredNotes: () => GistNoteData[];
     selectedNote: () => GistNoteData | undefined;
     updateNoteInList: (noteId: string, updates: Partial<GistNoteData>) => void;
@@ -54,7 +56,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     isAuthenticated: false,
     authUsername: null,
     searchQuery: '',
-    previewMode: false,
+    previewMode: true,
 
     setNotes: (notes) => {
         const { selectedNoteId } = get();
@@ -84,7 +86,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
             editingContent: note.content,
             editingTitle: note.title,
             isDirty: false,
-            previewMode: false,
+            previewMode: true,
         });
     },
 
@@ -94,7 +96,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
             editingContent: '',
             editingTitle: '',
             isDirty: false,
-            previewMode: false,
+            previewMode: true,
         }),
 
     setEditingContent: (content) => set({ editingContent: content, isDirty: true }),
@@ -106,6 +108,14 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
         set({ isAuthenticated: auth, authUsername: username ?? null }),
     setSearchQuery: (searchQuery) => set({ searchQuery }),
     setPreviewMode: (previewMode) => set({ previewMode }),
+
+    loadNoteContent: (content, title) =>
+        set({
+            editingContent: content,
+            ...(title !== undefined ? { editingTitle: title } : {}),
+            isLoading: false,
+            isDirty: false,
+        }),
 
     filteredNotes: () => {
         const { notes, searchQuery } = get();

@@ -10,6 +10,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from './ui/select';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { Collapsible, CollapsibleContent } from './ui/collapsible';
 import {
     Globe,
@@ -23,6 +29,7 @@ import {
     Plus,
     X,
     Circle,
+    CheckCheck,
 } from 'lucide-react';
 
 function ChannelIcon({ type, size = 14 }: { type: string; size?: number }) {
@@ -257,6 +264,14 @@ export const MattermostChannelList: React.FC = () => {
         }
     }, [selectedTeamId]);
 
+    const handleMarkChannelRead = useCallback((channelId: string) => {
+        postMessage('mattermost.markRead', { channelId });
+    }, []);
+
+    const handleSetStatus = useCallback((status: string) => {
+        postMessage('mattermost.setOwnStatus', { status });
+    }, []);
+
     const handleSignInWithPassword = useCallback(() => {
         postMessage('mattermost.signInWithPassword');
     }, []);
@@ -276,28 +291,40 @@ export const MattermostChannelList: React.FC = () => {
         const isDm = channel.type === 'D';
         const dmStatus = isDm && channel.otherUserId ? userStatuses[channel.otherUserId] : undefined;
         return (
-            <Button
-                key={channel.id}
-                variant="ghost"
-                onClick={() => handleChannelSelect(channel)}
-                className={`flex w-full justify-start text-left h-auto px-3 py-2 rounded-none gap-2 ${
-                    selectedChannelId === channel.id
-                        ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]'
-                        : ''
-                } ${hasUnread ? 'font-semibold' : ''}`}
-            >
-                {isDm ? (
-                    <StatusDot status={dmStatus} size={10} />
-                ) : (
-                    <ChannelIcon type={channel.type} size={14} />
+            <div key={channel.id} className="group/ch flex items-center">
+                <Button
+                    variant="ghost"
+                    onClick={() => handleChannelSelect(channel)}
+                    className={`flex flex-1 justify-start text-left h-auto px-3 py-2 rounded-none gap-2 ${
+                        selectedChannelId === channel.id
+                            ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]'
+                            : ''
+                    } ${hasUnread ? 'font-semibold' : ''}`}
+                >
+                    {isDm ? (
+                        <StatusDot status={dmStatus} size={10} />
+                    ) : (
+                        <ChannelIcon type={channel.type} size={14} />
+                    )}
+                    <span className="text-sm truncate flex-1">
+                        {channel.displayName}
+                    </span>
+                    {unread && (
+                        <UnreadBadge count={unread.msgCount} mentions={unread.mentionCount} />
+                    )}
+                </Button>
+                {hasUnread && (
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="opacity-0 group-hover/ch:opacity-100 transition-opacity mr-1 shrink-0"
+                        onClick={(e) => { e.stopPropagation(); handleMarkChannelRead(channel.id); }}
+                        title="Mark as read"
+                    >
+                        <CheckCheck size={12} />
+                    </Button>
                 )}
-                <span className="text-sm truncate flex-1">
-                    {channel.displayName}
-                </span>
-                {unread && (
-                    <UnreadBadge count={unread.msgCount} mentions={unread.mentionCount} />
-                )}
-            </Button>
+            </div>
         );
     };
 
@@ -341,7 +368,7 @@ export const MattermostChannelList: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full">
-            {/* Team selector */}
+            {/* Team selector + status */}
             <div className="flex items-center gap-2 p-3 border-b border-[var(--vscode-panel-border)]">
                 {teams.length > 1 ? (
                     <Select value={selectedTeamId ?? ''} onValueChange={(v) => { if (v) handleTeamSelect(v); }}>
@@ -361,6 +388,33 @@ export const MattermostChannelList: React.FC = () => {
                         {selectedTeam.displayName}
                     </span>
                 ) : null}
+
+                {/* Set status dropdown */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger render={
+                        <Button variant="ghost" size="icon-xs" title="Set status">
+                            <Circle size={14} fill="#6b7280" stroke="#6b7280" />
+                        </Button>
+                    } />
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => handleSetStatus('online')}>
+                            <Circle size={10} fill="#22c55e" stroke="#22c55e" className="mr-2" />
+                            Online
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSetStatus('away')}>
+                            <Circle size={10} fill="#f59e0b" stroke="#f59e0b" className="mr-2" />
+                            Away
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSetStatus('dnd')}>
+                            <Circle size={10} fill="#ef4444" stroke="#ef4444" className="mr-2" />
+                            Do Not Disturb
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSetStatus('offline')}>
+                            <Circle size={10} className="mr-2 text-fg/30" strokeWidth={2} />
+                            Offline
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
                 <Button
                     variant="ghost"

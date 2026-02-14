@@ -244,8 +244,13 @@ export class StashPanel {
         postId?: string;
         emojiName?: string;
         term?: string;
+        terms?: string;
         targetUserId?: string;
         userIds?: string[];
+        userId?: string;
+        status?: string;
+        dndEndTime?: number;
+        fileIds?: string[];
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -1039,9 +1044,15 @@ export class StashPanel {
                 if (!this._mattermostService || !msg.channelId || !msg.message) { break; }
                 try {
                     this._panel.webview.postMessage({ type: 'mattermostSendingPost' });
-                    const post = await this._mattermostService.createPost(msg.channelId, msg.message, msg.rootId);
+                    const post = await this._mattermostService.createPost(msg.channelId, msg.message, msg.rootId, msg.fileIds);
                     const username = await this._mattermostService.resolveUsername(post.userId);
-                    const postData = MattermostService.toPostData(post, username);
+                    let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
+                    if (post.fileIds.length > 0) {
+                        try {
+                            files = await this._mattermostService!.resolveFileInfos(post.fileIds);
+                        } catch { /* ignore */ }
+                    }
+                    const postData = MattermostService.toPostData(post, username, files);
                     this._panel.webview.postMessage({ type: 'mattermostPostCreated', post: postData });
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
@@ -1094,9 +1105,15 @@ export class StashPanel {
                 if (!this._mattermostService || !msg.channelId || !msg.message || !msg.rootId) { break; }
                 try {
                     this._panel.webview.postMessage({ type: 'mattermostSendingPost' });
-                    const post = await this._mattermostService.createPost(msg.channelId, msg.message, msg.rootId);
+                    const post = await this._mattermostService.createPost(msg.channelId, msg.message, msg.rootId, msg.fileIds);
                     const username = await this._mattermostService.resolveUsername(post.userId);
-                    const postData = MattermostService.toPostData(post, username);
+                    let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
+                    if (post.fileIds.length > 0) {
+                        try {
+                            files = await this._mattermostService!.resolveFileInfos(post.fileIds);
+                        } catch { /* ignore */ }
+                    }
+                    const postData = MattermostService.toPostData(post, username, files);
                     this._panel.webview.postMessage({ type: 'mattermostPostCreated', post: postData });
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
@@ -1267,6 +1284,250 @@ export class StashPanel {
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost Edit / Delete / Pin ───────────────────────
+
+            case 'mattermost.editPost': {
+                if (!this._mattermostService || !msg.postId || typeof msg.message !== 'string') { break; }
+                try {
+                    const post = await this._mattermostService.editPost(msg.postId, msg.message);
+                    const username = await this._mattermostService.resolveUsername(post.userId);
+                    const postData = MattermostService.toPostData(post, username);
+                    this._panel.webview.postMessage({ type: 'mattermostPostEdited', post: postData });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.deletePost': {
+                if (!this._mattermostService || !msg.postId) { break; }
+                try {
+                    await this._mattermostService.deletePost(msg.postId);
+                    this._panel.webview.postMessage({ type: 'mattermostPostDeleted', postId: msg.postId });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.pinPost': {
+                if (!this._mattermostService || !msg.postId) { break; }
+                try {
+                    await this._mattermostService.pinPost(msg.postId);
+                    this._panel.webview.postMessage({
+                        type: 'mattermostPostPinToggled',
+                        postId: msg.postId,
+                        isPinned: true,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.unpinPost': {
+                if (!this._mattermostService || !msg.postId) { break; }
+                try {
+                    await this._mattermostService.unpinPost(msg.postId);
+                    this._panel.webview.postMessage({
+                        type: 'mattermostPostPinToggled',
+                        postId: msg.postId,
+                        isPinned: false,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost Search ────────────────────────────────────
+
+            case 'mattermost.searchPosts': {
+                if (!this._mattermostService || !msg.terms || !msg.teamId) { break; }
+                try {
+                    this._panel.webview.postMessage({ type: 'mattermostSearchLoading' });
+                    const posts = await this._mattermostService.searchPosts(msg.teamId, msg.terms);
+                    const usernames = await this._mattermostService.resolveUsernames(posts);
+                    const payload = await Promise.all(posts.map(async (p) => {
+                        let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
+                        if (p.fileIds.length > 0) {
+                            try {
+                                files = await this._mattermostService!.resolveFileInfos(p.fileIds);
+                            } catch { /* ignore */ }
+                        }
+                        return MattermostService.toPostData(p, usernames.get(p.userId) ?? p.userId, files);
+                    }));
+                    this._panel.webview.postMessage({ type: 'mattermostSearchResults', payload });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost Flagged/Saved Posts ───────────────────────
+
+            case 'mattermost.getFlaggedPosts': {
+                if (!this._mattermostService) { break; }
+                try {
+                    const posts = await this._mattermostService.getFlaggedPosts(msg.teamId);
+                    this._panel.webview.postMessage({
+                        type: 'mattermostFlaggedPostIds',
+                        payload: posts.map((p) => p.id),
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.flagPost': {
+                if (!this._mattermostService || !msg.postId) { break; }
+                try {
+                    await this._mattermostService.flagPost(msg.postId);
+                    this._panel.webview.postMessage({
+                        type: 'mattermostPostFlagged',
+                        postId: msg.postId,
+                        flagged: true,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.unflagPost': {
+                if (!this._mattermostService || !msg.postId) { break; }
+                try {
+                    await this._mattermostService.unflagPost(msg.postId);
+                    this._panel.webview.postMessage({
+                        type: 'mattermostPostFlagged',
+                        postId: msg.postId,
+                        flagged: false,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost User Status (set own) ────────────────────
+
+            case 'mattermost.setOwnStatus': {
+                if (!this._mattermostService || !msg.status) { break; }
+                try {
+                    await this._mattermostService.setOwnStatus(msg.status as 'online' | 'away' | 'offline' | 'dnd', msg.dndEndTime);
+                    // WebSocket will relay the status_change event
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost User Profile ──────────────────────────────
+
+            case 'mattermost.getUserProfile': {
+                if (!this._mattermostService || !msg.userId) { break; }
+                try {
+                    const user = await this._mattermostService.getUserProfile(msg.userId);
+                    const userData = MattermostService.toUserData(user);
+                    let avatarUrl: string | undefined;
+                    try {
+                        avatarUrl = await this._mattermostService.getUserProfileImage(msg.userId);
+                    } catch { /* ignore — avatar is optional */ }
+                    this._panel.webview.postMessage({
+                        type: 'mattermostUserProfile',
+                        user: userData,
+                        avatarUrl,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost Channel Info ──────────────────────────────
+
+            case 'mattermost.getChannelInfo': {
+                if (!this._mattermostService || !msg.channelId) { break; }
+                try {
+                    const channel = await this._mattermostService.getChannel(msg.channelId);
+                    this._panel.webview.postMessage({
+                        type: 'mattermostChannelInfo',
+                        payload: MattermostService.toChannelData(channel),
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost File Upload ───────────────────────────────
+
+            case 'mattermost.uploadFiles': {
+                if (!this._mattermostService || !msg.channelId) { break; }
+                try {
+                    const uris = await vscode.window.showOpenDialog({
+                        canSelectMany: true,
+                        openLabel: 'Upload',
+                        title: 'Select files to upload to Mattermost',
+                    });
+                    if (!uris || uris.length === 0) {
+                        // User cancelled — no-op
+                        break;
+                    }
+
+                    this._panel.webview.postMessage({ type: 'mattermostFileUploading', count: uris.length });
+
+                    const fileBuffers: { name: string; data: Buffer; mimeType: string }[] = [];
+                    for (const uri of uris) {
+                        const data = Buffer.from(await vscode.workspace.fs.readFile(uri));
+                        const name = uri.path.split('/').pop() ?? 'file';
+                        // Infer mime type from extension
+                        const ext = name.split('.').pop()?.toLowerCase() ?? '';
+                        const mimeMap: Record<string, string> = {
+                            png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+                            gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+                            pdf: 'application/pdf', zip: 'application/zip',
+                            txt: 'text/plain', md: 'text/markdown',
+                            json: 'application/json', xml: 'application/xml',
+                            csv: 'text/csv', html: 'text/html',
+                            js: 'application/javascript', ts: 'text/typescript',
+                            py: 'text/x-python', go: 'text/x-go',
+                            rs: 'text/x-rust', java: 'text/x-java',
+                            mp4: 'video/mp4', mp3: 'audio/mpeg',
+                        };
+                        const mimeType = mimeMap[ext] ?? 'application/octet-stream';
+                        fileBuffers.push({ name, data, mimeType });
+                    }
+
+                    const fileInfos = await this._mattermostService.uploadFiles(msg.channelId, fileBuffers);
+                    const fileIds = fileInfos.map((f) => f.id);
+                    const fileInfoDatas = await this._mattermostService.resolveFileInfos(fileIds);
+
+                    this._panel.webview.postMessage({
+                        type: 'mattermostFilesUploaded',
+                        fileIds,
+                        files: fileInfoDatas,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                    this._panel.webview.postMessage({ type: 'mattermostFileUploadFailed' });
                 }
                 break;
             }
@@ -1630,6 +1891,7 @@ export class StashPanel {
                     id: string; channel_id: string; user_id: string; message: string;
                     create_at: number; update_at: number; delete_at: number;
                     root_id: string; type: string; props: Record<string, unknown>;
+                    is_pinned?: boolean;
                     file_ids?: string[];
                 };
                 const username = data.sender_name?.replace(/^@/, '') ??
@@ -1653,6 +1915,7 @@ export class StashPanel {
                     updateAt: new Date(rawPost.update_at).toISOString(),
                     rootId: rawPost.root_id,
                     type: rawPost.type,
+                    isPinned: rawPost.is_pinned ?? false,
                     files: files && files.length > 0 ? files : undefined,
                 };
                 this._panel.webview.postMessage({ type: 'mattermostNewPost', post: postData });
@@ -1662,6 +1925,35 @@ export class StashPanel {
                     type: 'mattermostNewPostUnread',
                     channelId: rawPost.channel_id,
                 });
+
+                // Desktop notification: check if message mentions the current user
+                try {
+                    const me = await this._mattermostService.getMe();
+                    const mentionPatterns = [
+                        `@${me.username}`,
+                        '@here',
+                        '@channel',
+                        '@all',
+                    ];
+                    const hasMention = mentionPatterns.some((p) =>
+                        rawPost.message.toLowerCase().includes(p.toLowerCase()),
+                    );
+                    if (hasMention && rawPost.user_id !== me.id) {
+                        const channelName = data.channel_display_name || 'a channel';
+                        vscode.window.showInformationMessage(
+                            `💬 @${username} mentioned you in ${channelName}: ${rawPost.message.substring(0, 100)}${rawPost.message.length > 100 ? '…' : ''}`,
+                            'Open Channel',
+                        ).then((action) => {
+                            if (action === 'Open Channel') {
+                                this._panel.webview.postMessage({
+                                    type: 'openChannel',
+                                    channelId: rawPost.channel_id,
+                                    channelName: data.channel_display_name,
+                                });
+                            }
+                        });
+                    }
+                } catch { /* ignore notification errors */ }
             } catch (e) {
                 this._outputChannel.appendLine(`[MM WS] Error handling posted event: ${e}`);
             }
@@ -1676,6 +1968,7 @@ export class StashPanel {
                     id: string; channel_id: string; user_id: string; message: string;
                     create_at: number; update_at: number; delete_at: number;
                     root_id: string; type: string; props: Record<string, unknown>;
+                    is_pinned?: boolean;
                     file_ids?: string[];
                 };
                 const username = await this._mattermostService.resolveUsername(rawPost.user_id);
@@ -1698,6 +1991,7 @@ export class StashPanel {
                     updateAt: new Date(rawPost.update_at).toISOString(),
                     rootId: rawPost.root_id,
                     type: rawPost.type,
+                    isPinned: rawPost.is_pinned ?? false,
                     files: files && files.length > 0 ? files : undefined,
                 };
                 this._panel.webview.postMessage({ type: 'mattermostPostEdited', post: postData });

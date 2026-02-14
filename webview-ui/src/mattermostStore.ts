@@ -43,6 +43,7 @@ export interface MattermostPostData {
     updateAt: string;
     rootId: string;
     type: string;
+    isPinned: boolean;
     files?: MattermostFileInfoData[];
 }
 
@@ -149,6 +150,26 @@ interface MattermostStore {
     // User search results (for New DM)
     userSearchResults: MattermostUserData[];
 
+    // Editing state: postId being edited (null = not editing)
+    editingPostId: string | null;
+    editingPostMessage: string;
+
+    // Message search
+    searchResults: MattermostPostData[];
+    isSearchingMessages: boolean;
+    messageSearchQuery: string;
+
+    // Flagged/saved posts
+    flaggedPostIds: Set<string>;
+
+    // Channel info panel
+    showChannelInfo: boolean;
+
+    // Pending file uploads (waiting to be sent with a message)
+    pendingFileIds: string[];
+    pendingFiles: MattermostFileInfoData[];
+    isUploadingFiles: boolean;
+
     // Actions — config / auth
     setConfigured: (configured: boolean) => void;
     setCurrentUser: (user: MattermostUserData | null) => void;
@@ -213,6 +234,33 @@ interface MattermostStore {
     setIsSearchingUsers: (searching: boolean) => void;
     setUserSearchResults: (users: MattermostUserData[]) => void;
     clearUserSearchResults: () => void;
+
+    // Actions — editing
+    startEditing: (postId: string, currentMessage: string) => void;
+    setEditingMessage: (message: string) => void;
+    cancelEditing: () => void;
+
+    // Actions — message search
+    setSearchResults: (posts: MattermostPostData[]) => void;
+    setIsSearchingMessages: (searching: boolean) => void;
+    setMessageSearchQuery: (query: string) => void;
+    clearSearchResults: () => void;
+
+    // Actions — flagged posts
+    setFlaggedPostIds: (ids: string[]) => void;
+    addFlaggedPostId: (id: string) => void;
+    removeFlaggedPostId: (id: string) => void;
+
+    // Actions — channel info
+    setShowChannelInfo: (show: boolean) => void;
+
+    // Actions — pin toggle in post list
+    togglePostPin: (postId: string, isPinned: boolean) => void;
+
+    // Actions — file upload
+    setIsUploadingFiles: (uploading: boolean) => void;
+    setPendingFiles: (fileIds: string[], files: MattermostFileInfoData[]) => void;
+    clearPendingFiles: () => void;
 }
 
 const EMPTY_TEAMS: MattermostTeamData[] = [];
@@ -220,6 +268,8 @@ const EMPTY_CHANNELS: MattermostChannelData[] = [];
 const EMPTY_POSTS: MattermostPostData[] = [];
 const EMPTY_EMOJIS: MattermostEmojiData[] = [];
 const EMPTY_USERS: MattermostUserData[] = [];
+const EMPTY_FILE_IDS: string[] = [];
+const EMPTY_FILE_INFOS: MattermostFileInfoData[] = [];
 const TYPING_TIMEOUT_MS = 5_000;
 
 export const useMattermostStore = create<MattermostStore>((set) => ({
@@ -251,6 +301,16 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     replyToUsername: null,
     isSearchingUsers: false,
     userSearchResults: EMPTY_USERS,
+    editingPostId: null,
+    editingPostMessage: '',
+    searchResults: EMPTY_POSTS,
+    isSearchingMessages: false,
+    messageSearchQuery: '',
+    flaggedPostIds: new Set<string>(),
+    showChannelInfo: false,
+    pendingFileIds: EMPTY_FILE_IDS,
+    pendingFiles: EMPTY_FILE_INFOS,
+    isUploadingFiles: false,
 
     // ─── Config / Auth ────────────────────────────────────────────
     setConfigured: (isConfigured) => set({ isConfigured }),
@@ -452,4 +512,49 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     setIsSearchingUsers: (isSearchingUsers) => set({ isSearchingUsers }),
     setUserSearchResults: (userSearchResults) => set({ userSearchResults }),
     clearUserSearchResults: () => set({ userSearchResults: EMPTY_USERS, isSearchingUsers: false }),
+
+    // ─── Editing ──────────────────────────────────────────────────
+    startEditing: (postId, currentMessage) =>
+        set({ editingPostId: postId, editingPostMessage: currentMessage }),
+    setEditingMessage: (editingPostMessage) => set({ editingPostMessage }),
+    cancelEditing: () => set({ editingPostId: null, editingPostMessage: '' }),
+
+    // ─── Message Search ───────────────────────────────────────────
+    setSearchResults: (searchResults) => set({ searchResults, isSearchingMessages: false }),
+    setIsSearchingMessages: (isSearchingMessages) => set({ isSearchingMessages }),
+    setMessageSearchQuery: (messageSearchQuery) => set({ messageSearchQuery }),
+    clearSearchResults: () =>
+        set({ searchResults: EMPTY_POSTS, isSearchingMessages: false, messageSearchQuery: '' }),
+
+    // ─── Flagged Posts ────────────────────────────────────────────
+    setFlaggedPostIds: (ids) => set({ flaggedPostIds: new Set(ids) }),
+    addFlaggedPostId: (id) =>
+        set((state) => {
+            const next = new Set(state.flaggedPostIds);
+            next.add(id);
+            return { flaggedPostIds: next };
+        }),
+    removeFlaggedPostId: (id) =>
+        set((state) => {
+            const next = new Set(state.flaggedPostIds);
+            next.delete(id);
+            return { flaggedPostIds: next };
+        }),
+
+    // ─── Channel Info ─────────────────────────────────────────────
+    setShowChannelInfo: (showChannelInfo) => set({ showChannelInfo }),
+
+    // ─── Pin Toggle ───────────────────────────────────────────────
+    togglePostPin: (postId, isPinned) =>
+        set((state) => ({
+            posts: state.posts.map((p) => (p.id === postId ? { ...p, isPinned } : p)),
+            threadPosts: state.threadPosts.map((p) => (p.id === postId ? { ...p, isPinned } : p)),
+        })),
+
+    // ─── File Upload ──────────────────────────────────────────────
+    setIsUploadingFiles: (isUploadingFiles) => set({ isUploadingFiles }),
+    setPendingFiles: (fileIds, files) =>
+        set({ pendingFileIds: fileIds, pendingFiles: files, isUploadingFiles: false }),
+    clearPendingFiles: () =>
+        set({ pendingFileIds: EMPTY_FILE_IDS, pendingFiles: EMPTY_FILE_INFOS, isUploadingFiles: false }),
 }));

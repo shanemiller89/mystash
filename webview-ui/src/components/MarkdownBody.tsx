@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
+import taskLists from 'markdown-it-task-lists';
 import { emojiFromShortcode } from '../emojiMap';
 import { useMattermostStore } from '../mattermostStore';
 
@@ -31,6 +32,9 @@ const md = new MarkdownIt({
     },
 });
 
+// Enable GFM task lists
+md.use(taskLists, { enabled: true, label: true, labelAfter: true });
+
 // ─── Emoji Shortcode Rendering ────────────────────────────────────
 
 /**
@@ -57,11 +61,37 @@ function renderEmojiInHtml(
     });
 }
 
-// ─── Component ────────────────────────────────────────────────────
+/**
+ * Highlight @mentions in rendered HTML.
+ * Wraps @username, @here, @channel, @all in a styled <span>.
+ * Applies a special class when the mention matches the current user.
+ */
+function highlightMentions(
+    html: string,
+    currentUsername: string | null,
+): string {
+    // Match @word patterns outside of HTML tags and code blocks.
+    // We look for @username (alphanumeric, dots, hyphens, underscores)
+    // as well as special keywords @here, @channel, @all.
+    return html.replace(
+        /(?<![\w])@([a-zA-Z0-9._-]+)/g,
+        (match, name: string) => {
+            const lower = name.toLowerCase();
+            const isSpecial = lower === 'here' || lower === 'channel' || lower === 'all';
+            const isSelf = currentUsername !== null && lower === currentUsername.toLowerCase();
+            const cls = isSelf || isSpecial ? 'mention-highlight mention-self' : 'mention-highlight';
+            return `<span class="${cls}">${escapeHtml(match)}</span>`;
+        },
+    );
+}
+
+// ─── Component ────────────────────────────────────────────────────────
 
 interface MarkdownBodyProps {
     content: string;
     className?: string;
+    /** When provided, @mentions of this user (and @here/@channel/@all) get extra highlighting */
+    currentUsername?: string | null;
 }
 
 /**
@@ -70,11 +100,14 @@ interface MarkdownBodyProps {
  * Wraps output in `.markdown-body` class for consistent styling from index.css.
  * Also converts :shortcode: emoji to Unicode characters or custom emoji images.
  */
-export const MarkdownBody: React.FC<MarkdownBodyProps> = ({ content, className = '' }) => {
+export const MarkdownBody: React.FC<MarkdownBodyProps> = ({ content, className = '', currentUsername }) => {
     const customEmojis = useMattermostStore((s) => s.customEmojis);
     const html = useMemo(
-        () => renderEmojiInHtml(md.render(content), customEmojis),
-        [content, customEmojis],
+        () => highlightMentions(
+            renderEmojiInHtml(md.render(content), customEmojis),
+            currentUsername ?? null,
+        ),
+        [content, customEmojis, currentUsername],
     );
 
     return (

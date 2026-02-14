@@ -8,15 +8,33 @@ import {
     InputGroup,
     InputGroupTextarea,
     InputGroupAddon,
-    InputGroupButton,
 } from './ui/input-group';
 import { Button } from './ui/button';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from './ui/alert-dialog';
 import {
     X,
     Send,
     Copy,
     Check,
     Loader2,
+    ChevronUp,
+    Pencil,
+    Trash2,
+    Pin,
+    PinOff,
+    Bookmark,
+    BookmarkCheck,
+    Paperclip,
 } from 'lucide-react';
 import { EmojiPickerButton, ComposeEmojiPickerButton } from './EmojiPicker';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
@@ -53,19 +71,102 @@ function StatusDot({ userId }: { userId: string }) {
     );
 }
 
+/** Inline edit form for thread messages */
+const ThreadInlineEditForm: React.FC<{
+    postId: string;
+    initialMessage: string;
+    onCancel: () => void;
+}> = ({ postId, initialMessage, onCancel }) => {
+    const [editText, setEditText] = useState(initialMessage);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        textareaRef.current?.focus();
+        if (textareaRef.current) {
+            textareaRef.current.selectionStart = textareaRef.current.value.length;
+        }
+    }, []);
+
+    const handleSave = useCallback(() => {
+        const text = editText.trim();
+        if (!text) { return; }
+        postMessage('mattermost.editPost', { postId, message: text });
+        onCancel();
+    }, [editText, postId, onCancel]);
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); }
+        if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    }, [handleSave, onCancel]);
+
+    return (
+        <div className="mt-1 flex flex-col gap-1">
+            <InputGroup>
+                <InputGroupTextarea
+                    ref={textareaRef}
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    rows={2}
+                    className="text-sm"
+                />
+            </InputGroup>
+            <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={onCancel} className="h-6 text-xs">Cancel</Button>
+                <Button size="sm" onClick={handleSave} disabled={!editText.trim()} className="h-6 text-xs">Save</Button>
+                <span className="text-[10px] text-fg/40 ml-1">Enter to save, Esc to cancel</span>
+            </div>
+        </div>
+    );
+};
+
 /** Thread post (root or reply) */
 const ThreadMessage: React.FC<{
     post: MattermostPostData;
     isRoot: boolean;
     currentUserId: string | null;
-}> = ({ post, isRoot, currentUserId }) => {
+    currentUsername: string | null;
+}> = ({ post, isRoot, currentUserId, currentUsername }) => {
     const [copied, setCopied] = useState(false);
+    const editingPostId = useMattermostStore((s) => s.editingPostId);
+    const startEditing = useMattermostStore((s) => s.startEditing);
+    const cancelEditing = useMattermostStore((s) => s.cancelEditing);
+    const flaggedPostIds = useMattermostStore((s) => s.flaggedPostIds);
+
+    const isOwn = currentUsername !== null && post.username === currentUsername;
+    const isEditing = editingPostId === post.id;
+    const isFlagged = flaggedPostIds.has(post.id);
+    const isEdited = post.updateAt !== post.createAt;
 
     const handleCopy = useCallback(() => {
         void navigator.clipboard.writeText(post.message);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
     }, [post.message]);
+
+    const handleEdit = useCallback(() => {
+        startEditing(post.id, post.message);
+    }, [post.id, post.message, startEditing]);
+
+    const handleDelete = useCallback(() => {
+        postMessage('mattermost.deletePost', { postId: post.id });
+    }, [post.id]);
+
+    const handlePin = useCallback(() => {
+        if (post.isPinned) {
+            postMessage('mattermost.unpinPost', { postId: post.id });
+        } else {
+            postMessage('mattermost.pinPost', { postId: post.id });
+        }
+    }, [post.id, post.isPinned]);
+
+    const handleFlag = useCallback(() => {
+        if (isFlagged) {
+            postMessage('mattermost.unflagPost', { postId: post.id });
+        } else {
+            postMessage('mattermost.flagPost', { postId: post.id });
+        }
+    }, [post.id, isFlagged]);
 
     return (
         <div className={`group flex gap-2 px-3 py-2 hover:bg-[var(--vscode-list-hoverBackground)] ${isRoot ? 'border-b border-[var(--vscode-panel-border)] pb-3' : ''}`}>
@@ -82,16 +183,71 @@ const ThreadMessage: React.FC<{
                         {post.username}
                     </span>
                     <span className="text-[10px] text-fg/40">{formatTime(post.createAt)}</span>
+                    {isEdited && <span className="text-[10px] text-fg/30">(edited)</span>}
+                    {post.isPinned && (
+                        <span title="Pinned"><Pin size={9} className="text-yellow-500 shrink-0" /></span>
+                    )}
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
                         <Button variant="ghost" size="icon-xs" onClick={handleCopy} title="Copy">
                             {copied ? <Check size={10} /> : <Copy size={10} />}
                         </Button>
                         <EmojiPickerButton postId={post.id} />
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={handlePin}
+                            title={post.isPinned ? 'Unpin' : 'Pin'}
+                        >
+                            {post.isPinned ? <PinOff size={10} /> : <Pin size={10} />}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={handleFlag}
+                            title={isFlagged ? 'Unsave' : 'Save'}
+                        >
+                            {isFlagged ? <BookmarkCheck size={10} className="text-yellow-500" /> : <Bookmark size={10} />}
+                        </Button>
+                        {isOwn && (
+                            <>
+                                <Button variant="ghost" size="icon-xs" onClick={handleEdit} title="Edit">
+                                    <Pencil size={10} />
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger render={
+                                        <Button variant="ghost" size="icon-xs" title="Delete">
+                                            <Trash2 size={10} className="text-red-400" />
+                                        </Button>
+                                    } />
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Message</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to delete this message? This cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction variant="destructive" onClick={handleDelete}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </>
+                        )}
                     </div>
                 </div>
-                <div className="text-sm mt-0.5">
-                    <MarkdownBody content={post.message} />
-                </div>
+                {/* Message body or inline edit */}
+                {isEditing ? (
+                    <ThreadInlineEditForm
+                        postId={post.id}
+                        initialMessage={post.message}
+                        onCancel={cancelEditing}
+                    />
+                ) : (
+                    <div className="text-sm mt-0.5">
+                        <MarkdownBody content={post.message} currentUsername={currentUsername} />
+                    </div>
+                )}
                 <FileAttachments files={post.files} />
                 <ReactionBar postId={post.id} currentUserId={currentUserId} />
             </div>
@@ -107,12 +263,17 @@ export const MattermostThreadPanel: React.FC = () => {
     const currentUser = useMattermostStore((s) => s.currentUser);
     const selectedChannelId = useMattermostStore((s) => s.selectedChannelId);
     const isSendingMessage = useMattermostStore((s) => s.isSendingMessage);
+    const pendingFileIds = useMattermostStore((s) => s.pendingFileIds);
+    const pendingFiles = useMattermostStore((s) => s.pendingFiles);
+    const isUploadingFiles = useMattermostStore((s) => s.isUploadingFiles);
+    const clearPendingFiles = useMattermostStore((s) => s.clearPendingFiles);
 
     const [replyText, setReplyText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
     const currentUserId = currentUser?.id ?? null;
+    const currentUsername = currentUser?.username ?? null;
 
     // Emoji shortcode autocomplete for thread reply
     const {
@@ -151,14 +312,21 @@ export const MattermostThreadPanel: React.FC = () => {
 
     const handleSendReply = useCallback(() => {
         const text = replyText.trim();
-        if (!text || !selectedChannelId || !activeThreadRootId) { return; }
+        if ((!text && pendingFileIds.length === 0) || !selectedChannelId || !activeThreadRootId) { return; }
         postMessage('mattermost.sendReply', {
             channelId: selectedChannelId,
-            message: text,
+            message: text || ' ',
             rootId: activeThreadRootId,
+            fileIds: pendingFileIds.length > 0 ? pendingFileIds : undefined,
         });
         setReplyText('');
-    }, [replyText, selectedChannelId, activeThreadRootId]);
+        clearPendingFiles();
+    }, [replyText, selectedChannelId, activeThreadRootId, pendingFileIds, clearPendingFiles]);
+
+    const handleUploadClick = useCallback(() => {
+        if (!selectedChannelId) { return; }
+        postMessage('mattermost.uploadFiles', { channelId: selectedChannelId });
+    }, [selectedChannelId]);
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -206,10 +374,10 @@ export const MattermostThreadPanel: React.FC = () => {
                 ) : (
                     <>
                         {rootPost && (
-                            <ThreadMessage post={rootPost} isRoot={true} currentUserId={currentUserId} />
+                            <ThreadMessage post={rootPost} isRoot={true} currentUserId={currentUserId} currentUsername={currentUsername} />
                         )}
                         {replies.map((post) => (
-                            <ThreadMessage key={post.id} post={post} isRoot={false} currentUserId={currentUserId} />
+                            <ThreadMessage key={post.id} post={post} isRoot={false} currentUserId={currentUserId} currentUsername={currentUsername} />
                         ))}
                     </>
                 )}
@@ -218,6 +386,37 @@ export const MattermostThreadPanel: React.FC = () => {
 
             {/* Reply compose */}
             <div className="shrink-0 border-t border-[var(--vscode-panel-border)] p-2">
+                {/* Pending file attachments preview */}
+                {(pendingFiles.length > 0 || isUploadingFiles) && (
+                    <div className="flex flex-wrap items-center gap-2 mb-2 px-1">
+                        {isUploadingFiles && (
+                            <div className="flex items-center gap-1.5 text-xs text-fg/60">
+                                <Loader2 size={12} className="animate-spin" />
+                                Uploading…
+                            </div>
+                        )}
+                        {pendingFiles.map((f) => (
+                            <div
+                                key={f.id}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded border border-[var(--vscode-panel-border)] bg-[var(--vscode-input-background)] text-xs max-w-40"
+                                title={f.name}
+                            >
+                                <Paperclip size={10} className="shrink-0 text-fg/50" />
+                                <span className="truncate">{f.name}</span>
+                            </div>
+                        ))}
+                        {pendingFiles.length > 0 && (
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={clearPendingFiles}
+                                title="Remove attached files"
+                            >
+                                <X size={12} />
+                            </Button>
+                        )}
+                    </div>
+                )}
                 <div className="relative">
                     {/* Emoji autocomplete dropdown */}
                     <EmojiAutocompleteDropdown
@@ -235,11 +434,21 @@ export const MattermostThreadPanel: React.FC = () => {
                             rows={2}
                         />
                         <InputGroupAddon align="block-end">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={handleUploadClick}
+                                disabled={isUploadingFiles}
+                                title="Attach files"
+                            >
+                                <Paperclip size={14} />
+                                <span className="sr-only">Attach</span>
+                            </Button>
                             <ComposeEmojiPickerButton onInsert={handleInsertEmoji} />
                             <Button
                                 size="icon-sm"
                                 onClick={handleSendReply}
-                                disabled={!replyText.trim() || isSendingMessage}
+                                disabled={(!replyText.trim() && pendingFileIds.length === 0) || isSendingMessage}
                                 className="ml-auto"
                                 title="Send reply (Enter)"
                             >

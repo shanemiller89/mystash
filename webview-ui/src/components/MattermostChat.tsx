@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useMattermostStore, type MattermostPostData } from '../mattermostStore';
+import { useMattermostStore, type MattermostPostData, type MattermostChannelData } from '../mattermostStore';
 import { postMessage } from '../vscode';
 import { EmojiPickerButton, ComposeEmojiPickerButton } from './EmojiPicker';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
@@ -10,9 +10,20 @@ import {
     InputGroup,
     InputGroupTextarea,
     InputGroupAddon,
-    InputGroupButton,
 } from './ui/input-group';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from './ui/alert-dialog';
 import {
     Send,
     ArrowLeft,
@@ -24,10 +35,18 @@ import {
     Check,
     MessageSquare,
     WifiOff,
-    Circle,
     X,
-    Smile,
     ExternalLink,
+    Pencil,
+    Trash2,
+    Pin,
+    PinOff,
+    Bookmark,
+    BookmarkCheck,
+    Search,
+    Info,
+    Paperclip,
+    Loader2,
 } from 'lucide-react';
 
 function formatTime(iso: string): string {
@@ -87,22 +106,331 @@ function groupPostsByDate(posts: MattermostPostData[]): { date: string; posts: M
     return groups;
 }
 
+// ─── Inline Edit Form ─────────────────────────────────────────────
+
+const InlineEditForm: React.FC<{
+    postId: string;
+    initialMessage: string;
+    onCancel: () => void;
+}> = ({ postId, initialMessage, onCancel }) => {
+    const [editText, setEditText] = useState(initialMessage);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        textareaRef.current?.focus();
+        if (textareaRef.current) {
+            textareaRef.current.selectionStart = textareaRef.current.value.length;
+        }
+    }, []);
+
+    const handleSave = useCallback(() => {
+        const text = editText.trim();
+        if (!text) { return; }
+        postMessage('mattermost.editPost', { postId, message: text });
+        onCancel();
+    }, [editText, postId, onCancel]);
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSave();
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            onCancel();
+        }
+    }, [handleSave, onCancel]);
+
+    return (
+        <div className="mt-1 flex flex-col gap-1">
+            <InputGroup>
+                <InputGroupTextarea
+                    ref={textareaRef}
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    rows={2}
+                    className="text-sm"
+                />
+            </InputGroup>
+            <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={onCancel} className="h-6 text-xs">
+                    Cancel
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={!editText.trim()} className="h-6 text-xs">
+                    Save
+                </Button>
+                <span className="text-[10px] text-fg/40 ml-1">Enter to save, Esc to cancel</span>
+            </div>
+        </div>
+    );
+};
+
+// ─── Channel Info Panel ───────────────────────────────────────────
+
+const ChannelInfoPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const selectedChannelId = useMattermostStore((s) => s.selectedChannelId);
+    const channels = useMattermostStore((s) => s.channels);
+    const dmChannels = useMattermostStore((s) => s.dmChannels);
+    const [channelInfo, setChannelInfo] = useState<MattermostChannelData | null>(null);
+
+    const localInfo = useMemo(() => {
+        return [...channels, ...dmChannels].find((c) => c.id === selectedChannelId) ?? null;
+    }, [channels, dmChannels, selectedChannelId]);
+
+    useEffect(() => {
+        if (!selectedChannelId) { return; }
+        postMessage('mattermost.getChannelInfo', { channelId: selectedChannelId });
+
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail as MattermostChannelData;
+            if (detail.id === selectedChannelId) {
+                setChannelInfo(detail);
+            }
+        };
+        window.addEventListener('mattermost-channel-info', handler);
+        return () => window.removeEventListener('mattermost-channel-info', handler);
+    }, [selectedChannelId]);
+
+    const info = channelInfo ?? localInfo;
+    if (!info) { return null; }
+
+    return (
+        <div className="border-b border-[var(--vscode-panel-border)] px-3 py-2 bg-[var(--vscode-editor-background)]">
+            <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-fg/70">Channel Info</span>
+                <Button variant="ghost" size="icon-xs" onClick={onClose} title="Close">
+                    <X size={12} />
+                </Button>
+            </div>
+            {info.header && (
+                <div className="text-xs text-fg/60 mb-1">
+                    <span className="font-medium text-fg/50">Header: </span>
+                    <MarkdownBody content={info.header} />
+                </div>
+            )}
+            {info.purpose && (
+                <div className="text-xs text-fg/60">
+                    <span className="font-medium text-fg/50">Purpose: </span>
+                    {info.purpose}
+                </div>
+            )}
+            {!info.header && !info.purpose && (
+                <div className="text-xs text-fg/40 italic">No header or purpose set</div>
+            )}
+        </div>
+    );
+};
+
+// ─── User Profile Popover ─────────────────────────────────────────
+
+interface UserProfileData {
+    user: { id: string; username: string; email: string; firstName: string; lastName: string; nickname: string };
+    avatarUrl?: string;
+}
+
+const UserProfilePopover: React.FC<{
+    userId: string;
+    onClose: () => void;
+    onStartDM: (userId: string) => void;
+}> = ({ userId, onClose, onStartDM }) => {
+    const [profile, setProfile] = useState<UserProfileData | null>(null);
+    const userStatuses = useMattermostStore((s) => s.userStatuses);
+
+    useEffect(() => {
+        postMessage('mattermost.getUserProfile', { userId });
+
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail as UserProfileData;
+            if (detail.user.id === userId) {
+                setProfile(detail);
+            }
+        };
+        window.addEventListener('mattermost-user-profile', handler);
+        return () => window.removeEventListener('mattermost-user-profile', handler);
+    }, [userId]);
+
+    const status = userStatuses[userId];
+    const statusLabel = status === 'dnd' ? 'Do Not Disturb' : status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Offline';
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+            <div
+                className="bg-[var(--vscode-editor-background)] border border-[var(--vscode-panel-border)] rounded-lg shadow-lg p-4 w-72"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center gap-3 mb-3">
+                    {profile?.avatarUrl ? (
+                        <img src={profile.avatarUrl} alt="" className="w-12 h-12 rounded-full" />
+                    ) : (
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold bg-[var(--vscode-badge-background)] text-[var(--vscode-badge-foreground)]">
+                            {profile?.user.username.charAt(0).toUpperCase() ?? '?'}
+                        </div>
+                    )}
+                    <div>
+                        <div className="font-semibold text-sm">
+                            {profile?.user.firstName && profile?.user.lastName
+                                ? `${profile.user.firstName} ${profile.user.lastName}`
+                                : profile?.user.username ?? 'Loading…'}
+                        </div>
+                        <div className="text-xs text-fg/50">@{profile?.user.username ?? '…'}</div>
+                        {profile?.user.nickname && (
+                            <div className="text-xs text-fg/40">"{profile.user.nickname}"</div>
+                        )}
+                    </div>
+                </div>
+                <div className="text-xs text-fg/60 mb-3 flex items-center gap-1.5">
+                    <span
+                        className="w-2 h-2 rounded-full inline-block"
+                        style={{
+                            backgroundColor: status === 'online' ? '#22c55e' : status === 'away' ? '#f59e0b' : status === 'dnd' ? '#ef4444' : '#6b7280',
+                        }}
+                    />
+                    {statusLabel}
+                </div>
+                <div className="flex gap-2">
+                    <Button size="sm" onClick={() => { onStartDM(userId); onClose(); }} className="flex-1">
+                        <MessageSquare size={12} className="mr-1" />
+                        Message
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={onClose}>
+                        Close
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ─── Message Search Panel ─────────────────────────────────────────
+
+const MessageSearchPanel: React.FC<{
+    onClose: () => void;
+    currentUsername: string | null;
+    currentUserId: string | null;
+}> = ({ onClose, currentUsername, currentUserId }) => {
+    const selectedTeamId = useMattermostStore((s) => s.selectedTeamId);
+    const searchResults = useMattermostStore((s) => s.searchResults);
+    const isSearching = useMattermostStore((s) => s.isSearchingMessages);
+    const messageSearchQuery = useMattermostStore((s) => s.messageSearchQuery);
+    const setMessageSearchQuery = useMattermostStore((s) => s.setMessageSearchQuery);
+    const [localQuery, setLocalQuery] = useState(messageSearchQuery);
+
+    const handleSearch = useCallback(() => {
+        const q = localQuery.trim();
+        if (!q || !selectedTeamId) { return; }
+        setMessageSearchQuery(q);
+        postMessage('mattermost.searchPosts', { teamId: selectedTeamId, terms: q });
+    }, [localQuery, selectedTeamId, setMessageSearchQuery]);
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSearch();
+        }
+        if (e.key === 'Escape') { onClose(); }
+    }, [handleSearch, onClose]);
+
+    return (
+        <div className="border-b border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)]">
+            <div className="flex items-center gap-2 px-3 py-2">
+                <Search size={14} className="text-fg/40 shrink-0" />
+                <Input
+                    value={localQuery}
+                    onChange={(e) => setLocalQuery(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Search messages… (Enter to search)"
+                    autoFocus
+                    className="flex-1 h-7 text-sm"
+                />
+                <Button variant="ghost" size="icon-xs" onClick={onClose} title="Close search">
+                    <X size={14} />
+                </Button>
+            </div>
+            {/* Show search results inline below the search bar */}
+            {(isSearching || searchResults.length > 0 || messageSearchQuery) && (
+                <div className="max-h-60 overflow-y-auto border-t border-[var(--vscode-panel-border)]">
+                    {isSearching ? (
+                        <div className="flex items-center justify-center h-16 text-xs text-fg/50">
+                            Searching…
+                        </div>
+                    ) : searchResults.length === 0 && messageSearchQuery ? (
+                        <div className="flex items-center justify-center h-16 text-xs text-fg/40">
+                            No results found
+                        </div>
+                    ) : (
+                        <div className="py-1">
+                            <div className="px-3 py-1 text-[10px] text-fg/40 font-medium uppercase tracking-wider">
+                                {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+                            </div>
+                            {searchResults.map((post) => (
+                                <div key={post.id} className="flex gap-2 px-3 py-1.5 hover:bg-[var(--vscode-list-hoverBackground)] text-xs">
+                                    <span className="font-semibold text-[var(--vscode-textLink-foreground)] shrink-0">{post.username}</span>
+                                    <span className="text-fg/70 truncate flex-1">{post.message}</span>
+                                    <span className="text-fg/30 shrink-0">{formatTime(post.createAt)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 /** Individual message bubble */
 const MessageBubble: React.FC<{
     post: MattermostPostData;
     currentUsername: string | null;
     currentUserId: string | null;
     onOpenThread: (rootId: string) => void;
+    onClickUsername?: (userId: string) => void;
     isThreadReply?: boolean;
-}> = ({ post, currentUsername, currentUserId, onOpenThread, isThreadReply }) => {
+}> = ({ post, currentUsername, currentUserId, onOpenThread, onClickUsername, isThreadReply }) => {
     const [copied, setCopied] = useState(false);
+    const editingPostId = useMattermostStore((s) => s.editingPostId);
+    const startEditing = useMattermostStore((s) => s.startEditing);
+    const cancelEditing = useMattermostStore((s) => s.cancelEditing);
+    const flaggedPostIds = useMattermostStore((s) => s.flaggedPostIds);
+
     const isOwn = currentUsername !== null && post.username === currentUsername;
+    const isEditing = editingPostId === post.id;
+    const isFlagged = flaggedPostIds.has(post.id);
+    const isEdited = post.updateAt !== post.createAt;
 
     const handleCopy = useCallback(() => {
         void navigator.clipboard.writeText(post.message);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
     }, [post.message]);
+
+    const handleEdit = useCallback(() => {
+        startEditing(post.id, post.message);
+    }, [post.id, post.message, startEditing]);
+
+    const handleDelete = useCallback(() => {
+        postMessage('mattermost.deletePost', { postId: post.id });
+    }, [post.id]);
+
+    const handlePin = useCallback(() => {
+        if (post.isPinned) {
+            postMessage('mattermost.unpinPost', { postId: post.id });
+        } else {
+            postMessage('mattermost.pinPost', { postId: post.id });
+        }
+    }, [post.id, post.isPinned]);
+
+    const handleFlag = useCallback(() => {
+        if (isFlagged) {
+            postMessage('mattermost.unflagPost', { postId: post.id });
+        } else {
+            postMessage('mattermost.flagPost', { postId: post.id });
+        }
+    }, [post.id, isFlagged]);
+
+    const handleUsernameClick = useCallback(() => {
+        if (onClickUsername) { onClickUsername(post.userId); }
+    }, [post.userId, onClickUsername]);
 
     // Skip system messages
     if (post.type && post.type !== '') {
@@ -121,11 +449,13 @@ const MessageBubble: React.FC<{
             {/* Avatar with status dot */}
             <div className="relative shrink-0 w-8 h-8">
                 <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer ${
                         isOwn
                             ? 'bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)]'
                             : 'bg-[var(--vscode-badge-background)] text-[var(--vscode-badge-foreground)]'
                     }`}
+                    onClick={handleUsernameClick}
+                    title={`View profile: ${post.username}`}
                 >
                     {post.username.charAt(0).toUpperCase()}
                 </div>
@@ -134,19 +464,22 @@ const MessageBubble: React.FC<{
 
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-[var(--vscode-textLink-foreground)]">
+                    <span
+                        className="text-xs font-semibold text-[var(--vscode-textLink-foreground)] cursor-pointer hover:underline"
+                        onClick={handleUsernameClick}
+                        title={`View profile: ${post.username}`}
+                    >
                         {post.username}
                     </span>
                     <span className="text-xs text-fg/40">{formatTime(post.createAt)}</span>
+                    {isEdited && <span className="text-[10px] text-fg/30">(edited)</span>}
+                    {post.isPinned && (
+                        <span title="Pinned"><Pin size={10} className="text-yellow-500 shrink-0" /></span>
+                    )}
 
                     {/* Action buttons — visible on hover */}
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
-                        <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={handleCopy}
-                            title="Copy message"
-                        >
+                        <Button variant="ghost" size="icon-xs" onClick={handleCopy} title="Copy message">
                             {copied ? <Check size={12} /> : <Copy size={12} />}
                         </Button>
                         <EmojiPickerButton postId={post.id} />
@@ -160,12 +493,63 @@ const MessageBubble: React.FC<{
                                 <MessageSquare size={12} />
                             </Button>
                         )}
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={handlePin}
+                            title={post.isPinned ? 'Unpin message' : 'Pin message'}
+                        >
+                            {post.isPinned ? <PinOff size={12} /> : <Pin size={12} />}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={handleFlag}
+                            title={isFlagged ? 'Unsave message' : 'Save message'}
+                        >
+                            {isFlagged ? <BookmarkCheck size={12} className="text-yellow-500" /> : <Bookmark size={12} />}
+                        </Button>
+                        {isOwn && (
+                            <>
+                                <Button variant="ghost" size="icon-xs" onClick={handleEdit} title="Edit message">
+                                    <Pencil size={12} />
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger render={
+                                        <Button variant="ghost" size="icon-xs" title="Delete message">
+                                            <Trash2 size={12} className="text-red-400" />
+                                        </Button>
+                                    } />
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Message</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to delete this message? This cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction variant="destructive" onClick={handleDelete}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </>
+                        )}
                     </div>
                 </div>
 
-                <div className="text-sm mt-0.5">
-                    <MarkdownBody content={post.message} />
-                </div>
+                {/* Message body or inline edit form */}
+                {isEditing ? (
+                    <InlineEditForm
+                        postId={post.id}
+                        initialMessage={post.message}
+                        onCancel={cancelEditing}
+                    />
+                ) : (
+                    <div className="text-sm mt-0.5">
+                        <MarkdownBody content={post.message} currentUsername={currentUsername} />
+                    </div>
+                )}
 
                 {/* File attachments */}
                 <FileAttachments files={post.files} />
@@ -241,8 +625,16 @@ export const MattermostChat: React.FC<{
     const replyToUsername = useMattermostStore((s) => s.replyToUsername);
     const setReplyTo = useMattermostStore((s) => s.setReplyTo);
     const clearReplyTo = useMattermostStore((s) => s.clearReplyTo);
+    const showChannelInfo = useMattermostStore((s) => s.showChannelInfo);
+    const setShowChannelInfo = useMattermostStore((s) => s.setShowChannelInfo);
+    const pendingFileIds = useMattermostStore((s) => s.pendingFileIds);
+    const pendingFiles = useMattermostStore((s) => s.pendingFiles);
+    const isUploadingFiles = useMattermostStore((s) => s.isUploadingFiles);
+    const clearPendingFiles = useMattermostStore((s) => s.clearPendingFiles);
 
     const [messageText, setMessageText] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
+    const [profileUserId, setProfileUserId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -320,6 +712,14 @@ export const MattermostChat: React.FC<{
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [posts]);
 
+    // Auto mark channel as read + fetch flagged posts on channel enter
+    useEffect(() => {
+        if (selectedChannelId) {
+            postMessage('mattermost.markRead', { channelId: selectedChannelId });
+            postMessage('mattermost.getFlaggedPosts', {});
+        }
+    }, [selectedChannelId]);
+
     const handleOpenThread = useCallback((rootId: string) => {
         openThread(rootId);
         postMessage('mattermost.getThread', { postId: rootId });
@@ -328,6 +728,14 @@ export const MattermostChat: React.FC<{
     const handleInsertEmoji = useCallback((shortcode: string) => {
         setMessageText((prev) => prev + shortcode);
         textareaRef.current?.focus();
+    }, []);
+
+    const handleClickUsername = useCallback((userId: string) => {
+        setProfileUserId(userId);
+    }, []);
+
+    const handleStartDM = useCallback((userId: string) => {
+        postMessage('mattermost.createDM', { targetUserId: userId });
     }, []);
 
     // Emoji shortcode autocomplete
@@ -352,15 +760,22 @@ export const MattermostChat: React.FC<{
 
     const handleSend = useCallback(() => {
         const text = messageText.trim();
-        if (!text || !selectedChannelId) { return; }
+        if ((!text && pendingFileIds.length === 0) || !selectedChannelId) { return; }
         postMessage('mattermost.sendPost', {
             channelId: selectedChannelId,
-            message: text,
+            message: text || ' ', // Mattermost requires non-empty message
             rootId: replyToPostId ?? undefined,
+            fileIds: pendingFileIds.length > 0 ? pendingFileIds : undefined,
         });
         setMessageText('');
         clearReplyTo();
-    }, [messageText, selectedChannelId, replyToPostId, clearReplyTo]);
+        clearPendingFiles();
+    }, [messageText, selectedChannelId, replyToPostId, clearReplyTo, pendingFileIds, clearPendingFiles]);
+
+    const handleUploadClick = useCallback(() => {
+        if (!selectedChannelId) { return; }
+        postMessage('mattermost.uploadFiles', { channelId: selectedChannelId });
+    }, [selectedChannelId]);
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -410,6 +825,15 @@ export const MattermostChat: React.FC<{
 
     return (
         <div className="flex flex-col h-full">
+            {/* User profile popover */}
+            {profileUserId && (
+                <UserProfilePopover
+                    userId={profileUserId}
+                    onClose={() => setProfileUserId(null)}
+                    onStartDM={handleStartDM}
+                />
+            )}
+
             {/* Connection banner */}
             <ConnectionBanner />
 
@@ -430,12 +854,42 @@ export const MattermostChat: React.FC<{
                 <Button
                     variant="ghost"
                     size="icon-xs"
+                    onClick={() => setShowSearch(!showSearch)}
+                    title="Search messages"
+                >
+                    <Search size={14} />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => setShowChannelInfo(!showChannelInfo)}
+                    title="Channel info"
+                >
+                    <Info size={14} />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={handleRefresh}
                     title="Refresh"
                 >
                     <RefreshCw size={14} className={isLoadingPosts ? 'animate-spin' : ''} />
                 </Button>
             </div>
+
+            {/* Channel info panel */}
+            {showChannelInfo && (
+                <ChannelInfoPanel onClose={() => setShowChannelInfo(false)} />
+            )}
+
+            {/* Search panel */}
+            {showSearch && (
+                <MessageSearchPanel
+                    onClose={() => setShowSearch(false)}
+                    currentUsername={currentUsername}
+                    currentUserId={currentUserId}
+                />
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto py-2">
@@ -482,6 +936,7 @@ export const MattermostChat: React.FC<{
                                         currentUsername={currentUsername}
                                         currentUserId={currentUserId}
                                         onOpenThread={handleOpenThread}
+                                        onClickUsername={handleClickUsername}
                                     />
 
                                     {/* Collapsible inline thread replies */}
@@ -519,6 +974,7 @@ export const MattermostChat: React.FC<{
                                                             currentUsername={currentUsername}
                                                             currentUserId={currentUserId}
                                                             onOpenThread={handleOpenThread}
+                                                            onClickUsername={handleClickUsername}
                                                             isThreadReply
                                                         />
                                                     ))}
@@ -558,6 +1014,39 @@ export const MattermostChat: React.FC<{
                         </Button>
                     </div>
                 )}
+
+                {/* Pending file attachments preview */}
+                {(pendingFiles.length > 0 || isUploadingFiles) && (
+                    <div className="flex flex-wrap items-center gap-2 mb-2 px-1">
+                        {isUploadingFiles && (
+                            <div className="flex items-center gap-1.5 text-xs text-fg/60">
+                                <Loader2 size={12} className="animate-spin" />
+                                Uploading…
+                            </div>
+                        )}
+                        {pendingFiles.map((f) => (
+                            <div
+                                key={f.id}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded border border-[var(--vscode-panel-border)] bg-[var(--vscode-input-background)] text-xs max-w-40"
+                                title={f.name}
+                            >
+                                <Paperclip size={10} className="shrink-0 text-fg/50" />
+                                <span className="truncate">{f.name}</span>
+                            </div>
+                        ))}
+                        {pendingFiles.length > 0 && (
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={clearPendingFiles}
+                                title="Remove attached files"
+                            >
+                                <X size={12} />
+                            </Button>
+                        )}
+                    </div>
+                )}
+
                 <div className="relative">
                     {/* Emoji autocomplete dropdown */}
                     <EmojiAutocompleteDropdown
@@ -575,11 +1064,21 @@ export const MattermostChat: React.FC<{
                             rows={2}
                         />
                         <InputGroupAddon align="block-end">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={handleUploadClick}
+                                disabled={isUploadingFiles}
+                                title="Attach files"
+                            >
+                                <Paperclip size={14} />
+                                <span className="sr-only">Attach</span>
+                            </Button>
                             <ComposeEmojiPickerButton onInsert={handleInsertEmoji} />
                             <Button
                                 size="icon-sm"
                                 onClick={handleSend}
-                                disabled={!messageText.trim() || isSendingMessage}
+                                disabled={(!messageText.trim() && pendingFileIds.length === 0) || isSendingMessage}
                                 className="ml-auto"
                                 title="Send message (Enter)"
                             >

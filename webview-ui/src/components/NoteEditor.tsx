@@ -3,11 +3,47 @@ import { useNotesStore } from '../notesStore';
 import { postMessage } from '../vscode';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
-import { Globe, Lock, Link2, Trash2, X, StickyNote, ToggleLeft, ToggleRight } from 'lucide-react';
+import taskLists from 'markdown-it-task-lists';
+import mermaid from 'mermaid';
+import {
+    Globe,
+    Lock,
+    Link2,
+    Trash2,
+    X,
+    StickyNote,
+    ToggleLeft,
+    ToggleRight,
+    Bold,
+    Italic,
+    Strikethrough,
+    Heading1,
+    Heading2,
+    Heading3,
+    Code,
+    List,
+    ListOrdered,
+    ListChecks,
+    Quote,
+    Minus,
+    ImageIcon,
+    Link as LinkIcon,
+    Table,
+    WrapText,
+} from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Separator } from './ui/separator';
+
+// ─── Mermaid Initialization ───────────────────────────────────────
+
+mermaid.initialize({
+    startOnLoad: false,
+    theme: document.body.classList.contains('vscode-light') ? 'default' : 'dark',
+    securityLevel: 'loose',
+    fontFamily: 'var(--vscode-font-family)',
+});
 
 // ─── Markdown-it Configuration ────────────────────────────────────
 
@@ -20,11 +56,19 @@ function escapeHtml(str: string): string {
         .replace(/"/g, '&quot;');
 }
 
+/** Monotonically increasing counter for unique mermaid diagram IDs */
+let mermaidCounter = 0;
+
 const md = new MarkdownIt({
     html: false, // Disable raw HTML for safety
     linkify: true, // Autoconvert URLs to links
     typographer: true, // Smart quotes, dashes
     highlight: (str: string, lang: string): string => {
+        // Mermaid code blocks → render as diagram placeholder
+        if (lang === 'mermaid') {
+            const id = `mermaid-${++mermaidCounter}`;
+            return `<div class="mermaid-block" data-mermaid-id="${id}">${escapeHtml(str)}</div>`;
+        }
         if (lang && hljs.getLanguage(lang)) {
             try {
                 return `<pre class="hljs"><code>${hljs.highlight(str, { language: lang }).value}</code></pre>`;
@@ -35,6 +79,9 @@ const md = new MarkdownIt({
         return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
     },
 });
+
+// Enable GFM task lists
+md.use(taskLists, { enabled: true, label: true, labelAfter: true });
 
 // ─── Component ────────────────────────────────────────────────────
 
@@ -127,6 +174,78 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         };
     }, [editingContent, editingTitle]);
 
+    // ─── Formatting Toolbar Helpers ───────────────────────────────
+
+    /** Insert markdown formatting around the current selection or at cursor */
+    const insertFormatting = useCallback(
+        (before: string, after: string = '', placeholder: string = '') => {
+            const textarea = textareaRef.current;
+            if (!textarea) return;
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selected = editingContent.slice(start, end);
+            const text = selected || placeholder;
+            const newValue =
+                editingContent.slice(0, start) + before + text + after + editingContent.slice(end);
+            setEditingContent(newValue);
+
+            // Position cursor / selection after React re-render
+            requestAnimationFrame(() => {
+                textarea.focus();
+                if (selected) {
+                    // Select the wrapped text
+                    textarea.selectionStart = start + before.length;
+                    textarea.selectionEnd = start + before.length + text.length;
+                } else {
+                    // Select the placeholder
+                    textarea.selectionStart = start + before.length;
+                    textarea.selectionEnd = start + before.length + placeholder.length;
+                }
+            });
+        },
+        [editingContent, setEditingContent],
+    );
+
+    /** Insert markdown at the start of the current line */
+    const insertLinePrefix = useCallback(
+        (prefix: string) => {
+            const textarea = textareaRef.current;
+            if (!textarea) return;
+
+            const start = textarea.selectionStart;
+            // Find the start of the current line
+            const lineStart = editingContent.lastIndexOf('\n', start - 1) + 1;
+            const newValue =
+                editingContent.slice(0, lineStart) + prefix + editingContent.slice(lineStart);
+            setEditingContent(newValue);
+
+            requestAnimationFrame(() => {
+                textarea.focus();
+                textarea.selectionStart = textarea.selectionEnd = start + prefix.length;
+            });
+        },
+        [editingContent, setEditingContent],
+    );
+
+    /** Insert a table template */
+    const insertTable = useCallback(() => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const table = '\n| Header | Header |\n| ------ | ------ |\n| Cell   | Cell   |\n';
+        const newValue = editingContent.slice(0, start) + table + editingContent.slice(start);
+        setEditingContent(newValue);
+
+        requestAnimationFrame(() => {
+            textarea.focus();
+            // Select first "Header"
+            textarea.selectionStart = start + 3;
+            textarea.selectionEnd = start + 9;
+        });
+    }, [editingContent, setEditingContent]);
+
     // ─── Tab Key Handling ─────────────────────────────────────────
 
     const handleTextareaKeyDown = useCallback(
@@ -148,8 +267,20 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     textarea.selectionStart = textarea.selectionEnd = start + tabSize;
                 });
             }
+
+            // Cmd/Ctrl+B → bold
+            if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+                e.preventDefault();
+                insertFormatting('**', '**', 'bold');
+            }
+
+            // Cmd/Ctrl+I → italic
+            if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+                e.preventDefault();
+                insertFormatting('*', '*', 'italic');
+            }
         },
-        [editingContent, setEditingContent, tabSize],
+        [editingContent, setEditingContent, tabSize, insertFormatting],
     );
 
     // ─── Manual Save ──────────────────────────────────────────────
@@ -167,6 +298,32 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         if (!previewMode) return '';
         return md.render(editingContent);
     }, [previewMode, editingContent]);
+
+    // ─── Mermaid Diagram Rendering ────────────────────────────────
+
+    const previewContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!previewMode || !previewContainerRef.current) return;
+
+        const blocks = previewContainerRef.current.querySelectorAll('.mermaid-block');
+        if (blocks.length === 0) return;
+
+        blocks.forEach(async (block) => {
+            const id = block.getAttribute('data-mermaid-id');
+            const code = block.textContent || '';
+            if (!id || !code.trim()) return;
+
+            try {
+                const { svg } = await mermaid.render(id, code.trim());
+                block.innerHTML = svg;
+                block.classList.add('mermaid-rendered');
+            } catch {
+                block.innerHTML = `<pre class="mermaid-error"><code>${escapeHtml(code)}</code></pre>`;
+                block.classList.add('mermaid-error-block');
+            }
+        });
+    }, [previewMode, renderedHtml]);
 
     // ─── Keyboard Shortcut ────────────────────────────────────────
 
@@ -336,10 +493,170 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 </div>
             </div>
 
+            {/* Formatting toolbar — edit mode only */}
+            {!previewMode && (
+                <div className="px-3 py-1 border-b border-border flex-shrink-0 flex items-center gap-0.5 flex-wrap">
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Bold (⌘B)"
+                        onClick={() => insertFormatting('**', '**', 'bold')}
+                    >
+                        <Bold size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Italic (⌘I)"
+                        onClick={() => insertFormatting('*', '*', 'italic')}
+                    >
+                        <Italic size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Strikethrough"
+                        onClick={() => insertFormatting('~~', '~~', 'strikethrough')}
+                    >
+                        <Strikethrough size={14} />
+                    </Button>
+
+                    <Separator orientation="vertical" className="h-4 mx-1" />
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Heading 1"
+                        onClick={() => insertLinePrefix('# ')}
+                    >
+                        <Heading1 size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Heading 2"
+                        onClick={() => insertLinePrefix('## ')}
+                    >
+                        <Heading2 size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Heading 3"
+                        onClick={() => insertLinePrefix('### ')}
+                    >
+                        <Heading3 size={14} />
+                    </Button>
+
+                    <Separator orientation="vertical" className="h-4 mx-1" />
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Inline code"
+                        onClick={() => insertFormatting('`', '`', 'code')}
+                    >
+                        <Code size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Code block"
+                        onClick={() => insertFormatting('```\n', '\n```', 'code block')}
+                    >
+                        <WrapText size={14} />
+                    </Button>
+
+                    <Separator orientation="vertical" className="h-4 mx-1" />
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Bullet list"
+                        onClick={() => insertLinePrefix('- ')}
+                    >
+                        <List size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Numbered list"
+                        onClick={() => insertLinePrefix('1. ')}
+                    >
+                        <ListOrdered size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Task list"
+                        onClick={() => insertLinePrefix('- [ ] ')}
+                    >
+                        <ListChecks size={14} />
+                    </Button>
+
+                    <Separator orientation="vertical" className="h-4 mx-1" />
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Blockquote"
+                        onClick={() => insertLinePrefix('> ')}
+                    >
+                        <Quote size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Horizontal rule"
+                        onClick={() => insertFormatting('\n---\n', '', '')}
+                    >
+                        <Minus size={14} />
+                    </Button>
+
+                    <Separator orientation="vertical" className="h-4 mx-1" />
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Link"
+                        onClick={() => insertFormatting('[', '](url)', 'link text')}
+                    >
+                        <LinkIcon size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Image"
+                        onClick={() => insertFormatting('![', '](url)', 'alt text')}
+                    >
+                        <ImageIcon size={14} />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Table"
+                        onClick={insertTable}
+                    >
+                        <Table size={14} />
+                    </Button>
+                </div>
+            )}
+
             {/* Body */}
             <div className="flex-1 overflow-auto">
                 {previewMode ? (
                     <div
+                        ref={previewContainerRef}
                         className="markdown-body px-4 py-3"
                         dangerouslySetInnerHTML={{ __html: renderedHtml }}
                     />
