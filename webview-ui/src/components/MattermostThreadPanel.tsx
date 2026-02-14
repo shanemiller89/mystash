@@ -5,6 +5,13 @@ import { MarkdownBody } from './MarkdownBody';
 import { ReactionBar } from './ReactionBar';
 import { FileAttachments } from './FileAttachments';
 import {
+    InputGroup,
+    InputGroupTextarea,
+    InputGroupAddon,
+    InputGroupButton,
+} from './ui/input-group';
+import { Button } from './ui/button';
+import {
     X,
     Send,
     Copy,
@@ -76,9 +83,9 @@ const ThreadMessage: React.FC<{
                     </span>
                     <span className="text-[10px] text-fg/40">{formatTime(post.createAt)}</span>
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
-                        <button onClick={handleCopy} className="p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/40" title="Copy">
+                        <Button variant="ghost" size="icon-xs" onClick={handleCopy} title="Copy">
                             {copied ? <Check size={10} /> : <Copy size={10} />}
-                        </button>
+                        </Button>
                         <EmojiPickerButton postId={post.id} />
                     </div>
                 </div>
@@ -160,7 +167,8 @@ export const MattermostThreadPanel: React.FC = () => {
                 emojiKeyDown(e);
                 if (e.defaultPrevented) { return; }
             }
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            // Enter sends, Shift+Enter inserts newline
+            if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSendReply();
             }
@@ -178,13 +186,14 @@ export const MattermostThreadPanel: React.FC = () => {
                 <span className="text-xs text-fg/40">
                     {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
                 </span>
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={closeThread}
-                    className="p-1 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/60"
                     title="Close thread"
                 >
                     <X size={14} />
-                </button>
+                </Button>
             </div>
 
             {/* Thread messages */}
@@ -209,39 +218,36 @@ export const MattermostThreadPanel: React.FC = () => {
 
             {/* Reply compose */}
             <div className="shrink-0 border-t border-[var(--vscode-panel-border)] p-2">
-                <div className="relative flex gap-2">
+                <div className="relative">
                     {/* Emoji autocomplete dropdown */}
                     <EmojiAutocompleteDropdown
                         suggestions={emojiSuggestions}
                         selectedIndex={emojiSelectedIndex}
                         onSelect={emojiAcceptSuggestion}
                     />
-                    <div className="flex-1 flex flex-col gap-1">
-                        <textarea
+                    <InputGroup>
+                        <InputGroupTextarea
                             ref={replyTextareaRef}
                             value={replyText}
                             onChange={emojiHandleChange}
                             onKeyDown={handleKeyDown}
-                            placeholder="Reply… (⌘+Enter)"
+                            placeholder="Reply… (Shift+Enter for new line)"
                             rows={2}
-                            className="w-full px-2 py-1.5 text-sm rounded-md resize-none
-                                bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]
-                                border border-[var(--vscode-input-border)]
-                                focus:outline-none focus:border-[var(--vscode-focusBorder)]
-                                placeholder:text-fg/40"
                         />
-                        <div className="flex items-center gap-1 px-1">
+                        <InputGroupAddon align="block-end">
                             <ComposeEmojiPickerButton onInsert={handleInsertEmoji} />
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleSendReply}
-                        disabled={!replyText.trim() || isSendingMessage}
-                        className="self-end p-1.5 rounded-md bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)] disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Send reply (⌘+Enter)"
-                    >
-                        <Send size={14} />
-                    </button>
+                            <Button
+                                size="icon-sm"
+                                onClick={handleSendReply}
+                                disabled={!replyText.trim() || isSendingMessage}
+                                className="ml-auto rounded-full h-7 w-7"
+                                title="Send reply (Enter)"
+                            >
+                                <Send size={14} />
+                                <span className="sr-only">Send</span>
+                            </Button>
+                        </InputGroupAddon>
+                    </InputGroup>
                 </div>
             </div>
         </div>

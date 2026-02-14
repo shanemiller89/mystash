@@ -3,6 +3,7 @@ import { useStashStore, type StashData } from '../store';
 import { postMessage } from '../vscode';
 import { StashFiles } from './StashFiles';
 import { Check, ArrowUp, X, ChevronRight, GitBranch, Clock } from 'lucide-react';
+import { Button } from './ui/button';
 
 export const StashCard: React.FC<{
     stash: StashData;
@@ -153,8 +154,10 @@ const ActionButton: React.FC<{
     className?: string;
     onClick: () => void;
 }> = ({ label, icon, className = '', onClick }) => (
-    <button
-        className={`bg-transparent border border-transparent rounded px-1.5 py-0.5 text-[12px] text-fg cursor-pointer hover:bg-hover hover:border-border whitespace-nowrap flex items-center gap-1 ${className}`}
+    <Button
+        variant="ghost"
+        size="sm"
+        className={`h-auto px-1.5 py-0.5 text-[12px] gap-1 ${className}`}
         title={label}
         onClick={(e) => {
             e.stopPropagation();
@@ -162,5 +165,5 @@ const ActionButton: React.FC<{
         }}
     >
         {icon} {label}
-    </button>
+    </Button>
 );

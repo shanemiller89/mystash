@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { MattermostFileInfoData } from '../mattermostStore';
 import { FileText, Download, X } from 'lucide-react';
+import { Button } from './ui/button';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -28,13 +29,15 @@ const ImageLightbox: React.FC<{
             className="relative max-w-[90vw] max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
         >
-            <button
+            <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={onClose}
-                className="absolute -top-3 -right-3 p-1 rounded-full bg-[var(--vscode-editor-background)] border border-[var(--vscode-panel-border)] text-fg/60 hover:text-fg z-10"
+                className="absolute -top-3 -right-3 rounded-full bg-[var(--vscode-editor-background)] border border-[var(--vscode-panel-border)] z-10"
                 title="Close"
             >
                 <X size={14} />
-            </button>
+            </Button>
             <img
                 src={file.url}
                 alt={file.name}

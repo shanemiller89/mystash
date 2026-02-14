@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useIssueStore, type IssueCommentData } from '../issueStore';
 import { postMessage } from '../vscode';
 import { MarkdownBody } from './MarkdownBody';
+import { Button } from './ui/button';
+import { Textarea } from './ui/textarea';
 import {
     CircleDot,
     CheckCircle2,
@@ -40,8 +42,10 @@ const CommentCard: React.FC<{ comment: IssueCommentData }> = ({ comment }) => {
         <div className="border border-border rounded-md overflow-hidden">
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-card border-b border-border">
-                <button
-                    className="p-0.5 text-fg/30 hover:text-fg transition-colors"
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-fg/30 hover:text-fg"
                     onClick={() => setCollapsed(!collapsed)}
                     title={collapsed ? 'Expand' : 'Collapse'}
                 >
@@ -49,7 +53,7 @@ const CommentCard: React.FC<{ comment: IssueCommentData }> = ({ comment }) => {
                         size={12}
                         className={`transition-transform ${collapsed ? '' : 'rotate-90'}`}
                     />
-                </button>
+                </Button>
                 {comment.authorAvatarUrl && (
                     <img
                         src={comment.authorAvatarUrl}
@@ -62,13 +66,15 @@ const CommentCard: React.FC<{ comment: IssueCommentData }> = ({ comment }) => {
                     {formatRelative(comment.createdAt)}
                 </span>
                 <div className="flex-1" />
-                <button
-                    className="p-0.5 text-fg/30 hover:text-fg transition-colors"
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-fg/30 hover:text-fg"
                     onClick={handleCopy}
                     title="Copy comment"
                 >
                     <Copy size={11} />
-                </button>
+                </Button>
             </div>
             {/* Body */}
             {!collapsed && (
@@ -179,20 +185,24 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                            className="p-1 text-fg/30 hover:text-fg transition-colors"
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-fg/30 hover:text-fg"
                             onClick={handleOpenInBrowser}
                             title="Open in browser"
                         >
                             <ExternalLink size={14} />
-                        </button>
-                        <button
-                            className="p-1 text-fg/30 hover:text-fg transition-colors"
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-fg/30 hover:text-fg"
                             onClick={onClose}
                             title="Close detail"
                         >
                             <X size={14} />
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
@@ -243,23 +253,27 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
                 {/* Close/Reopen button */}
                 <div className="mt-2">
                     {issue.state === 'open' ? (
-                        <button
-                            className="flex items-center gap-1 px-2 py-1 text-[10px] bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 transition-colors"
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-6 gap-1 text-[10px]"
                             onClick={handleCloseIssue}
                             title="Close issue"
                         >
                             <XCircle size={11} />
                             Close Issue
-                        </button>
+                        </Button>
                     ) : (
-                        <button
-                            className="flex items-center gap-1 px-2 py-1 text-[10px] bg-green-500/10 text-green-400 rounded hover:bg-green-500/20 transition-colors"
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 gap-1 text-[10px] text-green-400 border-green-400/30 hover:bg-green-500/10"
                             onClick={handleReopenIssue}
                             title="Reopen issue"
                         >
                             <RotateCcw size={11} />
                             Reopen Issue
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>
@@ -305,8 +319,8 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
             {/* Comment input */}
             <div className="flex-shrink-0 border-t border-border p-3">
                 <div className="flex gap-2">
-                    <textarea
-                        className="flex-1 bg-input border border-border rounded px-2 py-1.5 text-[11px] resize-none focus:border-accent focus:outline-none"
+                    <Textarea
+                        className="flex-1 text-[11px]"
                         placeholder="Add a comment… (⌘+Enter to send)"
                         rows={2}
                         value={commentBody}
@@ -314,14 +328,15 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
                         onKeyDown={handleKeyDown}
                         disabled={isCommentSaving}
                     />
-                    <button
-                        className="self-end p-1.5 bg-accent text-white rounded hover:opacity-90 transition-opacity disabled:opacity-40"
+                    <Button
+                        className="self-end"
+                        size="icon"
                         onClick={handleSubmitComment}
                         disabled={!commentBody.trim() || isCommentSaving}
                         title="Send comment"
                     >
                         <Send size={13} />
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

@@ -1,5 +1,6 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface ErrorBoundaryProps {
     /** Label shown in the error UI (e.g. "List", "Detail") */
@@ -45,13 +46,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                         <div className="text-[10px] text-fg/40 bg-bg/50 border border-border rounded p-2 text-left font-mono break-all max-h-32 overflow-y-auto">
                             {this.state.error.message}
                         </div>
-                        <button
-                            className="inline-flex items-center gap-1.5 text-[10px] px-3 py-1.5 bg-accent/10 text-accent border border-accent/20 rounded hover:bg-accent/20 transition-colors"
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[10px] gap-1.5"
                             onClick={this.handleRetry}
                         >
                             <RotateCcw size={10} />
                             Retry
-                        </button>
+                        </Button>
                     </div>
                 </div>
             );

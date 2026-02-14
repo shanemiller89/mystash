@@ -3,6 +3,8 @@ import { useStashStore } from '../store';
 import { StashCard } from './StashCard';
 import { postMessage } from '../vscode';
 import { Archive, Plus, RefreshCw } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 
 /** Animated skeleton card shown while stashes are loading */
 const SkeletonCard: React.FC = () => (
@@ -46,24 +48,22 @@ const CreateStashForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     return (
         <div className="rounded-md border border-accent bg-card p-3 flex flex-col gap-2">
             <div className="text-[12px] font-semibold opacity-80">Create Stash</div>
-            <input
+            <Input
                 ref={inputRef}
                 type="text"
                 placeholder="Stash message (optional)"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="bg-input-bg border border-input-border text-input-fg rounded px-2 py-1 text-[12px] outline-none focus:border-accent placeholder:opacity-40 w-full"
+                className="text-[12px]"
             />
             <div className="flex items-center gap-1.5 text-[11px]">
                 {(['all', 'staged', 'untracked'] as const).map((m) => (
-                    <button
+                    <Button
                         key={m}
-                        className={`rounded px-2 py-0.5 border transition-colors ${
-                            mode === m
-                                ? 'bg-accent text-button-fg border-accent'
-                                : 'bg-transparent border-border text-fg opacity-70 hover:opacity-100 hover:border-accent'
-                        }`}
+                        variant={mode === m ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-auto px-2 py-0.5 text-[11px]"
                         onClick={() => setMode(m)}
                     >
                         {m === 'all'
@@ -71,22 +71,25 @@ const CreateStashForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             : m === 'staged'
                               ? 'Staged Only'
                               : 'Include Untracked'}
-                    </button>
+                    </Button>
                 ))}
             </div>
             <div className="flex items-center gap-1.5 justify-end">
-                <button
-                    className="text-[11px] opacity-60 hover:opacity-100 px-2 py-0.5"
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto text-[11px] px-2 py-0.5"
                     onClick={onClose}
                 >
                     Cancel
-                </button>
-                <button
-                    className="bg-button-bg text-button-fg rounded px-3 py-0.5 text-[11px] font-medium hover:bg-button-hover"
+                </Button>
+                <Button
+                    size="sm"
+                    className="h-auto text-[11px] px-3 py-0.5"
                     onClick={handleSubmit}
                 >
                     Stash
-                </button>
+                </Button>
             </div>
         </div>
     );
@@ -164,7 +167,7 @@ export const StashList: React.FC = () => {
             {/* Search bar + Create button */}
             <div className="px-3 py-2 border-b border-border">
                 <div className="flex items-center gap-2">
-                    <input
+                    <Input
                         ref={searchRef}
                         type="text"
                         placeholder="Search stashes…"
@@ -178,22 +181,22 @@ export const StashList: React.FC = () => {
                                 setSearchQuery('');
                             }
                         }}
-                        className="flex-1 bg-input-bg border border-input-border text-input-fg rounded px-2 py-1 text-[12px] outline-none focus:border-accent placeholder:opacity-40"
+                        className="flex-1 text-[12px]"
                     />
-                    <button
-                        className="bg-button-bg text-button-fg text-[11px] rounded px-2 py-1 font-medium hover:bg-button-hover flex-shrink-0"
+                    <Button
+                        size="icon-sm"
                         onClick={() => setShowCreateForm(!showCreateForm)}
                         title="Create Stash"
                     >
                         <Plus size={14} />
-                    </button>
-                    <button
-                        className="bg-button-bg text-button-fg text-[11px] rounded px-2 py-1 font-medium hover:bg-button-hover flex-shrink-0"
+                    </Button>
+                    <Button
+                        size="icon-sm"
                         onClick={() => postMessage('refresh')}
                         title="Refresh"
                     >
                         <RefreshCw size={14} />
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -228,12 +231,13 @@ export const StashList: React.FC = () => {
                         ) : (
                             <>
                                 <span>No stashes yet</span>
-                                <button
-                                    className="bg-button-bg text-button-fg rounded px-3 py-1 text-[11px] font-medium hover:bg-button-hover mt-1"
+                                <Button
+                                    size="sm"
+                                    className="h-auto px-3 py-1 text-[11px] mt-1"
                                     onClick={() => setShowCreateForm(true)}
                                 >
                                     Create Stash
-                                </button>
+                                </Button>
                             </>
                         )}
                     </div>
@@ -255,12 +259,14 @@ export const StashList: React.FC = () => {
                     <span>
                         {stashes.length} stash{stashes.length !== 1 ? 'es' : ''}
                     </span>
-                    <button
-                        className="text-danger hover:underline cursor-pointer"
+                    <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-danger text-[11px]"
                         onClick={() => postMessage('clearStashes')}
                     >
                         Clear All
-                    </button>
+                    </Button>
                 </div>
             )}
         </div>

@@ -20,7 +20,7 @@ interface AppStore {
 }
 
 export const useAppStore = create<AppStore>((set) => ({
-    activeTab: 'stashes',
+    activeTab: 'mattermost',
     setActiveTab: (activeTab) => set({ activeTab }),
     pendingNoteId: null,
     setPendingNoteId: (pendingNoteId) => set({ pendingNoteId }),

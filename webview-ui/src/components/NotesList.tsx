@@ -2,6 +2,8 @@ import React, { useRef, useCallback, useState } from 'react';
 import { useNotesStore, type GistNoteData } from '../notesStore';
 import { postMessage } from '../vscode';
 import { Lock, Globe, StickyNote, Plus, X, ShieldCheck } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 
 /** Skeleton card shown while notes are loading */
 const SkeletonCard: React.FC = () => (
@@ -74,12 +76,11 @@ export const NotesList: React.FC = () => {
                         across devices.
                     </div>
                 </div>
-                <button
-                    className="bg-button-bg text-button-fg rounded px-4 py-1.5 text-[12px] font-medium hover:bg-button-hover"
+                <Button
                     onClick={() => postMessage('notes.signIn')}
                 >
                     Sign In to GitHub
-                </button>
+                </Button>
             </div>
         );
     }
@@ -89,29 +90,30 @@ export const NotesList: React.FC = () => {
             {/* Header with search + create */}
             <div className="px-3 py-2 border-b border-border flex-shrink-0 space-y-2">
                 <div className="flex items-center gap-2">
-                    <input
+                    <Input
                         ref={searchRef}
                         type="text"
                         placeholder="Search notes…"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={handleSearchKeyDown}
-                        className="flex-1 bg-input-bg border border-input-border text-input-fg rounded px-2 py-1 text-[12px] outline-none focus:border-accent placeholder:opacity-40"
+                        className="flex-1 text-[12px]"
                     />
-                    <button
-                        className="bg-button-bg text-button-fg rounded px-2.5 py-1 text-[11px] font-medium hover:bg-button-hover flex-shrink-0 flex items-center gap-1"
+                    <Button
+                        size="sm"
+                        className="h-auto px-2.5 py-1 text-[11px] flex-shrink-0 gap-1"
                         onClick={handleCreateNote}
                         title="Create new note"
                     >
                         <Plus size={12} /> New
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Inline create form */}
                 {creatingNote && (
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
-                            <input
+                            <Input
                                 ref={newNoteTitleRef}
                                 type="text"
                                 placeholder="Note title…"
@@ -121,44 +123,42 @@ export const NotesList: React.FC = () => {
                                     if (e.key === 'Enter') handleSubmitCreate();
                                     if (e.key === 'Escape') setCreatingNote(false);
                                 }}
-                                className="flex-1 bg-input-bg border border-input-border text-input-fg rounded px-2 py-1 text-[12px] outline-none focus:border-accent placeholder:opacity-40"
+                                className="flex-1 text-[12px]"
                             />
-                            <button
-                                className="bg-button-bg text-button-fg rounded px-2 py-1 text-[11px] font-medium hover:bg-button-hover"
+                            <Button
+                                size="sm"
+                                className="h-auto px-2 py-1 text-[11px]"
                                 onClick={handleSubmitCreate}
                             >
                                 Create
-                            </button>
-                            <button
-                                className="opacity-60 hover:opacity-100 px-1.5 py-1"
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
                                 onClick={() => setCreatingNote(false)}
                             >
                                 <X size={12} />
-                            </button>
+                            </Button>
                         </div>
                         <div className="flex items-center gap-1">
-                            <button
-                                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                                    !newNotePublic
-                                        ? 'bg-button-bg text-button-fg'
-                                        : 'opacity-50 hover:opacity-80'
-                                }`}
+                            <Button
+                                variant={!newNotePublic ? 'default' : 'ghost'}
+                                size="sm"
+                                className="h-auto px-2 py-0.5 text-[11px] gap-1"
                                 onClick={() => setNewNotePublic(false)}
                             >
                                 <Lock size={11} />
                                 Secret
-                            </button>
-                            <button
-                                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                                    newNotePublic
-                                        ? 'bg-button-bg text-button-fg'
-                                        : 'opacity-50 hover:opacity-80'
-                                }`}
+                            </Button>
+                            <Button
+                                variant={newNotePublic ? 'default' : 'ghost'}
+                                size="sm"
+                                className="h-auto px-2 py-0.5 text-[11px] gap-1"
                                 onClick={() => setNewNotePublic(true)}
                             >
                                 <Globe size={11} />
                                 Public
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}

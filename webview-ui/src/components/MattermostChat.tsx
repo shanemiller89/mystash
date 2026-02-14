@@ -7,6 +7,13 @@ import { MarkdownBody } from './MarkdownBody';
 import { ReactionBar } from './ReactionBar';
 import { FileAttachments } from './FileAttachments';
 import {
+    InputGroup,
+    InputGroupTextarea,
+    InputGroupAddon,
+    InputGroupButton,
+} from './ui/input-group';
+import { Button } from './ui/button';
+import {
     Send,
     ArrowLeft,
     RefreshCw,
@@ -134,22 +141,24 @@ const MessageBubble: React.FC<{
 
                     {/* Action buttons — visible on hover */}
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={handleCopy}
-                            className="p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/40"
                             title="Copy message"
                         >
                             {copied ? <Check size={12} /> : <Copy size={12} />}
-                        </button>
+                        </Button>
                         <EmojiPickerButton postId={post.id} />
                         {!isReply && (
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
                                 onClick={() => onOpenThread(post.id)}
-                                className="p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/40"
                                 title="Reply in thread"
                             >
                                 <MessageSquare size={12} />
-                            </button>
+                            </Button>
                         )}
                     </div>
                 </div>
@@ -360,7 +369,8 @@ export const MattermostChat: React.FC<{
                 emojiKeyDown(e);
                 if (e.defaultPrevented) { return; }
             }
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            // Enter sends, Shift+Enter inserts newline
+            if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
             }
@@ -405,23 +415,26 @@ export const MattermostChat: React.FC<{
 
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--vscode-panel-border)] shrink-0">
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={onClose}
-                    className="p-1 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/60 md:hidden"
+                    className="md:hidden"
                     title="Back to channels"
                 >
                     <ArrowLeft size={16} />
-                </button>
+                </Button>
                 <span className="text-sm font-semibold truncate flex-1">
                     # {selectedChannelName}
                 </span>
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={handleRefresh}
-                    className="p-1 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/60"
                     title="Refresh"
                 >
                     <RefreshCw size={14} className={isLoadingPosts ? 'animate-spin' : ''} />
-                </button>
+                </Button>
             </div>
 
             {/* Messages */}
@@ -429,14 +442,16 @@ export const MattermostChat: React.FC<{
                 {/* Load more */}
                 {hasMorePosts && posts.length > 0 && (
                     <div className="text-center py-2">
-                        <button
+                        <Button
+                            variant="link"
+                            size="sm"
                             onClick={handleLoadMore}
                             disabled={isLoadingPosts}
-                            className="text-xs text-[var(--vscode-textLink-foreground)] hover:underline inline-flex items-center gap-1"
+                            className="inline-flex items-center gap-1"
                         >
                             <ChevronUp size={12} />
                             {isLoadingPosts ? 'Loading…' : 'Load older messages'}
-                        </button>
+                        </Button>
                     </div>
                 )}
 
@@ -473,9 +488,11 @@ export const MattermostChat: React.FC<{
                                     {replies.length > 0 && (
                                         <div className="ml-4">
                                             <div className="flex items-center gap-1 px-3 py-0.5">
-                                                <button
+                                                <Button
+                                                    variant="link"
+                                                    size="sm"
                                                     onClick={() => toggleThread(root.id)}
-                                                    className="flex items-center gap-1 text-xs text-[var(--vscode-textLink-foreground)] hover:underline"
+                                                    className="h-auto p-0 gap-1 text-xs no-underline hover:underline"
                                                 >
                                                     {expandedThreads.has(root.id) ? (
                                                         <ChevronDown size={12} />
@@ -483,14 +500,15 @@ export const MattermostChat: React.FC<{
                                                         <ChevronRight size={12} />
                                                     )}
                                                     {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon-xs"
                                                     onClick={() => handleOpenThread(root.id)}
-                                                    className="p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/40 hover:text-[var(--vscode-textLink-foreground)]"
                                                     title="Open thread"
                                                 >
                                                     <ExternalLink size={11} />
-                                                </button>
+                                                </Button>
                                             </div>
                                             {expandedThreads.has(root.id) && (
                                                 <div>
@@ -529,48 +547,47 @@ export const MattermostChat: React.FC<{
                         <span>
                             Replying to <span className="font-semibold text-[var(--vscode-textLink-foreground)]">@{replyToUsername}</span>
                         </span>
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={clearReplyTo}
-                            className="ml-auto p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/40"
+                            className="ml-auto"
                             title="Cancel reply"
                         >
                             <X size={12} />
-                        </button>
+                        </Button>
                     </div>
                 )}
-                <div className="relative flex gap-2">
+                <div className="relative">
                     {/* Emoji autocomplete dropdown */}
                     <EmojiAutocompleteDropdown
                         suggestions={emojiSuggestions}
                         selectedIndex={emojiSelectedIndex}
                         onSelect={emojiAcceptSuggestion}
                     />
-                    <div className="flex-1 flex flex-col gap-1">
-                        <textarea
+                    <InputGroup>
+                        <InputGroupTextarea
                             ref={textareaRef}
                             value={messageText}
                             onChange={handleInputChange}
                             onKeyDown={handleKeyDown}
-                            placeholder={replyToPostId ? "Reply… (⌘+Enter to send)" : "Type a message… (⌘+Enter to send)"}
+                            placeholder={replyToPostId ? "Reply… (Shift+Enter for new line)" : "Type a message… (Shift+Enter for new line)"}
                             rows={2}
-                            className="w-full px-3 py-2 text-sm rounded-md resize-none
-                                bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]
-                                border border-[var(--vscode-input-border)]
-                                focus:outline-none focus:border-[var(--vscode-focusBorder)]
-                                placeholder:text-fg/40"
                         />
-                        <div className="flex items-center gap-1 px-1">
+                        <InputGroupAddon align="block-end">
                             <ComposeEmojiPickerButton onInsert={handleInsertEmoji} />
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleSend}
-                        disabled={!messageText.trim() || isSendingMessage}
-                        className="self-end p-2 rounded-md bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)] disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Send message (⌘+Enter)"
-                    >
-                        <Send size={16} />
-                    </button>
+                            <Button
+                                size="icon-sm"
+                                onClick={handleSend}
+                                disabled={!messageText.trim() || isSendingMessage}
+                                className="ml-auto rounded-full h-7 w-7"
+                                title="Send message (Enter)"
+                            >
+                                <Send size={14} />
+                                <span className="sr-only">Send</span>
+                            </Button>
+                        </InputGroupAddon>
+                    </InputGroup>
                 </div>
             </div>
         </div>

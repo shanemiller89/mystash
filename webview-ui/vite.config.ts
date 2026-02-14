@@ -6,6 +6,11 @@ import { resolve } from 'path';
 export default defineConfig(({ mode }) => ({
     plugins: [react(), tailwindcss()],
     root: resolve(__dirname, 'src'),
+    resolve: {
+        alias: {
+            '@': resolve(__dirname, 'src'),
+        },
+    },
     build: {
         outDir: resolve(__dirname, '..', 'dist'),
         emptyOutDir: false, // Don't wipe the extension bundle

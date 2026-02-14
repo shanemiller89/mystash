@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Group, Panel, Separator, type Layout } from 'react-resizable-panels';
 import { ErrorBoundary } from './ErrorBoundary';
+import { Button } from './ui/button';
 
 const NARROW_BREAKPOINT = 640;
 
@@ -17,6 +18,8 @@ interface ResizableLayoutProps {
     listContent: React.ReactNode;
     /** The detail panel content */
     detailContent: React.ReactNode;
+    /** Default list panel width percent when no persisted size exists (default 50) */
+    defaultListSize?: number;
 }
 
 /** Persisted layout sizes via localStorage */
@@ -46,11 +49,12 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
     onBack,
     listContent,
     detailContent,
+    defaultListSize = 50,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isNarrow, setIsNarrow] = useState(false);
 
-    const defaultListPercent = getPersistedSize(storageKey) ?? 50;
+    const defaultListPercent = getPersistedSize(storageKey) ?? defaultListSize;
 
     useEffect(() => {
         const el = containerRef.current;
@@ -81,12 +85,14 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
                 {hasSelection ? (
                     <div className="h-full flex flex-col">
                         <div className="px-3 py-1.5 border-b border-border flex-shrink-0">
-                            <button
-                                className="text-[11px] text-accent hover:underline flex items-center gap-1"
+                            <Button
+                                variant="link"
+                                size="sm"
+                                className="h-auto p-0 text-[11px] gap-1"
                                 onClick={onBack}
                             >
                                 ← {backLabel}
-                            </button>
+                            </Button>
                         </div>
                         <div className="flex-1 overflow-hidden">
                             <ErrorBoundary label="Detail">

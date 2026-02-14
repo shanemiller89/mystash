@@ -27,6 +27,9 @@ import {
     Bot,
 } from 'lucide-react';
 import { MarkdownBody } from './MarkdownBody';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleString();
@@ -203,38 +206,46 @@ const CommentCard: React.FC<{ comment: PRCommentData; prNumber: number }> = ({ c
                 <div className="flex-1" />
                 {/* Resolve toggle (only for review comments with a thread) */}
                 {comment.isReviewComment && comment.threadId && !comment.inReplyToId && (
-                    <button
-                        className={`p-0.5 transition-colors ${comment.isResolved ? 'text-green-400 hover:text-fg/50' : 'text-fg/30 hover:text-green-400'}`}
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className={comment.isResolved ? 'text-green-400 hover:text-fg/50' : 'text-fg/30 hover:text-green-400'}
                         onClick={handleToggleResolved}
                         title={comment.isResolved ? 'Unresolve thread' : 'Resolve thread'}
                     >
                         {comment.isResolved ? <CheckCircle2 size={12} /> : <Circle size={12} />}
-                    </button>
+                    </Button>
                 )}
                 {/* Reply button (only for review comments) */}
                 {comment.isReviewComment && (
-                    <button
-                        className="p-0.5 text-fg/30 hover:text-fg transition-colors"
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-fg/30 hover:text-fg"
                         onClick={handleReply}
                         title="Reply to this comment"
                     >
                         <Reply size={11} />
-                    </button>
+                    </Button>
                 )}
-                <button
-                    className="p-0.5 text-fg/30 hover:text-fg transition-colors"
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-fg/30 hover:text-fg"
                     onClick={handleCopy}
                     title="Copy comment"
                 >
                     {copied ? <CopyCheck size={11} /> : <Copy size={11} />}
-                </button>
-                <button
-                    className="p-0.5 text-fg/30 hover:text-fg transition-colors"
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-fg/30 hover:text-fg"
                     onClick={() => setCollapsed(!collapsed)}
                     title={collapsed ? 'Expand comment' : 'Collapse comment'}
                 >
                     {collapsed ? <ChevronRight size={11} /> : <ChevronDown size={11} />}
-                </button>
+                </Button>
             </div>
             {/* Collapsible content */}
             {!collapsed && (
@@ -246,29 +257,32 @@ const CommentCard: React.FC<{ comment: PRCommentData; prNumber: number }> = ({ c
                     {/* Inline reply area */}
                     {showReply && (
                         <div className="border-t border-border px-3 py-2 bg-card">
-                            <textarea
+                            <Textarea
                                 ref={replyRef}
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
                                 onKeyDown={handleReplyKeyDown}
                                 placeholder="Write a reply… (⌘+Enter to submit, Esc to cancel)"
                                 rows={2}
-                                className="w-full px-2 py-1.5 text-[11px] bg-input border border-border rounded resize-none focus:border-accent focus:outline-none"
+                                className="text-[11px]"
                             />
                             <div className="flex items-center gap-2 mt-1.5">
-                                <button
-                                    className="px-2 py-1 text-[10px] bg-accent text-white rounded hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                                <Button
+                                    size="sm"
+                                    className="h-6 text-[10px]"
                                     onClick={handleSubmitReply}
                                     disabled={!replyText.trim() || isCommentSaving}
                                 >
                                     Reply
-                                </button>
-                                <button
-                                    className="px-2 py-1 text-[10px] text-fg/50 hover:text-fg transition-colors"
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-[10px] text-fg/50"
                                     onClick={() => { setShowReply(false); setReplyText(''); }}
                                 >
                                     Cancel
-                                </button>
+                                </Button>
                                 {isCommentSaving && (
                                     <span className="text-[10px] text-fg/40">Posting…</span>
                                 )}
@@ -317,11 +331,13 @@ const UserFilterDropdown: React.FC = () => {
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <button
-                className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded border transition-colors ${
+            <Button
+                variant="outline"
+                size="sm"
+                className={`h-5 gap-1 px-1.5 text-[10px] ${
                     userFilter.length > 0
                         ? 'border-accent text-accent bg-accent/10'
-                        : 'border-border text-fg/50 hover:text-fg'
+                        : 'text-fg/50'
                 }`}
                 onClick={() => setOpen(!open)}
                 title="Filter by user"
@@ -329,16 +345,17 @@ const UserFilterDropdown: React.FC = () => {
                 <Users size={10} />
                 {userFilter.length > 0 ? `${userFilter.length} selected` : 'Users'}
                 <ChevronDown size={8} />
-            </button>
+            </Button>
             {open && (
                 <div className="absolute left-0 top-full mt-1 z-20 bg-card border border-border rounded shadow-lg min-w-[150px] max-h-48 overflow-y-auto">
                     {userFilter.length > 0 && (
-                        <button
-                            className="w-full text-left px-2 py-1 text-[10px] text-fg/40 hover:bg-fg/5 border-b border-border"
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start rounded-none h-auto px-2 py-1 text-[10px] text-fg/40 border-b border-border"
                             onClick={() => setUserFilter([])}
                         >
                             Clear all
-                        </button>
+                        </Button>
                     )}
                     {authors.map((author) => (
                         <label
@@ -374,9 +391,11 @@ const ResolvedFilter: React.FC = () => {
     return (
         <div className="flex items-center gap-0.5">
             {pills.map((p) => (
-                <button
+                <Button
                     key={p.value}
-                    className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+                    variant="ghost"
+                    size="sm"
+                    className={`h-5 px-1.5 text-[10px] ${
                         filter === p.value
                             ? 'bg-accent/15 text-accent'
                             : 'text-fg/40 hover:text-fg/70'
@@ -384,7 +403,7 @@ const ResolvedFilter: React.FC = () => {
                     onClick={() => setFilter(p.value)}
                 >
                     {p.label}
-                </button>
+                </Button>
             ))}
         </div>
     );
@@ -401,8 +420,9 @@ const UserGroup: React.FC<{
 
     return (
         <div className="border border-border rounded overflow-hidden">
-            <button
-                className="w-full flex items-center gap-2 px-3 py-1.5 bg-card hover:bg-fg/5 transition-colors"
+            <Button
+                variant="ghost"
+                className="w-full justify-start gap-2 rounded-none px-3 py-1.5 h-auto"
                 onClick={() => setCollapsed(!collapsed)}
             >
                 {collapsed ? <ChevronRight size={12} className="text-fg/40" /> : <ChevronDown size={12} className="text-fg/40" />}
@@ -411,7 +431,7 @@ const UserGroup: React.FC<{
                 )}
                 <span className="text-[11px] font-medium">{author}</span>
                 <span className="text-[10px] text-fg/40">({comments.length})</span>
-            </button>
+            </Button>
             {!collapsed && (
                 <div className="flex flex-col gap-2 p-2 border-t border-border">
                     {comments.map((c) => (
@@ -498,13 +518,15 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
                         <img src={r.avatarUrl} alt={r.login} className="w-3 h-3 rounded-full" />
                     )}
                     {r.login}
-                    <button
-                        className="ml-0.5 hover:text-red-400 transition-colors"
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="ml-0.5 h-auto w-auto p-0 hover:text-red-400"
                         onClick={() => handleRemoveReviewer(r.login)}
                         title={`Remove ${r.login}`}
                     >
                         <X size={8} />
-                    </button>
+                    </Button>
                 </span>
             ))}
             {requestedReviewers.length === 0 && (
@@ -513,8 +535,10 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
 
             {/* Add reviewer button + dropdown */}
             <div className="relative" ref={dropdownRef}>
-                <button
-                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-fg/40 hover:text-fg border border-border rounded transition-colors"
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-5 gap-1 px-1.5 text-[10px] text-fg/40"
                     onClick={handleOpen}
                     title="Request review"
                     disabled={isRequestingReview}
@@ -525,17 +549,17 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
                         <UserPlus size={10} />
                     )}
                     Request
-                </button>
+                </Button>
                 {open && (
                     <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded shadow-lg min-w-[200px] max-h-60 flex flex-col">
                         <div className="p-1.5 border-b border-border">
-                            <input
+                            <Input
                                 ref={inputRef}
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search users…"
-                                className="w-full px-2 py-1 text-[10px] bg-input border border-border rounded focus:border-accent focus:outline-none"
+                                className="h-6 text-[10px]"
                             />
                         </div>
                         <div className="overflow-y-auto flex-1">
@@ -549,9 +573,10 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
                                 </div>
                             ) : (
                                 available.map((c) => (
-                                    <button
+                                    <Button
                                         key={c.login}
-                                        className="w-full flex items-center gap-2 px-2 py-1.5 text-[10px] hover:bg-fg/5 transition-colors text-left"
+                                        variant="ghost"
+                                        className="w-full justify-start gap-2 rounded-none h-auto px-2 py-1.5 text-[10px]"
                                         onClick={() => handleRequestReview(c.login)}
                                     >
                                         {c.avatarUrl && (
@@ -562,7 +587,7 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
                                             />
                                         )}
                                         <span>{c.login}</span>
-                                    </button>
+                                    </Button>
                                 ))
                             )}
                         </div>
@@ -572,15 +597,17 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
 
             {/* Copilot review button — only if not already requested */}
             {!requestedLogins.has('copilot') && (
-                <button
-                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-purple-400/70 hover:text-purple-400 border border-purple-400/20 hover:border-purple-400/40 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-5 gap-1 px-1.5 text-[10px] text-purple-400/70 hover:text-purple-400 border-purple-400/20 hover:border-purple-400/40"
                     onClick={() => handleRequestReview('copilot')}
                     title="Request Copilot code review"
                     disabled={isRequestingReview}
                 >
                     <Bot size={10} />
                     Copilot
-                </button>
+                </Button>
             )}
         </div>
     );
@@ -597,18 +624,20 @@ const CommentFilterBar: React.FC<{ totalComments: number; filteredCount: number 
             <UserFilterDropdown />
             <ResolvedFilter />
             <div className="h-3 w-px bg-border" />
-            <button
-                className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded border transition-colors ${
+            <Button
+                variant="outline"
+                size="sm"
+                className={`h-5 gap-1 px-1.5 text-[10px] ${
                     groupByUser
                         ? 'border-accent text-accent bg-accent/10'
-                        : 'border-border text-fg/50 hover:text-fg'
+                        : 'text-fg/50'
                 }`}
                 onClick={() => setGroupByUser(!groupByUser)}
                 title="Group comments by user"
             >
                 <Users size={10} />
                 Group
-            </button>
+            </Button>
             {filteredCount !== totalComments && (
                 <span className="text-[9px] text-fg/30">
                     {filteredCount}/{totalComments}
@@ -775,20 +804,24 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                            className="p-1 text-fg/40 hover:text-fg transition-colors"
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-fg/40 hover:text-fg"
                             onClick={handleOpenInBrowser}
                             title="Open in browser"
                         >
                             <ExternalLink size={13} />
-                        </button>
-                        <button
-                            className="p-1 text-fg/40 hover:text-fg transition-colors"
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-fg/40 hover:text-fg"
                             onClick={onClose}
                             title="Close"
                         >
                             <X size={13} />
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
@@ -838,14 +871,16 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                         </span>
                         <div className="flex-1" />
                         {filteredComments.length > 0 && (
-                            <button
-                                className="flex items-center gap-1 text-[10px] text-fg/40 hover:text-fg transition-colors"
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 gap-1 text-[10px] text-fg/40"
                                 onClick={handleCopyAll}
                                 title="Copy all filtered comments"
                             >
                                 <Copy size={10} />
                                 Copy all
-                            </button>
+                            </Button>
                         )}
                     </div>
 
@@ -893,22 +928,23 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
             {/* New comment input */}
             <div className="flex-shrink-0 border-t border-border p-3">
                 <div className="flex gap-2">
-                    <textarea
+                    <Textarea
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Leave a comment… (⌘+Enter to submit)"
                         rows={2}
-                        className="flex-1 px-2 py-1.5 text-[11px] bg-input border border-border rounded resize-none focus:border-accent focus:outline-none"
+                        className="flex-1 text-[11px]"
                     />
-                    <button
-                        className="self-end p-2 bg-accent text-white rounded hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                    <Button
+                        className="self-end"
+                        size="icon"
                         onClick={handleSubmitComment}
                         disabled={!newComment.trim() || isCommentSaving}
                         title="Post comment"
                     >
                         <Send size={13} />
-                    </button>
+                    </Button>
                 </div>
                 {isCommentSaving && (
                     <div className="text-[10px] text-fg/40 mt-1">Posting comment…</div>

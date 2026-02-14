@@ -4,6 +4,7 @@ import { postMessage } from '../vscode';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import { Globe, Lock, Link2, Trash2, X, StickyNote, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Button } from './ui/button';
 
 // ─── Markdown-it Configuration ────────────────────────────────────
 
@@ -228,13 +229,15 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                         className="flex-1 bg-transparent text-[14px] font-semibold outline-none placeholder:opacity-40"
                     />
                     {onClose && (
-                        <button
-                            className="opacity-40 hover:opacity-100 px-1"
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="opacity-40 hover:opacity-100"
                             onClick={onClose}
                             title="Close"
                         >
                             <X size={14} />
-                        </button>
+                        </Button>
                     )}
                 </div>
 
@@ -242,38 +245,36 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 <div className="flex items-center gap-2 text-[11px]">
                     {/* Edit / Preview toggle */}
                     <div className="flex rounded border border-border overflow-hidden">
-                        <button
-                            className={`px-2 py-0.5 transition-colors ${
-                                !previewMode ? 'bg-accent text-button-fg' : 'hover:bg-hover'
-                            }`}
+                        <Button
+                            variant={!previewMode ? 'default' : 'ghost'}
+                            size="sm"
+                            className="h-auto px-2 py-0.5 text-[11px] rounded-none"
                             onClick={() => setPreviewMode(false)}
                         >
                             Edit
-                        </button>
-                        <button
-                            className={`px-2 py-0.5 transition-colors ${
-                                previewMode ? 'bg-accent text-button-fg' : 'hover:bg-hover'
-                            }`}
+                        </Button>
+                        <Button
+                            variant={previewMode ? 'default' : 'ghost'}
+                            size="sm"
+                            className="h-auto px-2 py-0.5 text-[11px] rounded-none"
                             onClick={() => setPreviewMode(true)}
                         >
                             Preview
-                        </button>
+                        </Button>
                     </div>
 
                     {/* Save button with dirty indicator */}
-                    <button
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded ${
-                            isDirty
-                                ? 'bg-button-bg text-button-fg hover:bg-button-hover'
-                                : 'opacity-40 cursor-default'
-                        }`}
+                    <Button
+                        variant={isDirty ? 'default' : 'ghost'}
+                        size="sm"
+                        className="h-auto px-2 py-0.5 text-[11px] gap-1"
                         onClick={handleSave}
                         disabled={!isDirty || isSaving}
                         title={isDirty ? 'Save (Cmd+S)' : 'No unsaved changes'}
                     >
                         {isDirty && <span className="w-1.5 h-1.5 rounded-full bg-warning" />}
                         {isSaving ? 'Saving…' : 'Save'}
-                    </button>
+                    </Button>
 
                     {/* Autosave countdown */}
                     {autosaveCountdown !== null && autosaveCountdown > 0 && (
@@ -285,8 +286,10 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     <div className="flex-1" />
 
                     {/* Visibility toggle */}
-                    <button
-                        className="opacity-50 hover:opacity-100 flex items-center gap-1 transition-colors"
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto px-1 py-0.5 text-[11px] gap-1 opacity-50 hover:opacity-100"
                         onClick={() => postMessage('notes.toggleVisibility', { noteId: note.id })}
                         title={
                             note.isPublic
@@ -304,25 +307,29 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                                 <Lock size={12} /> <span>Secret</span> <ToggleLeft size={14} />
                             </>
                         )}
-                    </button>
+                    </Button>
 
                     {/* Copy link */}
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
                         className="opacity-50 hover:opacity-100"
                         onClick={() => postMessage('notes.copyLink', { noteId: note.id })}
                         title="Copy gist URL"
                     >
                         <Link2 size={12} />
-                    </button>
+                    </Button>
 
                     {/* Delete */}
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
                         className="opacity-50 hover:opacity-100 text-danger"
                         onClick={() => postMessage('notes.delete', { noteId: note.id })}
                         title="Delete note"
                     >
                         <Trash2 size={12} />
-                    </button>
+                    </Button>
                 </div>
             </div>
 

@@ -3,6 +3,8 @@ import { useMattermostStore, type MattermostEmojiData } from '../mattermostStore
 import { postMessage } from '../vscode';
 import { emojiFromShortcode } from '../emojiMap';
 import { X, Search, Smile } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 
 /** Common system emoji shortcuts (no API call needed) */
 const QUICK_EMOJIS = [
@@ -106,23 +108,22 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ postId, onClose }) => 
             <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--vscode-panel-border)]">
                 <Smile size={14} className="text-fg/50 shrink-0" />
                 <span className="text-xs font-semibold flex-1">Add Reaction</span>
-                <button onClick={onClose} className="p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/50">
+                <Button variant="ghost" size="icon-xs" onClick={onClose}>
                     <X size={12} />
-                </button>
+                </Button>
             </div>
 
             {/* Search */}
             <div className="px-2 py-1.5 border-b border-[var(--vscode-panel-border)]">
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded
-                    bg-[var(--vscode-input-background)] border border-[var(--vscode-input-border)]">
-                    <Search size={11} className="text-fg/40 shrink-0" />
-                    <input
+                <div className="flex items-center gap-1.5 relative">
+                    <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-fg/40 shrink-0" />
+                    <Input
                         ref={inputRef}
                         type="text"
                         value={search}
                         onChange={handleSearchChange}
                         placeholder="Search emoji…"
-                        className="flex-1 bg-transparent text-xs outline-none text-[var(--vscode-input-foreground)] placeholder:text-fg/40"
+                        className="pl-6 h-6 text-xs"
                     />
                 </div>
             </div>
@@ -204,13 +205,14 @@ export const EmojiPickerButton: React.FC<{ postId: string }> = ({ postId }) => {
 
     return (
         <div className="relative">
-            <button
+            <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setOpen(!open)}
-                className="p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/40"
                 title="Add reaction"
             >
                 <Smile size={12} />
-            </button>
+            </Button>
             {open && (
                 <EmojiPicker
                     postId={postId}
@@ -288,21 +290,20 @@ export const ComposeEmojiPicker: React.FC<{
             <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--vscode-panel-border)]">
                 <Smile size={14} className="text-fg/50 shrink-0" />
                 <span className="text-xs font-semibold flex-1">Insert Emoji</span>
-                <button onClick={onClose} className="p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/50">
+                <Button variant="ghost" size="icon-xs" onClick={onClose}>
                     <X size={12} />
-                </button>
+                </Button>
             </div>
             <div className="px-2 py-1.5 border-b border-[var(--vscode-panel-border)]">
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded
-                    bg-[var(--vscode-input-background)] border border-[var(--vscode-input-border)]">
-                    <Search size={11} className="text-fg/40 shrink-0" />
-                    <input
+                <div className="flex items-center gap-1.5 relative">
+                    <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-fg/40 shrink-0" />
+                    <Input
                         ref={inputRef}
                         type="text"
                         value={search}
                         onChange={handleSearchChange}
                         placeholder="Search emoji…"
-                        className="flex-1 bg-transparent text-xs outline-none text-[var(--vscode-input-foreground)] placeholder:text-fg/40"
+                        className="pl-6 h-6 text-xs"
                     />
                 </div>
             </div>
@@ -378,13 +379,14 @@ export const ComposeEmojiPickerButton: React.FC<{
 
     return (
         <div className="relative">
-            <button
+            <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setOpen(!open)}
-                className="p-1 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/50"
                 title="Insert emoji"
             >
                 <Smile size={14} />
-            </button>
+            </Button>
             {open && (
                 <ComposeEmojiPicker
                     onSelect={onInsert}

@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Group, Panel, Separator, type Layout } from 'react-resizable-panels';
 import { useMattermostStore } from '../mattermostStore';
 import { MattermostChannelList } from './MattermostChannelList';
 import { MattermostChat } from './MattermostChat';
 import { MattermostThreadPanel } from './MattermostThreadPanel';
-import { ResizableLayout } from './ResizableLayout';
 import { ErrorBoundary } from './ErrorBoundary';
+import { MessageSquare } from 'lucide-react';
+
+const NARROW_BREAKPOINT = 640;
 
 /** Persist thread panel size */
 function getPersistedThreadSize(): number {
@@ -18,6 +20,20 @@ function getPersistedThreadSize(): number {
 function persistThreadSize(size: number): void {
     try {
         localStorage.setItem('resizable-mattermost-thread', JSON.stringify(size));
+    } catch { /* ignore */ }
+}
+
+/** Persist list panel size */
+function getPersistedListSize(): number {
+    try {
+        const raw = localStorage.getItem('resizable-mattermost');
+        if (raw) { return JSON.parse(raw) as number; }
+    } catch { /* ignore */ }
+    return 28;
+}
+function persistListSize(size: number): void {
+    try {
+        localStorage.setItem('resizable-mattermost', JSON.stringify(size));
     } catch { /* ignore */ }
 }
 
@@ -76,24 +92,97 @@ const ChatWithThread: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     );
 };
 
+/** Empty state shown when no channel is selected */
+const EmptyChat: React.FC = () => (
+    <div className="h-full flex flex-col items-center justify-center gap-3 text-fg/30">
+        <MessageSquare size={32} strokeWidth={1.5} />
+        <p className="text-sm">Select a channel to start chatting</p>
+    </div>
+);
+
 export const MattermostTab: React.FC = () => {
     const selectedChannelId = useMattermostStore((s) => s.selectedChannelId);
     const clearChannelSelection = useMattermostStore((s) => s.clearChannelSelection);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [isNarrow, setIsNarrow] = useState(false);
 
     const handleCloseDetail = useCallback(() => {
         clearChannelSelection();
     }, [clearChannelSelection]);
 
     const hasSelection = selectedChannelId !== null;
+    const defaultListPercent = getPersistedListSize();
 
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setIsNarrow(entry.contentRect.width < NARROW_BREAKPOINT);
+            }
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
+    const handleLayoutChanged = useCallback((layout: Layout) => {
+        const listSize = layout['list'];
+        if (listSize !== undefined) {
+            persistListSize(listSize);
+        }
+    }, []);
+
+    // Narrow mode: show either list OR chat
+    if (isNarrow) {
+        return (
+            <div ref={containerRef} className="h-full bg-bg text-fg text-[13px]">
+                {hasSelection ? (
+                    <ChatWithThread onClose={handleCloseDetail} />
+                ) : (
+                    <ErrorBoundary label="Channel List">
+                        <MattermostChannelList />
+                    </ErrorBoundary>
+                )}
+            </div>
+        );
+    }
+
+    // Wide mode: always show list + detail (chat or empty state)
     return (
-        <ResizableLayout
-            storageKey="mattermost"
-            hasSelection={hasSelection}
-            backLabel="Back to Channels"
-            onBack={handleCloseDetail}
-            listContent={<MattermostChannelList />}
-            detailContent={<ChatWithThread onClose={handleCloseDetail} />}
-        />
+        <div ref={containerRef} className="h-full bg-bg text-fg text-[13px]">
+            <Group
+                id="workstash-mattermost"
+                orientation="horizontal"
+                onLayoutChanged={handleLayoutChanged}
+            >
+                <Panel
+                    id="list"
+                    defaultSize={`${defaultListPercent}%`}
+                    minSize="15%"
+                >
+                    <div className="h-full overflow-hidden">
+                        <ErrorBoundary label="Channel List">
+                            <MattermostChannelList />
+                        </ErrorBoundary>
+                    </div>
+                </Panel>
+                <Separator className="resize-handle" />
+                <Panel
+                    id="detail"
+                    defaultSize={`${100 - defaultListPercent}%`}
+                    minSize="30%"
+                >
+                    <div className="h-full overflow-hidden">
+                        {hasSelection ? (
+                            <ErrorBoundary label="Chat">
+                                <ChatWithThread onClose={handleCloseDetail} />
+                            </ErrorBoundary>
+                        ) : (
+                            <EmptyChat />
+                        )}
+                    </div>
+                </Panel>
+            </Group>
+        </div>
     );
 };

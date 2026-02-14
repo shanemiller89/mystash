@@ -1,6 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useMattermostStore, type MattermostChannelData } from '../mattermostStore';
 import { postMessage } from '../vscode';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 import {
     Globe,
     Lock,
@@ -103,10 +105,10 @@ function SectionHeader({
 }) {
     return (
         <div className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg/50 select-none">
-            <button onClick={onToggle} className="flex items-center gap-1 hover:text-fg/80 transition-colors">
+            <Button variant="ghost" size="sm" onClick={onToggle} className="flex items-center gap-1 h-auto px-0 py-0 text-[11px] font-semibold uppercase tracking-wider text-fg/50 hover:text-fg/80">
                 {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                 {title}
-            </button>
+            </Button>
             {action && <div className="ml-auto">{action}</div>}
         </div>
     );
@@ -140,21 +142,16 @@ function NewDmDialog({ onClose }: { onClose: () => void }) {
         <div className="px-3 py-2 border-b border-[var(--vscode-panel-border)] bg-[var(--vscode-input-background)]">
             <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-medium text-fg/70">New Direct Message</span>
-                <button onClick={onClose} className="ml-auto p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)]">
-                    <X size={12} className="text-fg/50" />
-                </button>
+                <Button variant="ghost" size="icon-xs" onClick={onClose} className="ml-auto">
+                    <X size={12} />
+                </Button>
             </div>
-            <input
+            <Input
                 type="text"
                 placeholder="Search users…"
                 autoFocus
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="w-full px-2 py-1 text-sm rounded-md
-                    bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]
-                    border border-[var(--vscode-input-border)]
-                    focus:outline-none focus:border-[var(--vscode-focusBorder)]
-                    placeholder:text-fg/40"
             />
             {isSearchingUsers && (
                 <div className="mt-1 text-xs text-fg/50 px-1">Searching…</div>
@@ -162,10 +159,11 @@ function NewDmDialog({ onClose }: { onClose: () => void }) {
             {!isSearchingUsers && userSearchResults.length > 0 && (
                 <div className="mt-1 max-h-[160px] overflow-y-auto">
                     {userSearchResults.map((u) => (
-                        <button
+                        <Button
                             key={u.id}
+                            variant="ghost"
                             onClick={() => handleSelectUser(u.id)}
-                            className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-[var(--vscode-list-hoverBackground)] flex items-center gap-2"
+                            className="w-full justify-start h-auto px-2 py-1.5 text-sm rounded flex items-center gap-2"
                         >
                             <MessageCircle size={12} className="text-blue-400 shrink-0" />
                             <span className="font-medium">{u.username}</span>
@@ -174,7 +172,7 @@ function NewDmDialog({ onClose }: { onClose: () => void }) {
                                     {u.firstName} {u.lastName}
                                 </span>
                             )}
-                        </button>
+                        </Button>
                     ))}
                 </div>
             )}
@@ -270,10 +268,11 @@ export const MattermostChannelList: React.FC = () => {
         const isDm = channel.type === 'D';
         const dmStatus = isDm && channel.otherUserId ? userStatuses[channel.otherUserId] : undefined;
         return (
-            <button
+            <Button
                 key={channel.id}
+                variant="ghost"
                 onClick={() => handleChannelSelect(channel)}
-                className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-[var(--vscode-list-hoverBackground)] transition-colors ${
+                className={`flex w-full justify-start text-left h-auto px-3 py-2 rounded-none gap-2 ${
                     selectedChannelId === channel.id
                         ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]'
                         : ''
@@ -290,7 +289,7 @@ export const MattermostChannelList: React.FC = () => {
                 {unread && (
                     <UnreadBadge count={unread.msgCount} mentions={unread.mentionCount} />
                 )}
-            </button>
+            </Button>
         );
     };
 
@@ -307,24 +306,23 @@ export const MattermostChannelList: React.FC = () => {
                     Sign in to Mattermost to view your channels.
                 </p>
                 <div className="flex flex-col gap-2 w-full max-w-[220px]">
-                    <button
+                    <Button
                         onClick={handleSignInWithPassword}
-                        className="px-4 py-2 text-sm font-medium rounded-md bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)]"
                     >
                         Sign In with Password
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="secondary"
                         onClick={handleSignInWithSessionToken}
-                        className="px-4 py-2 text-sm font-medium rounded-md bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] hover:bg-[var(--vscode-button-secondaryHoverBackground)]"
                     >
                         Use Session Token
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="secondary"
                         onClick={handleSignInWithToken}
-                        className="px-4 py-2 text-sm font-medium rounded-md bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] hover:bg-[var(--vscode-button-secondaryHoverBackground)]"
                     >
                         Use Access Token
-                    </button>
+                    </Button>
                 </div>
                 <p className="text-xs text-fg/40 mt-1">
                     Supports MFA/2FA. Access tokens require admin setup.
@@ -364,13 +362,14 @@ export const MattermostChannelList: React.FC = () => {
                     </span>
                 ) : null}
 
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={handleRefresh}
-                    className="p-1 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/60"
                     title="Refresh"
                 >
                     <RefreshCw size={14} className={isLoadingChannels ? 'animate-spin' : ''} />
-                </button>
+                </Button>
             </div>
 
             {/* Search */}
@@ -380,16 +379,12 @@ export const MattermostChannelList: React.FC = () => {
                         size={14}
                         className="absolute left-2 top-1/2 -translate-y-1/2 text-fg/40"
                     />
-                    <input
+                    <Input
                         type="text"
                         placeholder="Search channels…"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-7 pr-2 py-1 text-sm rounded-md
-                            bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]
-                            border border-[var(--vscode-input-border)]
-                            focus:outline-none focus:border-[var(--vscode-focusBorder)]
-                            placeholder:text-fg/40"
+                        className="pl-7"
                     />
                 </div>
             </div>
@@ -427,13 +422,14 @@ export const MattermostChannelList: React.FC = () => {
                             isOpen={dmsOpen}
                             onToggle={() => setDmsOpen((v) => !v)}
                             action={
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon-xs"
                                     onClick={() => setShowNewDm(true)}
-                                    className="p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/50 hover:text-fg/80"
                                     title="New Direct Message"
                                 >
                                     <Plus size={12} />
-                                </button>
+                                </Button>
                             }
                         />
                         {dmsOpen && (

@@ -2,6 +2,8 @@ import React, { useCallback, useMemo } from 'react';
 import { useIssueStore, type IssueStateFilter } from '../issueStore';
 import { useNotesStore } from '../notesStore';
 import { postMessage } from '../vscode';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 import {
     CircleDot,
     CheckCircle2,
@@ -97,12 +99,11 @@ export const IssueList: React.FC = () => {
                 <p className="text-fg/60 text-[12px]">
                     Sign in to GitHub to see repository issues.
                 </p>
-                <button
-                    className="px-3 py-1.5 bg-accent text-white text-[11px] rounded hover:opacity-90 transition-opacity"
+                <Button
                     onClick={() => postMessage('issues.signIn')}
                 >
                     Sign In to GitHub
-                </button>
+                </Button>
             </div>
         );
     }
@@ -126,38 +127,37 @@ export const IssueList: React.FC = () => {
                 {/* Filter pills */}
                 <div className="flex items-center gap-1 px-3 py-2">
                     {stateFilters.map((f) => (
-                        <button
+                        <Button
                             key={f.key}
-                            className={`px-2.5 py-1 text-[11px] rounded-full transition-colors ${
-                                stateFilter === f.key
-                                    ? 'bg-accent text-white'
-                                    : 'bg-hover text-fg/60 hover:text-fg hover:bg-hover/80'
-                            }`}
+                            variant={stateFilter === f.key ? 'default' : 'secondary'}
+                            size="sm"
+                            className="h-auto px-2.5 py-1 text-[11px] rounded-full"
                             onClick={() => handleFilterChange(f.key)}
                         >
                             {f.label}
-                        </button>
+                        </Button>
                     ))}
                     <div className="flex-1" />
-                    <button
-                        className="p-1 text-fg/40 hover:text-fg transition-colors"
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={handleRefresh}
                         title="Refresh"
                     >
                         <RefreshCw size={13} />
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Search bar */}
                 <div className="px-3 pb-2">
                     <div className="relative">
                         <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-fg/30" />
-                        <input
+                        <Input
                             type="text"
                             placeholder="Search issues..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-7 pr-2 py-1 text-[11px] bg-input border border-border rounded focus:border-accent focus:outline-none"
+                            className="pl-7 text-[11px]"
                         />
                     </div>
                 </div>
@@ -181,12 +181,13 @@ export const IssueList: React.FC = () => {
                     issues.map((issue) => {
                         const isSelected = selectedIssueNumber === issue.number;
                         return (
-                            <button
+                            <Button
                                 key={issue.number}
-                                className={`w-full text-left px-3 py-2.5 border-b border-border transition-colors ${
+                                variant="ghost"
+                                className={`w-full justify-start h-auto px-3 py-2.5 rounded-none border-b border-border ${
                                     isSelected
                                         ? 'bg-accent/10 border-l-2 border-l-accent'
-                                        : 'hover:bg-hover border-l-2 border-l-transparent'
+                                        : 'border-l-2 border-l-transparent'
                                 }`}
                                 onClick={() => handleSelectIssue(issue.number)}
                             >
@@ -246,7 +247,7 @@ export const IssueList: React.FC = () => {
                                         )}
                                     </div>
                                 </div>
-                            </button>
+                            </Button>
                         );
                     })
                 )}

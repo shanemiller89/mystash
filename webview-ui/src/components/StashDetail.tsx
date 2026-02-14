@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { useStashStore, type StashData, type StashFileData } from '../store';
 import { postMessage } from '../vscode';
 import { DiffView } from './DiffView';
+import { Button } from './ui/button';
 import {
     Check,
     ArrowUp,
@@ -111,13 +112,15 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             </span>
                         </div>
                     </div>
-                    <button
-                        className="text-fg opacity-40 hover:opacity-100 p-1 shrink-0"
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="shrink-0 opacity-40 hover:opacity-100"
                         onClick={onClose}
                         title="Close detail pane"
                     >
                         <X size={14} />
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -218,7 +221,9 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                 )}
 
                                 {/* Open in native diff button */}
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon-xs"
                                     className="ml-2 opacity-0 group-hover:opacity-60 hover:!opacity-100 text-accent shrink-0"
                                     title="Open in VS Code diff editor"
                                     onClick={(e) => {
@@ -227,7 +232,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                     }}
                                 >
                                     <ExternalLink size={12} />
-                                </button>
+                                </Button>
                             </div>
 
                             {/* Expandable diff */}
@@ -267,10 +272,12 @@ const ActionButton: React.FC<{
     className?: string;
     onClick: () => void;
 }> = ({ label, icon, className = '', onClick }) => (
-    <button
-        className={`bg-transparent border border-border rounded px-2.5 py-1 text-[11px] text-fg cursor-pointer hover:bg-hover hover:border-accent whitespace-nowrap transition-colors flex items-center gap-1 ${className}`}
+    <Button
+        variant="outline"
+        size="sm"
+        className={`h-auto px-2.5 py-1 text-[11px] gap-1 ${className}`}
         onClick={onClick}
     >
         {icon} {label}
-    </button>
+    </Button>
 );
