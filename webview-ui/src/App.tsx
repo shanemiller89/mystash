@@ -3,6 +3,13 @@ import { useStashStore, type StashData } from './store';
 import { useNotesStore, type GistNoteData } from './notesStore';
 import { usePRStore, type PullRequestData, type PRCommentData } from './prStore';
 import { useIssueStore, type IssueData, type IssueCommentData } from './issueStore';
+import {
+    useMattermostStore,
+    type MattermostTeamData,
+    type MattermostChannelData,
+    type MattermostPostData,
+    type MattermostUserData,
+} from './mattermostStore';
 import { useAppStore } from './appStore';
 import { onMessage, postMessage } from './vscode';
 import { StashList } from './components/StashList';
@@ -11,6 +18,7 @@ import { TabBar } from './components/TabBar';
 import { NotesTab } from './components/NotesTab';
 import { PRsTab } from './components/PRsTab';
 import { IssuesTab } from './components/IssuesTab';
+import { MattermostTab } from './components/MattermostTab';
 import { ResizableLayout } from './components/ResizableLayout';
 
 /** Stash master-detail pane (extracted from old App root) */
@@ -311,6 +319,125 @@ export const App: React.FC = () => {
                         postMessage('issues.getComments', { issueNumber: msg.issueNumber });
                     }
                     break;
+
+                // ─── Mattermost messages ───
+                case 'mattermostConfigured': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setConfigured(msg.configured as boolean);
+                    if (!msg.configured) {
+                        mmStore.setLoadingChannels(false);
+                    }
+                    break;
+                }
+                case 'mattermostUser': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setCurrentUser(msg.user as MattermostUserData);
+                    break;
+                }
+                case 'mattermostTeams': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setTeams(msg.payload as MattermostTeamData[]);
+                    break;
+                }
+                case 'mattermostChannels': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setChannels(msg.payload as MattermostChannelData[]);
+                    if (msg.teamId) {
+                        mmStore.selectTeam(msg.teamId as string);
+                        // Re-set channels since selectTeam clears them
+                        mmStore.setChannels(msg.payload as MattermostChannelData[]);
+                    }
+                    mmStore.setLoadingChannels(false);
+                    break;
+                }
+                case 'mattermostChannelsLoading': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setLoadingChannels(true);
+                    break;
+                }
+                case 'mattermostData': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setConfigured(true);
+                    if (msg.currentUser) {
+                        mmStore.setCurrentUser(msg.currentUser as MattermostUserData);
+                    }
+                    if (msg.teams) {
+                        mmStore.setTeams(msg.teams as MattermostTeamData[]);
+                    }
+                    if (msg.channels) {
+                        mmStore.setChannels(msg.channels as MattermostChannelData[]);
+                    }
+                    mmStore.setLoadingChannels(false);
+                    break;
+                }
+                case 'mattermostLoading': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setLoadingChannels(true);
+                    break;
+                }
+                case 'mattermostPosts': {
+                    const mmStore = useMattermostStore.getState();
+                    const posts = (msg.payload ?? msg.posts) as MattermostPostData[];
+                    mmStore.setPosts(posts);
+                    mmStore.setHasMorePosts(msg.hasMore as boolean ?? false);
+                    mmStore.setLoadingPosts(false);
+                    break;
+                }
+                case 'mattermostOlderPosts': {
+                    const mmStore = useMattermostStore.getState();
+                    const olderPosts = (msg.payload ?? msg.posts) as MattermostPostData[];
+                    mmStore.appendOlderPosts(olderPosts);
+                    mmStore.setHasMorePosts(msg.hasMore as boolean ?? false);
+                    mmStore.setLoadingPosts(false);
+                    break;
+                }
+                case 'mattermostPostsLoading': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setLoadingPosts(true);
+                    break;
+                }
+                case 'mattermostSendingPost': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setSendingMessage(true);
+                    break;
+                }
+                case 'mattermostPostSent':
+                case 'mattermostPostCreated': {
+                    const mmStore = useMattermostStore.getState();
+                    if (msg.post) {
+                        mmStore.prependNewPost(msg.post as MattermostPostData);
+                    }
+                    mmStore.setSendingMessage(false);
+                    break;
+                }
+                case 'mattermostNotConfigured': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setConfigured(false);
+                    mmStore.setLoadingChannels(false);
+                    break;
+                }
+                case 'mattermostError': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setLoadingChannels(false);
+                    mmStore.setLoadingPosts(false);
+                    mmStore.setSendingMessage(false);
+                    break;
+                }
+
+                // ─── Deep-link: open a specific Mattermost channel ───
+                case 'openChannel':
+                    appStore.setActiveTab('mattermost');
+                    if (msg.channelId) {
+                        const mmStore = useMattermostStore.getState();
+                        mmStore.selectChannel(
+                            msg.channelId as string,
+                            (msg.channelName as string) ?? 'Channel',
+                        );
+                        postMessage('mattermost.getPosts', {
+                            channelId: msg.channelId,
+                        });
+                    }
+                    break;
             }
         });
 
@@ -330,8 +457,10 @@ export const App: React.FC = () => {
                     <NotesTab />
                 ) : activeTab === 'prs' ? (
                     <PRsTab />
-                ) : (
+                ) : activeTab === 'issues' ? (
                     <IssuesTab />
+                ) : (
+                    <MattermostTab />
                 )}
             </div>
         </div>

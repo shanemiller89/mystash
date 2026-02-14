@@ -104,6 +104,11 @@
                         "New notes are created as public Gists"
                     ],
                     "description": "Default visibility for newly created notes."
+                },
+                "workstash.mattermost.serverUrl": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Mattermost server URL (e.g. https://mattermost.example.com). Required for Mattermost integration."
                 }
             }
         },
@@ -142,6 +147,13 @@
                     "id": "issuesView",
                     "name": "Issues",
                     "icon": "$(issues)",
+                    "contextualTitle": "Workstash",
+                    "visibility": "visible"
+                },
+                {
+                    "id": "mattermostView",
+                    "name": "Mattermost",
+                    "icon": "$(comment-discussion)",
                     "contextualTitle": "Workstash",
                     "visibility": "visible"
                 }
@@ -202,6 +214,21 @@
                 "view": "issuesView",
                 "contents": "No issues found.\n[Refresh](command:workstash.issues.refresh)",
                 "when": "workstash.isAuthenticated && workstash.isGitHubRepo && !workstash.hasIssues"
+            },
+            {
+                "view": "mattermostView",
+                "contents": "No Mattermost server configured.\nSet the server URL in settings to get started.\n[Configure Server](command:workstash.mattermost.configure)",
+                "when": "!workstash.isMattermostConfigured"
+            },
+            {
+                "view": "mattermostView",
+                "contents": "Sign in to Mattermost to view your channels.\n[Sign In](command:workstash.mattermost.signIn)",
+                "when": "workstash.isMattermostConfigured && !workstash.isMattermostAuthenticated"
+            },
+            {
+                "view": "mattermostView",
+                "contents": "No teams found.\n[Refresh](command:workstash.mattermost.refresh)",
+                "when": "workstash.isMattermostAuthenticated && !workstash.hasMattermostTeams"
             }
         ],
         "commands": [
@@ -431,6 +458,48 @@
                 "title": "Clear Issue Search",
                 "category": "Workstash",
                 "icon": "$(close)"
+            },
+            {
+                "command": "workstash.mattermost.refresh",
+                "title": "Refresh Mattermost",
+                "category": "Workstash",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "workstash.mattermost.signIn",
+                "title": "Sign In to Mattermost",
+                "category": "Workstash",
+                "icon": "$(sign-in)"
+            },
+            {
+                "command": "workstash.mattermost.signOut",
+                "title": "Sign Out of Mattermost",
+                "category": "Workstash",
+                "icon": "$(sign-out)"
+            },
+            {
+                "command": "workstash.mattermost.openChannel",
+                "title": "Open Channel",
+                "category": "Workstash",
+                "icon": "$(comment-discussion)"
+            },
+            {
+                "command": "workstash.mattermost.search",
+                "title": "Search Channels",
+                "category": "Workstash",
+                "icon": "$(search)"
+            },
+            {
+                "command": "workstash.mattermost.clearSearch",
+                "title": "Clear Channel Search",
+                "category": "Workstash",
+                "icon": "$(close)"
+            },
+            {
+                "command": "workstash.mattermost.configure",
+                "title": "Configure Mattermost Server",
+                "category": "Workstash",
+                "icon": "$(gear)"
             }
         ],
         "menus": {
@@ -542,6 +611,34 @@
                     "command": "workstash.issues.signIn",
                     "when": "view == issuesView && !workstash.isAuthenticated",
                     "group": "navigation"
+                },
+                {
+                    "command": "workstash.mattermost.refresh",
+                    "when": "view == mattermostView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.mattermost.search",
+                    "when": "view == mattermostView && workstash.isMattermostAuthenticated && !workstash.mattermost.isSearching",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.mattermost.clearSearch",
+                    "when": "view == mattermostView && workstash.mattermost.isSearching",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.mattermost.signIn",
+                    "when": "view == mattermostView && workstash.isMattermostConfigured && !workstash.isMattermostAuthenticated",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.mattermost.signOut",
+                    "when": "view == mattermostView && workstash.isMattermostAuthenticated"
+                },
+                {
+                    "command": "workstash.mattermost.configure",
+                    "when": "view == mattermostView"
                 }
             ],
             "view/item/context": [
@@ -674,6 +771,11 @@
                     "command": "workstash.issues.openInBrowser",
                     "when": "view == issuesView && viewItem =~ /^issueItem/",
                     "group": "1_issue@2"
+                },
+                {
+                    "command": "workstash.mattermost.openChannel",
+                    "when": "view == mattermostView && viewItem =~ /^mattermostChannel/",
+                    "group": "inline@1"
                 }
             ],
             "commandPalette": [
@@ -828,6 +930,34 @@
                 {
                     "command": "workstash.issues.clearSearch",
                     "when": "workspaceFolderCount > 0 && workstash.issues.isSearching"
+                },
+                {
+                    "command": "workstash.mattermost.refresh",
+                    "when": "workspaceFolderCount > 0 && workstash.isMattermostAuthenticated"
+                },
+                {
+                    "command": "workstash.mattermost.signIn",
+                    "when": "workspaceFolderCount > 0 && workstash.isMattermostConfigured && !workstash.isMattermostAuthenticated"
+                },
+                {
+                    "command": "workstash.mattermost.signOut",
+                    "when": "workspaceFolderCount > 0 && workstash.isMattermostAuthenticated"
+                },
+                {
+                    "command": "workstash.mattermost.openChannel",
+                    "when": "false"
+                },
+                {
+                    "command": "workstash.mattermost.search",
+                    "when": "workspaceFolderCount > 0 && workstash.isMattermostAuthenticated"
+                },
+                {
+                    "command": "workstash.mattermost.clearSearch",
+                    "when": "workspaceFolderCount > 0 && workstash.mattermost.isSearching"
+                },
+                {
+                    "command": "workstash.mattermost.configure",
+                    "when": "workspaceFolderCount > 0"
                 }
             ]
         },

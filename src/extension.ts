@@ -18,6 +18,9 @@ import { PrItem } from './prItem';
 import { IssueService } from './issueService';
 import { IssueProvider } from './issueProvider';
 import { IssueItem } from './issueItem';
+import { MattermostService } from './mattermostService';
+import { MattermostProvider } from './mattermostProvider';
+import { MattermostChannelItem } from './mattermostItem';
 import { pickStash } from './uiUtils';
 import { getConfig } from './utils';
 
@@ -127,6 +130,31 @@ export function activate(context: vscode.ExtensionContext) {
         }),
     );
 
+    // ─── Mattermost Feature ───────────────────────────────────────
+
+    // MattermostService — Mattermost REST API (auth via SecretStorage)
+    const mattermostService = new MattermostService(outputChannel, context.secrets);
+
+    // MattermostProvider — tree data provider for Mattermost sidebar
+    const mattermostProvider = new MattermostProvider(mattermostService, outputChannel);
+    context.subscriptions.push(mattermostProvider);
+
+    // Register the mattermost tree view
+    const mattermostTreeView = vscode.window.createTreeView('mattermostView', {
+        treeDataProvider: mattermostProvider,
+        showCollapseAll: true,
+        canSelectMany: false,
+    });
+    context.subscriptions.push(mattermostTreeView);
+    mattermostProvider.setTreeView(mattermostTreeView);
+
+    // Refresh mattermost when auth state changes
+    context.subscriptions.push(
+        mattermostService.onDidChangeAuth(() => {
+            mattermostProvider.refresh('auth-changed');
+        }),
+    );
+
     // Register mystash: URI scheme for side-by-side diff viewing
     const contentProvider = new StashContentProvider(gitService);
     context.subscriptions.push(
@@ -183,6 +211,7 @@ export function activate(context: vscode.ExtensionContext) {
                 stashProvider.refresh('window-focus');
                 prProvider.refresh('window-focus');
                 issueProvider.refresh('window-focus');
+                mattermostProvider.refresh('window-focus');
             }
         }),
     );
@@ -492,7 +521,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('mystash.openPanel', () => {
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService);
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
         }),
     );
 
@@ -724,7 +753,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the note in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService);
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
             StashPanel.currentPanel?.openNote(item.note.id);
         }),
     );
@@ -923,7 +952,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the PR in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService);
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
             StashPanel.currentPanel?.openPR(item.pr.number);
         }),
     );
@@ -1013,7 +1042,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the issue in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService);
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
             StashPanel.currentPanel?.openIssue(item.issue.number);
         }),
     );
@@ -1084,6 +1113,62 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('workstash.issues.clearSearch', () => {
             issueProvider.setSearchQuery('');
             vscode.commands.executeCommand('setContext', 'workstash.issues.isSearching', false);
+        }),
+    );
+
+    // ─── Mattermost commands ───
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.mattermost.refresh', () => {
+            mattermostProvider.refresh('manual');
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.mattermost.signIn', async () => {
+            const success = await mattermostService.signIn();
+            if (success) {
+                mattermostProvider.refresh('sign-in');
+            }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.mattermost.signOut', async () => {
+            await mattermostService.signOut();
+            mattermostProvider.refresh('sign-out');
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.mattermost.openChannel', async (item?: MattermostChannelItem) => {
+            if (!item) {
+                return;
+            }
+            // Open the channel in the webview panel
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.currentPanel?.openChannel(item.channel.id, item.channel.displayName);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.mattermost.search', async () => {
+            await mattermostProvider.search();
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.mattermost.clearSearch', () => {
+            mattermostProvider.clearSearch();
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.mattermost.configure', () => {
+            vscode.commands.executeCommand(
+                'workbench.action.openSettings',
+                'workstash.mattermost.serverUrl',
+            );
         }),
     );
 }

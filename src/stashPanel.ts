@@ -4,6 +4,7 @@ import { AuthService } from './authService';
 import { GistService } from './gistService';
 import { PrService } from './prService';
 import { IssueService } from './issueService';
+import { MattermostService } from './mattermostService';
 import { formatRelativeTime, getConfig } from './utils';
 
 /**
@@ -20,6 +21,7 @@ export class StashPanel {
     private readonly _gistService: GistService | undefined;
     private readonly _prService: PrService | undefined;
     private readonly _issueService: IssueService | undefined;
+    private readonly _mattermostService: MattermostService | undefined;
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
     private _isReady = false;
@@ -46,6 +48,7 @@ export class StashPanel {
         gistService?: GistService,
         prService?: PrService,
         issueService?: IssueService,
+        mattermostService?: MattermostService,
     ): StashPanel {
         const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -69,6 +72,7 @@ export class StashPanel {
             gistService,
             prService,
             issueService,
+            mattermostService,
         );
         return StashPanel._instance;
     }
@@ -81,6 +85,7 @@ export class StashPanel {
         gistService?: GistService,
         prService?: PrService,
         issueService?: IssueService,
+        mattermostService?: MattermostService,
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -89,6 +94,7 @@ export class StashPanel {
         this._gistService = gistService;
         this._prService = prService;
         this._issueService = issueService;
+        this._mattermostService = mattermostService;
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
         this._panel.webview.html = this._getHtml();
@@ -121,6 +127,13 @@ export class StashPanel {
     public openIssue(issueNumber: number): void {
         if (this._isReady) {
             this._panel.webview.postMessage({ type: 'openIssue', issueNumber });
+        }
+    }
+
+    /** Deep-link: switch to Mattermost tab and open a specific channel. */
+    public openChannel(channelId: string, channelName: string): void {
+        if (this._isReady) {
+            this._panel.webview.postMessage({ type: 'openChannel', channelId, channelName });
         }
     }
 
@@ -215,6 +228,10 @@ export class StashPanel {
         // Issue message properties
         issueNumber?: number;
         stateReason?: string;
+        // Mattermost message properties
+        channelId?: string;
+        teamId?: string;
+        page?: number;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -224,6 +241,7 @@ export class StashPanel {
                 await this._refreshNotes();
                 await this._refreshPRs();
                 await this._refreshIssues();
+                await this._refreshMattermost();
                 break;
 
             case 'refresh':
@@ -860,6 +878,117 @@ export class StashPanel {
                     vscode.window.showInformationMessage('Comment copied to clipboard');
                 }
                 break;
+
+            // ─── Mattermost Message Handlers ──────────────────────
+
+            case 'mattermost.refresh':
+                await this._refreshMattermost();
+                break;
+
+            case 'mattermost.signIn': {
+                if (!this._mattermostService) { break; }
+                const signedIn = await this._mattermostService.signIn();
+                if (signedIn) {
+                    await this._refreshMattermost();
+                }
+                break;
+            }
+
+            case 'mattermost.signInWithPassword': {
+                if (!this._mattermostService) { break; }
+                const pwSuccess = await this._mattermostService.signInWithPassword();
+                if (pwSuccess) {
+                    await this._refreshMattermost();
+                }
+                break;
+            }
+
+            case 'mattermost.signInWithToken': {
+                if (!this._mattermostService) { break; }
+                const tokenSuccess = await this._mattermostService.signInWithToken();
+                if (tokenSuccess) {
+                    await this._refreshMattermost();
+                }
+                break;
+            }
+
+            case 'mattermost.signInWithSessionToken': {
+                if (!this._mattermostService) { break; }
+                const sessionSuccess = await this._mattermostService.signInWithSessionToken();
+                if (sessionSuccess) {
+                    await this._refreshMattermost();
+                }
+                break;
+            }
+
+            case 'mattermost.signOut': {
+                if (!this._mattermostService) { break; }
+                await this._mattermostService.signOut();
+                this._panel.webview.postMessage({ type: 'mattermostConfigured', configured: false });
+                break;
+            }
+
+            case 'mattermost.getChannels': {
+                if (!this._mattermostService || !msg.teamId) { break; }
+                try {
+                    this._panel.webview.postMessage({ type: 'mattermostChannelsLoading' });
+                    const channels = await this._mattermostService.getMyChannels(msg.teamId);
+                    const payload = channels.map((c) => MattermostService.toChannelData(c));
+                    this._panel.webview.postMessage({ type: 'mattermostChannels', payload });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.getPosts': {
+                if (!this._mattermostService || !msg.channelId) { break; }
+                try {
+                    const page = msg.page ?? 0;
+                    this._panel.webview.postMessage({ type: 'mattermostPostsLoading' });
+                    const posts = await this._mattermostService.getChannelPosts(msg.channelId, page);
+                    const usernames = await this._mattermostService.resolveUsernames(posts);
+                    const payload = posts.map((p) =>
+                        MattermostService.toPostData(p, usernames.get(p.userId) ?? p.userId),
+                    );
+                    this._panel.webview.postMessage({
+                        type: page > 0 ? 'mattermostOlderPosts' : 'mattermostPosts',
+                        payload,
+                        hasMore: posts.length === 30,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.sendPost': {
+                if (!this._mattermostService || !msg.channelId || !msg.message) { break; }
+                try {
+                    this._panel.webview.postMessage({ type: 'mattermostSendingPost' });
+                    const post = await this._mattermostService.createPost(msg.channelId, msg.message);
+                    const username = await this._mattermostService.resolveUsername(post.userId);
+                    const postData = MattermostService.toPostData(post, username);
+                    this._panel.webview.postMessage({ type: 'mattermostPostCreated', post: postData });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.openInBrowser': {
+                if (!this._mattermostService || !msg.channelId) { break; }
+                const serverUrl = await this._mattermostService.getServerUrl();
+                if (serverUrl) {
+                    // Mattermost channel URLs follow pattern: /teamname/channels/channelname
+                    // For simplicity, open the server root
+                    await vscode.env.openExternal(vscode.Uri.parse(serverUrl));
+                }
+                break;
+            }
         }
     }
 
@@ -1039,6 +1168,48 @@ export class StashPanel {
         }
     }
 
+    /** Send Mattermost config status and teams to webview. */
+    private async _refreshMattermost(): Promise<void> {
+        if (!this._mattermostService) {
+            return;
+        }
+        try {
+            const configured = await this._mattermostService.isConfigured();
+            this._panel.webview.postMessage({ type: 'mattermostConfigured', configured });
+
+            if (!configured) {
+                return;
+            }
+
+            // Send current user info
+            const me = await this._mattermostService.getMe();
+            this._panel.webview.postMessage({
+                type: 'mattermostUser',
+                user: MattermostService.toUserData(me),
+            });
+
+            // Send teams
+            const teams = await this._mattermostService.getMyTeams();
+            const teamsPayload = teams.map((t) => MattermostService.toTeamData(t));
+            this._panel.webview.postMessage({ type: 'mattermostTeams', payload: teamsPayload });
+
+            // Auto-select first team and load its channels
+            if (teams.length > 0) {
+                const firstTeamId = teams[0].id;
+                const channels = await this._mattermostService.getMyChannels(firstTeamId);
+                const channelsPayload = channels.map((c) => MattermostService.toChannelData(c));
+                this._panel.webview.postMessage({
+                    type: 'mattermostChannels',
+                    payload: channelsPayload,
+                    teamId: firstTeamId,
+                });
+            }
+        } catch (e: unknown) {
+            const m = e instanceof Error ? e.message : 'Unknown error';
+            this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+        }
+    }
+
     /** Build the shell HTML that loads the bundled React app + Tailwind CSS. */
     private _getHtml(): string {
         const webview = this._panel.webview;
@@ -1057,7 +1228,7 @@ export class StashPanel {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; img-src https://avatars.githubusercontent.com ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+        content="default-src 'none'; img-src https: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src https:;">
     <link rel="stylesheet" href="${styleUri}">
     <title>Workstash</title>
 </head>

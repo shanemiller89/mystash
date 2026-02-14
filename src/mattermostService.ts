@@ -1,0 +1,823 @@
+import * as vscode from 'vscode';
+
+// ─── Data Models ──────────────────────────────────────────────────
+
+export interface MattermostTeam {
+    id: string;
+    name: string;
+    displayName: string;
+    description: string;
+    type: 'O' | 'I'; // Open or Invite-only
+}
+
+export interface MattermostChannel {
+    id: string;
+    teamId: string;
+    name: string;
+    displayName: string;
+    type: 'O' | 'P' | 'D' | 'G'; // Open, Private, Direct, Group
+    header: string;
+    purpose: string;
+    totalMsgCount: number;
+    lastPostAt: number; // epoch ms
+}
+
+export interface MattermostPost {
+    id: string;
+    channelId: string;
+    userId: string;
+    message: string;
+    createAt: number; // epoch ms
+    updateAt: number;
+    deleteAt: number;
+    rootId: string; // parent post ID for threads
+    type: string;
+    props: Record<string, unknown>;
+}
+
+export interface MattermostUser {
+    id: string;
+    username: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    nickname: string;
+}
+
+/** Lightweight data sent to webview (safe for serialization) */
+export interface MattermostTeamData {
+    id: string;
+    name: string;
+    displayName: string;
+    description: string;
+    type: 'O' | 'I';
+}
+
+export interface MattermostChannelData {
+    id: string;
+    teamId: string;
+    name: string;
+    displayName: string;
+    type: 'O' | 'P' | 'D' | 'G';
+    header: string;
+    purpose: string;
+    lastPostAt: string; // ISO string
+}
+
+export interface MattermostPostData {
+    id: string;
+    channelId: string;
+    userId: string;
+    username: string; // resolved by service
+    message: string;
+    createAt: string; // ISO string
+    updateAt: string;
+    rootId: string;
+    type: string;
+}
+
+export interface MattermostUserData {
+    id: string;
+    username: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    nickname: string;
+}
+
+// ─── GitHub-style API types → Mattermost raw API shapes ──────────
+
+interface MmApiTeam {
+    id: string;
+    name: string;
+    display_name: string;
+    description: string;
+    type: 'O' | 'I';
+}
+
+interface MmApiChannel {
+    id: string;
+    team_id: string;
+    name: string;
+    display_name: string;
+    type: 'O' | 'P' | 'D' | 'G';
+    header: string;
+    purpose: string;
+    total_msg_count: number;
+    last_post_at: number;
+}
+
+interface MmApiPost {
+    id: string;
+    channel_id: string;
+    user_id: string;
+    message: string;
+    create_at: number;
+    update_at: number;
+    delete_at: number;
+    root_id: string;
+    type: string;
+    props: Record<string, unknown>;
+}
+
+interface MmApiUser {
+    id: string;
+    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    nickname: string;
+}
+
+interface MmApiPostList {
+    order: string[];
+    posts: Record<string, MmApiPost>;
+}
+
+// ─── Secret Storage Keys ──────────────────────────────────────────
+
+const SECRET_KEY_TOKEN = 'workstash.mattermost.token';
+const SECRET_KEY_URL = 'workstash.mattermost.serverUrl';
+const SECRET_KEY_AUTH_METHOD = 'workstash.mattermost.authMethod';
+
+/** How the user authenticated with Mattermost */
+export type MattermostAuthMethod = 'pat' | 'password' | 'session';
+
+// ─── Service ──────────────────────────────────────────────────────
+
+type FetchFn = typeof globalThis.fetch;
+
+/**
+ * REST API wrapper for Mattermost operations.
+ * Authenticates via Personal Access Token stored in VS Code SecretStorage.
+ * All calls go through `_request()` with consistent error handling.
+ */
+export class MattermostService {
+    private readonly _outputChannel: vscode.OutputChannel;
+    private readonly _secrets: vscode.SecretStorage;
+    private readonly _fetchFn: FetchFn;
+
+    /** Fires when auth state changes (sign in / sign out / server URL change) */
+    private readonly _onDidChangeAuth = new vscode.EventEmitter<void>();
+    public readonly onDidChangeAuth: vscode.Event<void> = this._onDidChangeAuth.event;
+
+    /** In-memory user cache: userId → username */
+    private readonly _userCache = new Map<string, string>();
+
+    constructor(
+        outputChannel: vscode.OutputChannel,
+        secrets: vscode.SecretStorage,
+        fetchFn?: FetchFn,
+    ) {
+        this._outputChannel = outputChannel;
+        this._secrets = secrets;
+        this._fetchFn = fetchFn ?? globalThis.fetch.bind(globalThis);
+    }
+
+    // ─── Auth / Configuration ─────────────────────────────────────
+
+    /** Get the configured Mattermost server URL (no trailing slash).
+     *  Priority: VS Code setting → SecretStorage (stored during sign-in). */
+    async getServerUrl(): Promise<string | undefined> {
+        // Check VS Code setting first
+        const settingUrl = vscode.workspace
+            .getConfiguration('workstash.mattermost')
+            .get<string>('serverUrl');
+        if (settingUrl?.trim()) {
+            return settingUrl.trim().replace(/\/+$/, '');
+        }
+        // Fall back to SecretStorage (stored during sign-in flow)
+        return this._secrets.get(SECRET_KEY_URL);
+    }
+
+    /** Get the stored personal access token */
+    async getToken(): Promise<string | undefined> {
+        return this._secrets.get(SECRET_KEY_TOKEN);
+    }
+
+    /** Check if we have both a server URL and token configured */
+    async isConfigured(): Promise<boolean> {
+        const [url, token] = await Promise.all([this.getServerUrl(), this.getToken()]);
+        return !!url && !!token;
+    }
+
+    /** Get the stored auth method */
+    async getAuthMethod(): Promise<MattermostAuthMethod | undefined> {
+        const method = await this._secrets.get(SECRET_KEY_AUTH_METHOD);
+        return method as MattermostAuthMethod | undefined;
+    }
+
+    /**
+     * Interactive sign-in — shows a QuickPick for the user to choose
+     * between Personal Access Token and username/password authentication.
+     */
+    async signIn(): Promise<boolean> {
+        const choice = await vscode.window.showQuickPick(
+            [
+                {
+                    label: '$(key) Username & Password',
+                    description: 'Sign in with your Mattermost credentials',
+                    method: 'password' as const,
+                },
+                {
+                    label: '$(shield) Personal Access Token',
+                    description: 'Use a PAT (must be enabled by your admin)',
+                    method: 'pat' as const,
+                },
+                {
+                    label: '$(plug) Session Token',
+                    description: 'Paste a session/bearer token directly',
+                    method: 'session' as const,
+                },
+            ],
+            {
+                title: 'Mattermost — Choose Sign-In Method',
+                placeHolder: 'How would you like to authenticate?',
+            },
+        );
+        if (!choice) { return false; }
+
+        switch (choice.method) {
+            case 'password': return this.signInWithPassword();
+            case 'pat': return this.signInWithToken();
+            case 'session': return this.signInWithSessionToken();
+        }
+    }
+
+    /**
+     * Sign in with username & password.
+     * Calls POST /api/v4/users/login and stores the session token from the response.
+     */
+    async signInWithPassword(): Promise<boolean> {
+        // Step 1: Get server URL
+        const cleanUrl = await this._promptServerUrl();
+        if (!cleanUrl) { return false; }
+
+        // Step 2: Get username
+        const loginId = await vscode.window.showInputBox({
+            prompt: 'Mattermost Username or Email',
+            placeHolder: 'username or user@example.com',
+            validateInput: (v) => v.trim() ? undefined : 'Username is required',
+        });
+        if (!loginId) { return false; }
+
+        // Step 3: Get password
+        const password = await vscode.window.showInputBox({
+            prompt: 'Mattermost Password',
+            placeHolder: 'Enter your password',
+            password: true,
+            validateInput: (v) => v.trim() ? undefined : 'Password is required',
+        });
+        if (!password) { return false; }
+
+        // Step 4: POST /api/v4/users/login
+        try {
+            const loginBody: { login_id: string; password: string; token?: string } = {
+                login_id: loginId.trim(),
+                password,
+            };
+
+            let response = await this._fetchFn(`${cleanUrl}/api/v4/users/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(loginBody),
+            });
+
+            // Step 4a: Handle MFA challenge
+            if (!response.ok) {
+                const errorBody = await this._parseErrorBodyFull(response);
+                if (errorBody.id === 'mfa.validate_token.authenticate.app_error') {
+                    // MFA is required — prompt for TOTP code
+                    const mfaToken = await vscode.window.showInputBox({
+                        prompt: 'Enter your two-factor authentication code',
+                        placeHolder: '6-digit code from your authenticator app',
+                        validateInput: (v) => {
+                            const trimmed = v.trim();
+                            if (!trimmed) { return 'MFA code is required'; }
+                            if (!/^\d{6}$/.test(trimmed)) { return 'Enter a 6-digit code'; }
+                            return undefined;
+                        },
+                    });
+                    if (!mfaToken) { return false; }
+
+                    // Retry with MFA token
+                    loginBody.token = mfaToken.trim();
+                    response = await this._fetchFn(`${cleanUrl}/api/v4/users/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(loginBody),
+                    });
+
+                    if (!response.ok) {
+                        const retryError = await this._parseErrorBodyFull(response);
+                        const hint = retryError.id === 'api.user.check_user_mfa.bad_code.app_error'
+                            ? 'Invalid MFA code. Please try again.'
+                            : retryError.message || `Login failed (${response.status})`;
+                        vscode.window.showErrorMessage(`Mattermost: ${hint}`);
+                        return false;
+                    }
+                } else {
+                    vscode.window.showErrorMessage(
+                        `Mattermost login failed (${response.status})${errorBody.message ? `: ${errorBody.message}` : ''}`,
+                    );
+                    return false;
+                }
+            }
+
+            // Session token comes back in the Token header
+            const sessionToken = response.headers.get('Token');
+            if (!sessionToken) {
+                vscode.window.showErrorMessage(
+                    'Mattermost login succeeded but no session token was returned.',
+                );
+                return false;
+            }
+
+            const user = (await response.json()) as MmApiUser;
+            this._outputChannel.appendLine(
+                `[Mattermost] Signed in as ${user.username} on ${cleanUrl} (password auth)`,
+            );
+
+            // Step 5: Store credentials
+            await this._secrets.store(SECRET_KEY_URL, cleanUrl);
+            await this._secrets.store(SECRET_KEY_TOKEN, sessionToken);
+            await this._secrets.store(SECRET_KEY_AUTH_METHOD, 'password');
+            this._userCache.clear();
+            this._onDidChangeAuth.fire();
+
+            vscode.window.showInformationMessage(
+                `Signed in to Mattermost as ${user.username}.`,
+            );
+            return true;
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Cannot reach Mattermost server: ${msg}`);
+            return false;
+        }
+    }
+
+    /**
+     * Sign in with a Personal Access Token.
+     * Validates the token by hitting /api/v4/users/me before storing.
+     */
+    async signInWithToken(): Promise<boolean> {
+        // Step 1: Get server URL
+        const cleanUrl = await this._promptServerUrl();
+        if (!cleanUrl) { return false; }
+
+        // Step 2: Get personal access token
+        const token = await vscode.window.showInputBox({
+            prompt: 'Mattermost Personal Access Token',
+            placeHolder: 'Paste your personal access token',
+            password: true,
+            validateInput: (v) => v.trim() ? undefined : 'Token is required',
+        });
+        if (!token) { return false; }
+
+        const cleanToken = token.trim();
+
+        // Step 3: Validate by hitting /users/me
+        try {
+            const response = await this._fetchFn(`${cleanUrl}/api/v4/users/me`, {
+                method: 'GET',
+                headers: { Authorization: `Bearer ${cleanToken}` },
+            });
+
+            if (!response.ok) {
+                const detail = await this._parseErrorBody(response);
+                vscode.window.showErrorMessage(
+                    `Mattermost authentication failed (${response.status})${detail ? `: ${detail}` : ''}`,
+                );
+                return false;
+            }
+
+            const user = (await response.json()) as MmApiUser;
+            this._outputChannel.appendLine(
+                `[Mattermost] Signed in as ${user.username} on ${cleanUrl} (PAT auth)`,
+            );
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Cannot reach Mattermost server: ${msg}`);
+            return false;
+        }
+
+        // Step 4: Store credentials
+        await this._secrets.store(SECRET_KEY_URL, cleanUrl);
+        await this._secrets.store(SECRET_KEY_TOKEN, cleanToken);
+        await this._secrets.store(SECRET_KEY_AUTH_METHOD, 'pat');
+        this._userCache.clear();
+        this._onDidChangeAuth.fire();
+
+        vscode.window.showInformationMessage('Signed in to Mattermost successfully.');
+        return true;
+    }
+
+    /**
+     * Sign in with a raw session/bearer token.
+     * Useful when PATs are disabled and the user has a token from another source
+     * (e.g., browser dev tools, CLI, or an existing session).
+     */
+    async signInWithSessionToken(): Promise<boolean> {
+        // Step 1: Get server URL
+        const cleanUrl = await this._promptServerUrl();
+        if (!cleanUrl) { return false; }
+
+        // Step 2: Get session token
+        const token = await vscode.window.showInputBox({
+            prompt: 'Mattermost Session / Bearer Token',
+            placeHolder: 'Paste your session token',
+            password: true,
+            validateInput: (v) => v.trim() ? undefined : 'Token is required',
+        });
+        if (!token) { return false; }
+
+        const cleanToken = token.trim();
+
+        // Step 3: Validate by hitting /users/me
+        try {
+            const response = await this._fetchFn(`${cleanUrl}/api/v4/users/me`, {
+                method: 'GET',
+                headers: { Authorization: `Bearer ${cleanToken}` },
+            });
+
+            if (!response.ok) {
+                const detail = await this._parseErrorBody(response);
+                vscode.window.showErrorMessage(
+                    `Mattermost authentication failed (${response.status})${detail ? `: ${detail}` : ''}`,
+                );
+                return false;
+            }
+
+            const user = (await response.json()) as MmApiUser;
+            this._outputChannel.appendLine(
+                `[Mattermost] Signed in as ${user.username} on ${cleanUrl} (session token)`,
+            );
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Cannot reach Mattermost server: ${msg}`);
+            return false;
+        }
+
+        // Step 4: Store credentials
+        await this._secrets.store(SECRET_KEY_URL, cleanUrl);
+        await this._secrets.store(SECRET_KEY_TOKEN, cleanToken);
+        await this._secrets.store(SECRET_KEY_AUTH_METHOD, 'session');
+        this._userCache.clear();
+        this._onDidChangeAuth.fire();
+
+        vscode.window.showInformationMessage('Signed in to Mattermost successfully.');
+        return true;
+    }
+
+    /** Shared prompt for server URL (used by all sign-in methods).
+     *  Pre-fills from VS Code setting or SecretStorage. */
+    private async _promptServerUrl(): Promise<string | undefined> {
+        const currentUrl = await this.getServerUrl();
+        const serverUrl = await vscode.window.showInputBox({
+            prompt: 'Mattermost Server URL (e.g., https://mattermost.example.com)',
+            placeHolder: 'https://mattermost.example.com',
+            value: currentUrl ?? '',
+            validateInput: (value) => {
+                if (!value.trim()) {
+                    return 'Server URL is required';
+                }
+                try {
+                    new URL(value.trim());
+                    return undefined;
+                } catch {
+                    return 'Please enter a valid URL';
+                }
+            },
+        });
+        if (!serverUrl) { return undefined; }
+        return serverUrl.trim().replace(/\/+$/, '');
+    }
+
+    /** Sign out — clear stored credentials */
+    async signOut(): Promise<void> {
+        await this._secrets.delete(SECRET_KEY_TOKEN);
+        await this._secrets.delete(SECRET_KEY_URL);
+        await this._secrets.delete(SECRET_KEY_AUTH_METHOD);
+        this._userCache.clear();
+        this._onDidChangeAuth.fire();
+        this._outputChannel.appendLine('[Mattermost] Signed out');
+    }
+
+    // ─── Private Helpers ──────────────────────────────────────────
+
+    private async _getTokenOrThrow(): Promise<string> {
+        const token = await this.getToken();
+        if (!token) {
+            throw new Error('Not configured. Please sign in to Mattermost first.');
+        }
+        return token;
+    }
+
+    private async _getBaseUrl(): Promise<string> {
+        const url = await this.getServerUrl();
+        if (!url) {
+            throw new Error('Server URL not configured. Please sign in to Mattermost first.');
+        }
+        return `${url}/api/v4`;
+    }
+
+    private async _request<T>(method: string, path: string, body?: unknown): Promise<T> {
+        const token = await this._getTokenOrThrow();
+        const baseUrl = await this._getBaseUrl();
+        const url = `${baseUrl}${path}`;
+
+        this._outputChannel.appendLine(`[Mattermost] ${method} ${path}`);
+
+        const headers: Record<string, string> = {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+        };
+        if (body) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        const response = await this._fetchFn(url, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : undefined,
+        });
+
+        this._outputChannel.appendLine(`[Mattermost] ${method} ${path} → ${response.status}`);
+
+        if (!response.ok) {
+            await this._handleHttpError(response);
+        }
+
+        if (response.status === 204) {
+            return undefined as T;
+        }
+
+        return (await response.json()) as T;
+    }
+
+    private async _handleHttpError(response: Response): Promise<never> {
+        const detail = await this._parseErrorBody(response);
+
+        switch (response.status) {
+            case 401: {
+                const method = await this.getAuthMethod();
+                const hint = method === 'password' || method === 'session'
+                    ? ' Session tokens expire — please sign in again.'
+                    : ' Please check your personal access token.';
+                throw new Error(`Mattermost authentication failed.${hint}`);
+            }
+            case 403:
+                throw new Error(`Forbidden${detail ? `: ${detail}` : ''}`);
+            case 404:
+                throw new Error(`Not found${detail ? `: ${detail}` : ''}`);
+            case 429:
+                throw new Error('Rate limit exceeded. Try again later.');
+            default:
+                throw new Error(
+                    `Mattermost API error ${response.status}${detail ? `: ${detail}` : ''}`,
+                );
+        }
+    }
+
+    private async _parseErrorBody(response: Response): Promise<string> {
+        const full = await this._parseErrorBodyFull(response);
+        return full.message;
+    }
+
+    /** Parse a Mattermost error response, returning both `id` and `message`. */
+    private async _parseErrorBodyFull(
+        response: Response,
+    ): Promise<{ id: string; message: string }> {
+        try {
+            const body = (await response.json()) as { id?: string; message?: string };
+            return { id: body.id ?? '', message: body.message ?? '' };
+        } catch {
+            return { id: '', message: '' };
+        }
+    }
+
+    // ─── Users ────────────────────────────────────────────────────
+
+    /** Get the authenticated user's profile */
+    async getMe(): Promise<MattermostUser> {
+        const raw = await this._request<MmApiUser>('GET', '/users/me');
+        return this._parseUser(raw);
+    }
+
+    /** Get a user by ID (cached) */
+    async getUser(userId: string): Promise<MattermostUser> {
+        const raw = await this._request<MmApiUser>('GET', `/users/${userId}`);
+        const user = this._parseUser(raw);
+        this._userCache.set(userId, user.username);
+        return user;
+    }
+
+    /** Resolve a userId to a username (uses cache when available) */
+    async resolveUsername(userId: string): Promise<string> {
+        const cached = this._userCache.get(userId);
+        if (cached) { return cached; }
+
+        try {
+            const user = await this.getUser(userId);
+            return user.username;
+        } catch {
+            return userId; // fallback to raw ID
+        }
+    }
+
+    /** Bulk-resolve user IDs to usernames for a list of posts */
+    async resolveUsernames(posts: MattermostPost[]): Promise<Map<string, string>> {
+        const uniqueIds = [...new Set(posts.map((p) => p.userId))];
+        const uncached = uniqueIds.filter((id) => !this._userCache.has(id));
+
+        if (uncached.length > 0) {
+            // Mattermost supports bulk user fetch
+            try {
+                const users = await this._request<MmApiUser[]>('POST', '/users/ids', uncached);
+                for (const u of users) {
+                    this._userCache.set(u.id, u.username);
+                }
+            } catch {
+                // Fallback: resolve individually (slower but more resilient)
+                for (const id of uncached) {
+                    await this.resolveUsername(id);
+                }
+            }
+        }
+
+        const result = new Map<string, string>();
+        for (const id of uniqueIds) {
+            result.set(id, this._userCache.get(id) ?? id);
+        }
+        return result;
+    }
+
+    // ─── Teams ────────────────────────────────────────────────────
+
+    /** List all teams the authenticated user is a member of */
+    async getMyTeams(): Promise<MattermostTeam[]> {
+        const raw = await this._request<MmApiTeam[]>('GET', '/users/me/teams');
+        return raw.map((t) => this._parseTeam(t));
+    }
+
+    // ─── Channels ─────────────────────────────────────────────────
+
+    /** List channels the authenticated user is a member of in a given team */
+    async getMyChannels(teamId: string): Promise<MattermostChannel[]> {
+        const raw = await this._request<MmApiChannel[]>(
+            'GET',
+            `/users/me/teams/${teamId}/channels`,
+        );
+        return raw
+            .filter((c) => c.type === 'O' || c.type === 'P') // Skip DMs/groups for tree view
+            .map((c) => this._parseChannel(c))
+            .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    }
+
+    /** Get a single channel by ID */
+    async getChannel(channelId: string): Promise<MattermostChannel> {
+        const raw = await this._request<MmApiChannel>('GET', `/channels/${channelId}`);
+        return this._parseChannel(raw);
+    }
+
+    // ─── Posts ─────────────────────────────────────────────────────
+
+    /**
+     * Get posts in a channel, paginated.
+     * Returns newest first. `page` is 0-indexed.
+     */
+    async getChannelPosts(
+        channelId: string,
+        page = 0,
+        perPage = 30,
+    ): Promise<MattermostPost[]> {
+        const raw = await this._request<MmApiPostList>(
+            'GET',
+            `/channels/${channelId}/posts?page=${page}&per_page=${perPage}`,
+        );
+        return raw.order
+            .map((id) => raw.posts[id])
+            .filter((p) => p && p.delete_at === 0) // skip deleted
+            .map((p) => this._parsePost(p));
+    }
+
+    /** Create a new post in a channel */
+    async createPost(channelId: string, message: string, rootId?: string): Promise<MattermostPost> {
+        const body: { channel_id: string; message: string; root_id?: string } = {
+            channel_id: channelId,
+            message,
+        };
+        if (rootId) {
+            body.root_id = rootId;
+        }
+        const raw = await this._request<MmApiPost>('POST', '/posts', body);
+        return this._parsePost(raw);
+    }
+
+    // ─── Parsers ──────────────────────────────────────────────────
+
+    private _parseTeam(t: MmApiTeam): MattermostTeam {
+        return {
+            id: t.id,
+            name: t.name,
+            displayName: t.display_name,
+            description: t.description,
+            type: t.type,
+        };
+    }
+
+    private _parseChannel(c: MmApiChannel): MattermostChannel {
+        return {
+            id: c.id,
+            teamId: c.team_id,
+            name: c.name,
+            displayName: c.display_name,
+            type: c.type,
+            header: c.header,
+            purpose: c.purpose,
+            totalMsgCount: c.total_msg_count,
+            lastPostAt: c.last_post_at,
+        };
+    }
+
+    private _parsePost(p: MmApiPost): MattermostPost {
+        return {
+            id: p.id,
+            channelId: p.channel_id,
+            userId: p.user_id,
+            message: p.message,
+            createAt: p.create_at,
+            updateAt: p.update_at,
+            deleteAt: p.delete_at,
+            rootId: p.root_id,
+            type: p.type,
+            props: p.props,
+        };
+    }
+
+    private _parseUser(u: MmApiUser): MattermostUser {
+        return {
+            id: u.id,
+            username: u.username,
+            email: u.email,
+            firstName: u.first_name,
+            lastName: u.last_name,
+            nickname: u.nickname,
+        };
+    }
+
+    // ─── Converters (for webview) ─────────────────────────────────
+
+    static toTeamData(team: MattermostTeam): MattermostTeamData {
+        return {
+            id: team.id,
+            name: team.name,
+            displayName: team.displayName,
+            description: team.description,
+            type: team.type,
+        };
+    }
+
+    static toChannelData(channel: MattermostChannel): MattermostChannelData {
+        return {
+            id: channel.id,
+            teamId: channel.teamId,
+            name: channel.name,
+            displayName: channel.displayName,
+            type: channel.type,
+            header: channel.header,
+            purpose: channel.purpose,
+            lastPostAt: channel.lastPostAt
+                ? new Date(channel.lastPostAt).toISOString()
+                : '',
+        };
+    }
+
+    static toPostData(
+        post: MattermostPost,
+        username: string,
+    ): MattermostPostData {
+        return {
+            id: post.id,
+            channelId: post.channelId,
+            userId: post.userId,
+            username,
+            message: post.message,
+            createAt: new Date(post.createAt).toISOString(),
+            updateAt: new Date(post.updateAt).toISOString(),
+            rootId: post.rootId,
+            type: post.type,
+        };
+    }
+
+    static toUserData(user: MattermostUser): MattermostUserData {
+        return {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            nickname: user.nickname,
+        };
+    }
+}
