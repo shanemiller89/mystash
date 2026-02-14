@@ -26,6 +26,24 @@ export class MattermostTeamItem extends vscode.TreeItem {
 }
 
 /**
+ * Separator tree item for grouping channels vs DMs in the tree.
+ */
+export class MattermostSeparatorItem extends vscode.TreeItem {
+    constructor(
+        label: string,
+        public readonly teamId: string,
+        public readonly section: 'channels' | 'dms',
+    ) {
+        super(label, vscode.TreeItemCollapsibleState.Expanded);
+        this.id = `mm-sep-${teamId}-${section}`;
+        this.contextValue = 'mattermostSeparator';
+        this.iconPath = section === 'channels'
+            ? new vscode.ThemeIcon('symbol-namespace')
+            : new vscode.ThemeIcon('comment-discussion');
+    }
+}
+
+/**
  * Tree item representing a Mattermost channel.
  * Click opens the channel in the webview Chat tab.
  */

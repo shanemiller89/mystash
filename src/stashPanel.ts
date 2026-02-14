@@ -4,7 +4,8 @@ import { AuthService } from './authService';
 import { GistService } from './gistService';
 import { PrService } from './prService';
 import { IssueService } from './issueService';
-import { MattermostService } from './mattermostService';
+import { MattermostService, MattermostPostData } from './mattermostService';
+import { MattermostWebSocket, MmWsPostedData, MmWsReactionData, MmWsStatusChangeData, MmWsTypingData } from './mattermostWebSocket';
 import { formatRelativeTime, getConfig } from './utils';
 
 /**
@@ -23,8 +24,10 @@ export class StashPanel {
     private readonly _issueService: IssueService | undefined;
     private readonly _mattermostService: MattermostService | undefined;
     private readonly _extensionUri: vscode.Uri;
+    private readonly _outputChannel: vscode.OutputChannel;
     private _disposables: vscode.Disposable[] = [];
     private _isReady = false;
+    private _mmWebSocket: MattermostWebSocket | undefined;
 
     /** Access the current panel instance (e.g. for openNote deep-links). */
     public static get currentPanel(): StashPanel | undefined {
@@ -44,6 +47,7 @@ export class StashPanel {
     public static createOrShow(
         extensionUri: vscode.Uri,
         gitService: GitService,
+        outputChannel: vscode.OutputChannel,
         authService?: AuthService,
         gistService?: GistService,
         prService?: PrService,
@@ -68,6 +72,7 @@ export class StashPanel {
             panel,
             extensionUri,
             gitService,
+            outputChannel,
             authService,
             gistService,
             prService,
@@ -81,6 +86,7 @@ export class StashPanel {
         panel: vscode.WebviewPanel,
         extensionUri: vscode.Uri,
         gitService: GitService,
+        outputChannel: vscode.OutputChannel,
         authService?: AuthService,
         gistService?: GistService,
         prService?: PrService,
@@ -90,6 +96,7 @@ export class StashPanel {
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._gitService = gitService;
+        this._outputChannel = outputChannel;
         this._authService = authService;
         this._gistService = gistService;
         this._prService = prService;
@@ -232,6 +239,13 @@ export class StashPanel {
         channelId?: string;
         teamId?: string;
         page?: number;
+        // Mattermost thread/reaction/DM properties
+        rootId?: string;
+        postId?: string;
+        emojiName?: string;
+        term?: string;
+        targetUserId?: string;
+        userIds?: string[];
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -923,8 +937,15 @@ export class StashPanel {
 
             case 'mattermost.signOut': {
                 if (!this._mattermostService) { break; }
+                // Disconnect WebSocket before signing out
+                if (this._mmWebSocket) {
+                    this._mmWebSocket.disconnect();
+                    this._mmWebSocket.dispose();
+                    this._mmWebSocket = undefined;
+                }
                 await this._mattermostService.signOut();
                 this._panel.webview.postMessage({ type: 'mattermostConfigured', configured: false });
+                this._panel.webview.postMessage({ type: 'mattermostConnectionStatus', connected: false });
                 break;
             }
 
@@ -957,6 +978,34 @@ export class StashPanel {
                         payload,
                         hasMore: posts.length === 30,
                     });
+
+                    // Fetch reactions and user statuses for the loaded posts (non-blocking)
+                    const postIds = posts.map((p) => p.id);
+                    const uniqueUserIds = [...new Set(posts.map((p) => p.userId))];
+                    if (postIds.length > 0) {
+                        this._mattermostService.getBulkReactions(postIds).then((reactionsMap) => {
+                            const allReactions: Array<{ userId: string; postId: string; emojiName: string; username: string }> = [];
+                            for (const [pid, reactions] of reactionsMap) {
+                                for (const r of reactions) {
+                                    allReactions.push({
+                                        userId: r.userId,
+                                        postId: pid,
+                                        emojiName: r.emojiName,
+                                        username: usernames.get(r.userId) ?? r.userId,
+                                    });
+                                }
+                            }
+                            if (allReactions.length > 0) {
+                                this._panel.webview.postMessage({ type: 'mattermostBulkReactions', payload: allReactions });
+                            }
+                        }).catch(() => { /* ignore reaction fetch errors */ });
+                    }
+                    if (uniqueUserIds.length > 0) {
+                        this._mattermostService.getUserStatuses(uniqueUserIds).then((statuses) => {
+                            const statusPayload = statuses.map((s) => MattermostService.toUserStatusData(s));
+                            this._panel.webview.postMessage({ type: 'mattermostUserStatuses', payload: statusPayload });
+                        }).catch(() => { /* ignore status fetch errors */ });
+                    }
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
@@ -968,7 +1017,7 @@ export class StashPanel {
                 if (!this._mattermostService || !msg.channelId || !msg.message) { break; }
                 try {
                     this._panel.webview.postMessage({ type: 'mattermostSendingPost' });
-                    const post = await this._mattermostService.createPost(msg.channelId, msg.message);
+                    const post = await this._mattermostService.createPost(msg.channelId, msg.message, msg.rootId);
                     const username = await this._mattermostService.resolveUsername(post.userId);
                     const postData = MattermostService.toPostData(post, username);
                     this._panel.webview.postMessage({ type: 'mattermostPostCreated', post: postData });
@@ -986,6 +1035,229 @@ export class StashPanel {
                     // Mattermost channel URLs follow pattern: /teamname/channels/channelname
                     // For simplicity, open the server root
                     await vscode.env.openExternal(vscode.Uri.parse(serverUrl));
+                }
+                break;
+            }
+
+            // ─── Mattermost Thread Handlers ───────────────────────────
+
+            case 'mattermost.getThread': {
+                if (!this._mattermostService || !msg.postId) { break; }
+                try {
+                    this._panel.webview.postMessage({ type: 'mattermostThreadLoading', postId: msg.postId });
+                    const posts = await this._mattermostService.getPostThread(msg.postId);
+                    const usernames = await this._mattermostService.resolveUsernames(posts);
+                    const payload = posts.map((p) =>
+                        MattermostService.toPostData(p, usernames.get(p.userId) ?? p.userId),
+                    );
+                    this._panel.webview.postMessage({
+                        type: 'mattermostThread',
+                        rootId: msg.postId,
+                        payload,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.sendReply': {
+                if (!this._mattermostService || !msg.channelId || !msg.message || !msg.rootId) { break; }
+                try {
+                    this._panel.webview.postMessage({ type: 'mattermostSendingPost' });
+                    const post = await this._mattermostService.createPost(msg.channelId, msg.message, msg.rootId);
+                    const username = await this._mattermostService.resolveUsername(post.userId);
+                    const postData = MattermostService.toPostData(post, username);
+                    this._panel.webview.postMessage({ type: 'mattermostPostCreated', post: postData });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost Reaction Handlers ─────────────────────────
+
+            case 'mattermost.addReaction': {
+                if (!this._mattermostService || !msg.postId || !msg.emojiName) { break; }
+                try {
+                    await this._mattermostService.addReaction(msg.postId, msg.emojiName);
+                    // WebSocket will relay the reaction_added event
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.removeReaction': {
+                if (!this._mattermostService || !msg.postId || !msg.emojiName) { break; }
+                try {
+                    await this._mattermostService.removeReaction(msg.postId, msg.emojiName);
+                    // WebSocket will relay the reaction_removed event
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.getReactions': {
+                if (!this._mattermostService || !msg.postId) { break; }
+                try {
+                    const reactions = await this._mattermostService.getPostReactions(msg.postId);
+                    const userIds = [...new Set(reactions.map((r) => r.userId))];
+                    const usernames = new Map<string, string>();
+                    for (const uid of userIds) {
+                        usernames.set(uid, await this._mattermostService.resolveUsername(uid));
+                    }
+                    const payload = reactions.map((r) =>
+                        MattermostService.toReactionData(r, usernames.get(r.userId) ?? r.userId),
+                    );
+                    this._panel.webview.postMessage({
+                        type: 'mattermostReactions',
+                        postId: msg.postId,
+                        payload,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost DM Handlers ───────────────────────────────
+
+            case 'mattermost.createDM': {
+                if (!this._mattermostService || !msg.targetUserId) { break; }
+                try {
+                    const channel = await this._mattermostService.createDirectChannel(msg.targetUserId);
+                    const channelData = MattermostService.toChannelData(channel);
+                    this._panel.webview.postMessage({ type: 'mattermostDmCreated', channel: channelData });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.createGroupDM': {
+                if (!this._mattermostService || !msg.userIds || msg.userIds.length === 0) { break; }
+                try {
+                    const channel = await this._mattermostService.createGroupChannel(msg.userIds);
+                    const channelData = MattermostService.toChannelData(channel);
+                    this._panel.webview.postMessage({ type: 'mattermostDmCreated', channel: channelData });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.searchUsers': {
+                if (!this._mattermostService || !msg.term) { break; }
+                try {
+                    const users = await this._mattermostService.searchUsers(msg.term);
+                    const payload = users.map((u) => MattermostService.toUserData(u));
+                    this._panel.webview.postMessage({ type: 'mattermostUserSearchResults', payload });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost Channel & Status Handlers ─────────────────
+
+            case 'mattermost.getAllChannels': {
+                if (!this._mattermostService || !msg.teamId) { break; }
+                try {
+                    this._panel.webview.postMessage({ type: 'mattermostChannelsLoading' });
+                    const { channels, dmChannels, groupChannels } = await this._mattermostService.getAllMyChannels(msg.teamId);
+                    const channelsPayload = channels.map((c) => MattermostService.toChannelData(c));
+                    const dmPayload = [...dmChannels, ...groupChannels].map((c) => MattermostService.toChannelData(c));
+                    this._panel.webview.postMessage({ type: 'mattermostChannels', payload: channelsPayload });
+                    this._panel.webview.postMessage({ type: 'mattermostDmChannels', payload: dmPayload });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.getUserStatuses': {
+                if (!this._mattermostService || !msg.userIds || msg.userIds.length === 0) { break; }
+                try {
+                    const statuses = await this._mattermostService.getUserStatuses(msg.userIds);
+                    const payload = statuses.map((s) => MattermostService.toUserStatusData(s));
+                    this._panel.webview.postMessage({ type: 'mattermostUserStatuses', payload });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.getUnread': {
+                if (!this._mattermostService || !msg.channelId) { break; }
+                try {
+                    const unread = await this._mattermostService.getChannelUnread(msg.channelId);
+                    this._panel.webview.postMessage({
+                        type: 'mattermostUnread',
+                        payload: MattermostService.toChannelUnreadData(unread),
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            case 'mattermost.markRead': {
+                if (!this._mattermostService || !msg.channelId) { break; }
+                try {
+                    await this._mattermostService.markChannelAsRead(msg.channelId);
+                    this._panel.webview.postMessage({
+                        type: 'mattermostMarkedRead',
+                        channelId: msg.channelId,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost Emoji Handlers ────────────────────────────
+
+            case 'mattermost.emojiAutocomplete': {
+                if (!this._mattermostService || !msg.term) { break; }
+                try {
+                    const emojis = await this._mattermostService.getEmojiAutocomplete(msg.term);
+                    const payload: Array<{ id: string; name: string; isCustom: boolean; imageUrl?: string }> = [];
+                    for (const e of emojis) {
+                        const isCustom = e.creatorId !== '';
+                        let imageUrl: string | undefined;
+                        if (isCustom) {
+                            imageUrl = await this._mattermostService.getCustomEmojiImageUrl(e.id);
+                        }
+                        payload.push({ id: e.id, name: e.name, isCustom, imageUrl });
+                    }
+                    this._panel.webview.postMessage({ type: 'mattermostEmojiAutocomplete', payload });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                }
+                break;
+            }
+
+            // ─── Mattermost Typing Indicator ──────────────────────────
+
+            case 'mattermost.sendTyping': {
+                // Send a typing indicator via WebSocket (not REST)
+                if (this._mmWebSocket?.isConnected && msg.channelId) {
+                    this._mmWebSocket.sendTyping(msg.channelId, msg.rootId);
                 }
                 break;
             }
@@ -1178,6 +1450,9 @@ export class StashPanel {
             this._panel.webview.postMessage({ type: 'mattermostConfigured', configured });
 
             if (!configured) {
+                // Disconnect WebSocket if signing out or not configured
+                this._mmWebSocket?.disconnect();
+                this._mmWebSocket = undefined;
                 return;
             }
 
@@ -1193,21 +1468,196 @@ export class StashPanel {
             const teamsPayload = teams.map((t) => MattermostService.toTeamData(t));
             this._panel.webview.postMessage({ type: 'mattermostTeams', payload: teamsPayload });
 
-            // Auto-select first team and load its channels
+            // Auto-select first team and load its channels (including DMs)
             if (teams.length > 0) {
                 const firstTeamId = teams[0].id;
-                const channels = await this._mattermostService.getMyChannels(firstTeamId);
+                const { channels, dmChannels, groupChannels } = await this._mattermostService.getAllMyChannels(firstTeamId);
                 const channelsPayload = channels.map((c) => MattermostService.toChannelData(c));
+                const dmPayload = [...dmChannels, ...groupChannels].map((c) => MattermostService.toChannelData(c));
                 this._panel.webview.postMessage({
                     type: 'mattermostChannels',
                     payload: channelsPayload,
                     teamId: firstTeamId,
                 });
+                this._panel.webview.postMessage({
+                    type: 'mattermostDmChannels',
+                    payload: dmPayload,
+                    teamId: firstTeamId,
+                });
             }
+
+            // Connect WebSocket for real-time events
+            await this._connectMattermostWebSocket();
         } catch (e: unknown) {
             const m = e instanceof Error ? e.message : 'Unknown error';
             this._panel.webview.postMessage({ type: 'mattermostError', message: m });
         }
+    }
+
+    /** Establish or re-establish the Mattermost WebSocket connection and wire events to webview. */
+    private async _connectMattermostWebSocket(): Promise<void> {
+        if (!this._mattermostService) { return; }
+
+        // Tear down previous WebSocket if any
+        if (this._mmWebSocket) {
+            this._mmWebSocket.disconnect();
+            this._mmWebSocket.dispose();
+            this._mmWebSocket = undefined;
+        }
+
+        const serverUrl = await this._mattermostService.getServerUrl();
+        const token = await this._mattermostService.getToken();
+        if (!serverUrl || !token) { return; }
+
+        const ws = new MattermostWebSocket(this._outputChannel);
+        this._mmWebSocket = ws;
+
+        // Connection status → webview banner
+        ws.onConnectionChange((connected) => {
+            this._panel.webview.postMessage({ type: 'mattermostConnectionStatus', connected });
+        });
+
+        // New post → relay to webview
+        ws.onPosted(async (evt) => {
+            if (!this._mattermostService) { return; }
+            try {
+                const data = evt.data as unknown as MmWsPostedData;
+                const rawPost = JSON.parse(data.post) as {
+                    id: string; channel_id: string; user_id: string; message: string;
+                    create_at: number; update_at: number; delete_at: number;
+                    root_id: string; type: string; props: Record<string, unknown>;
+                };
+                const username = data.sender_name?.replace(/^@/, '') ??
+                    await this._mattermostService.resolveUsername(rawPost.user_id);
+                const postData: MattermostPostData = {
+                    id: rawPost.id,
+                    channelId: rawPost.channel_id,
+                    userId: rawPost.user_id,
+                    username,
+                    message: rawPost.message,
+                    createAt: new Date(rawPost.create_at).toISOString(),
+                    updateAt: new Date(rawPost.update_at).toISOString(),
+                    rootId: rawPost.root_id,
+                    type: rawPost.type,
+                };
+                this._panel.webview.postMessage({ type: 'mattermostNewPost', post: postData });
+            } catch (e) {
+                this._outputChannel.appendLine(`[MM WS] Error handling posted event: ${e}`);
+            }
+        });
+
+        // Post edited → relay
+        ws.onPostEdited(async (evt) => {
+            if (!this._mattermostService) { return; }
+            try {
+                const rawStr = evt.data.post as string;
+                const rawPost = JSON.parse(rawStr) as {
+                    id: string; channel_id: string; user_id: string; message: string;
+                    create_at: number; update_at: number; delete_at: number;
+                    root_id: string; type: string; props: Record<string, unknown>;
+                };
+                const username = await this._mattermostService.resolveUsername(rawPost.user_id);
+                const postData: MattermostPostData = {
+                    id: rawPost.id,
+                    channelId: rawPost.channel_id,
+                    userId: rawPost.user_id,
+                    username,
+                    message: rawPost.message,
+                    createAt: new Date(rawPost.create_at).toISOString(),
+                    updateAt: new Date(rawPost.update_at).toISOString(),
+                    rootId: rawPost.root_id,
+                    type: rawPost.type,
+                };
+                this._panel.webview.postMessage({ type: 'mattermostPostEdited', post: postData });
+            } catch (e) {
+                this._outputChannel.appendLine(`[MM WS] Error handling post_edited event: ${e}`);
+            }
+        });
+
+        // Post deleted → relay
+        ws.onPostDeleted((evt) => {
+            try {
+                const rawStr = evt.data.post as string;
+                const rawPost = JSON.parse(rawStr) as { id: string; channel_id: string };
+                this._panel.webview.postMessage({
+                    type: 'mattermostPostDeleted',
+                    postId: rawPost.id,
+                    channelId: rawPost.channel_id,
+                });
+            } catch (e) {
+                this._outputChannel.appendLine(`[MM WS] Error handling post_deleted event: ${e}`);
+            }
+        });
+
+        // Typing indicator
+        ws.onTyping((evt) => {
+            const data = evt.data as unknown as MmWsTypingData;
+            this._panel.webview.postMessage({
+                type: 'mattermostTyping',
+                userId: data.user_id,
+                channelId: evt.broadcast.channel_id,
+                parentId: data.parent_id,
+            });
+        });
+
+        // User status change (online/away/offline/dnd)
+        ws.onStatusChange((evt) => {
+            const data = evt.data as unknown as MmWsStatusChangeData;
+            this._panel.webview.postMessage({
+                type: 'mattermostStatusChange',
+                userId: data.user_id,
+                status: data.status,
+            });
+        });
+
+        // Reaction added
+        ws.onReactionAdded(async (evt) => {
+            if (!this._mattermostService) { return; }
+            try {
+                const data = evt.data as unknown as MmWsReactionData;
+                const raw = JSON.parse(data.reaction) as {
+                    user_id: string; post_id: string; emoji_name: string;
+                };
+                const username = await this._mattermostService.resolveUsername(raw.user_id);
+                this._panel.webview.postMessage({
+                    type: 'mattermostReactionAdded',
+                    reaction: {
+                        userId: raw.user_id,
+                        postId: raw.post_id,
+                        emojiName: raw.emoji_name,
+                        username,
+                    },
+                });
+            } catch (e) {
+                this._outputChannel.appendLine(`[MM WS] Error handling reaction_added: ${e}`);
+            }
+        });
+
+        // Reaction removed
+        ws.onReactionRemoved(async (evt) => {
+            if (!this._mattermostService) { return; }
+            try {
+                const data = evt.data as unknown as MmWsReactionData;
+                const raw = JSON.parse(data.reaction) as {
+                    user_id: string; post_id: string; emoji_name: string;
+                };
+                const username = await this._mattermostService.resolveUsername(raw.user_id);
+                this._panel.webview.postMessage({
+                    type: 'mattermostReactionRemoved',
+                    reaction: {
+                        userId: raw.user_id,
+                        postId: raw.post_id,
+                        emojiName: raw.emoji_name,
+                        username,
+                    },
+                });
+            } catch (e) {
+                this._outputChannel.appendLine(`[MM WS] Error handling reaction_removed: ${e}`);
+            }
+        });
+
+        // Start the connection
+        ws.connect(serverUrl, token);
     }
 
     /** Build the shell HTML that loads the bundled React app + Tailwind CSS. */
@@ -1241,6 +1691,14 @@ export class StashPanel {
 
     private _dispose(): void {
         StashPanel._instance = undefined;
+
+        // Disconnect Mattermost WebSocket
+        if (this._mmWebSocket) {
+            this._mmWebSocket.disconnect();
+            this._mmWebSocket.dispose();
+            this._mmWebSocket = undefined;
+        }
+
         this._panel.dispose();
         for (const d of this._disposables) {
             d.dispose();

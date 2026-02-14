@@ -44,6 +44,33 @@ export interface MattermostUser {
     nickname: string;
 }
 
+export interface MattermostUserStatus {
+    userId: string;
+    status: 'online' | 'away' | 'offline' | 'dnd';
+    lastActivityAt: number;
+    manual: boolean;
+}
+
+export interface MattermostReaction {
+    userId: string;
+    postId: string;
+    emojiName: string;
+    createAt: number;
+}
+
+export interface MattermostEmoji {
+    id: string;
+    creatorId: string;
+    name: string;
+}
+
+export interface MattermostChannelUnread {
+    channelId: string;
+    teamId: string;
+    msgCount: number;
+    mentionCount: number;
+}
+
 /** Lightweight data sent to webview (safe for serialization) */
 export interface MattermostTeamData {
     id: string;
@@ -83,6 +110,31 @@ export interface MattermostUserData {
     firstName: string;
     lastName: string;
     nickname: string;
+}
+
+export interface MattermostUserStatusData {
+    userId: string;
+    status: 'online' | 'away' | 'offline' | 'dnd';
+}
+
+export interface MattermostReactionData {
+    userId: string;
+    postId: string;
+    emojiName: string;
+    username: string;
+}
+
+export interface MattermostEmojiData {
+    id: string;
+    name: string;
+    isCustom: boolean;
+    imageUrl?: string; // only for custom emojis
+}
+
+export interface MattermostChannelUnreadData {
+    channelId: string;
+    msgCount: number;
+    mentionCount: number;
 }
 
 // ─── GitHub-style API types → Mattermost raw API shapes ──────────
@@ -132,6 +184,33 @@ interface MmApiUser {
 interface MmApiPostList {
     order: string[];
     posts: Record<string, MmApiPost>;
+}
+
+interface MmApiUserStatus {
+    user_id: string;
+    status: 'online' | 'away' | 'offline' | 'dnd';
+    last_activity_at: number;
+    manual: boolean;
+}
+
+interface MmApiReaction {
+    user_id: string;
+    post_id: string;
+    emoji_name: string;
+    create_at: number;
+}
+
+interface MmApiEmoji {
+    id: string;
+    creator_id: string;
+    name: string;
+}
+
+interface MmApiChannelUnread {
+    team_id: string;
+    channel_id: string;
+    msg_count: number;
+    mention_count: number;
 }
 
 // ─── Secret Storage Keys ──────────────────────────────────────────
@@ -662,16 +741,82 @@ export class MattermostService {
 
     // ─── Channels ─────────────────────────────────────────────────
 
-    /** List channels the authenticated user is a member of in a given team */
+    /** List public/private channels the authenticated user is a member of in a given team */
     async getMyChannels(teamId: string): Promise<MattermostChannel[]> {
         const raw = await this._request<MmApiChannel[]>(
             'GET',
             `/users/me/teams/${teamId}/channels`,
         );
         return raw
-            .filter((c) => c.type === 'O' || c.type === 'P') // Skip DMs/groups for tree view
+            .filter((c) => c.type === 'O' || c.type === 'P')
             .map((c) => this._parseChannel(c))
             .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    }
+
+    /** List ALL channels (including DMs/Groups) the user is a member of in a team */
+    async getAllMyChannels(teamId: string): Promise<{
+        channels: MattermostChannel[];
+        dmChannels: MattermostChannel[];
+        groupChannels: MattermostChannel[];
+    }> {
+        const raw = await this._request<MmApiChannel[]>(
+            'GET',
+            `/users/me/teams/${teamId}/channels`,
+        );
+        const all = raw.map((c) => this._parseChannel(c));
+        return {
+            channels: all
+                .filter((c) => c.type === 'O' || c.type === 'P')
+                .sort((a, b) => a.displayName.localeCompare(b.displayName)),
+            dmChannels: all
+                .filter((c) => c.type === 'D')
+                .sort((a, b) => b.lastPostAt - a.lastPostAt),
+            groupChannels: all
+                .filter((c) => c.type === 'G')
+                .sort((a, b) => b.lastPostAt - a.lastPostAt),
+        };
+    }
+
+    /** Create a direct message channel between the current user and another user */
+    async createDirectChannel(otherUserId: string): Promise<MattermostChannel> {
+        const me = await this.getMe();
+        const raw = await this._request<MmApiChannel>('POST', '/channels/direct', [
+            me.id,
+            otherUserId,
+        ]);
+        return this._parseChannel(raw);
+    }
+
+    /** Create a group message channel */
+    async createGroupChannel(userIds: string[]): Promise<MattermostChannel> {
+        const raw = await this._request<MmApiChannel>('POST', '/channels/group', userIds);
+        return this._parseChannel(raw);
+    }
+
+    /**
+     * Resolve display name for a DM channel.
+     * DM channel `name` is `userId1__userId2` — find the other user's username.
+     */
+    async resolveDmDisplayName(channel: MattermostChannel, myUserId: string): Promise<string> {
+        const parts = channel.name.split('__');
+        const otherUserId = parts.find((p) => p !== myUserId) ?? parts[0];
+        try {
+            const user = await this.getUser(otherUserId);
+            const display = user.firstName && user.lastName
+                ? `${user.firstName} ${user.lastName}`
+                : user.username;
+            return display;
+        } catch {
+            return otherUserId;
+        }
+    }
+
+    /**
+     * Get the "other user" ID from a DM channel name.
+     */
+    getDmOtherUserId(channel: MattermostChannel, myUserId: string): string {
+        const parts = channel.name.split('__');
+        return parts.find((p) => p !== myUserId) ?? parts[0];
     }
 
     /** Get a single channel by ID */
@@ -712,6 +857,136 @@ export class MattermostService {
         }
         const raw = await this._request<MmApiPost>('POST', '/posts', body);
         return this._parsePost(raw);
+    }
+
+    // ─── Threads ──────────────────────────────────────────────────
+
+    /** Get all posts in a thread (root post + replies) */
+    async getPostThread(postId: string): Promise<MattermostPost[]> {
+        const raw = await this._request<MmApiPostList>(
+            'GET',
+            `/posts/${postId}/thread`,
+        );
+        return raw.order
+            .map((id) => raw.posts[id])
+            .filter((p) => p && p.delete_at === 0)
+            .map((p) => this._parsePost(p));
+    }
+
+    // ─── User Status ──────────────────────────────────────────────
+
+    /** Bulk-fetch user statuses by IDs */
+    async getUserStatuses(userIds: string[]): Promise<MattermostUserStatus[]> {
+        if (userIds.length === 0) { return []; }
+        const raw = await this._request<MmApiUserStatus[]>(
+            'POST',
+            '/users/status/ids',
+            userIds,
+        );
+        return raw.map((s) => ({
+            userId: s.user_id,
+            status: s.status,
+            lastActivityAt: s.last_activity_at,
+            manual: s.manual,
+        }));
+    }
+
+    // ─── Reactions ────────────────────────────────────────────────
+
+    /** Get reactions for a single post */
+    async getPostReactions(postId: string): Promise<MattermostReaction[]> {
+        const raw = await this._request<MmApiReaction[]>(
+            'GET',
+            `/posts/${postId}/reactions`,
+        );
+        return raw.map((r) => this._parseReaction(r));
+    }
+
+    /** Bulk-fetch reactions for multiple posts */
+    async getBulkReactions(postIds: string[]): Promise<Map<string, MattermostReaction[]>> {
+        if (postIds.length === 0) { return new Map(); }
+        const raw = await this._request<Record<string, MmApiReaction[]>>(
+            'POST',
+            '/posts/ids/reactions',
+            postIds,
+        );
+        const result = new Map<string, MattermostReaction[]>();
+        for (const [postId, reactions] of Object.entries(raw)) {
+            result.set(postId, reactions.map((r) => this._parseReaction(r)));
+        }
+        return result;
+    }
+
+    /** Add a reaction to a post */
+    async addReaction(postId: string, emojiName: string): Promise<void> {
+        const me = await this.getMe();
+        await this._request('POST', '/reactions', {
+            user_id: me.id,
+            post_id: postId,
+            emoji_name: emojiName,
+        });
+    }
+
+    /** Remove a reaction from a post */
+    async removeReaction(postId: string, emojiName: string): Promise<void> {
+        const me = await this.getMe();
+        await this._request(
+            'DELETE',
+            `/users/${me.id}/posts/${postId}/reactions/${emojiName}`,
+        );
+    }
+
+    // ─── Unread Counts ────────────────────────────────────────────
+
+    /** Get unread info for a specific channel */
+    async getChannelUnread(channelId: string): Promise<MattermostChannelUnread> {
+        const me = await this.getMe();
+        const raw = await this._request<MmApiChannelUnread>(
+            'GET',
+            `/users/${me.id}/channels/${channelId}/unread`,
+        );
+        return {
+            channelId: raw.channel_id,
+            teamId: raw.team_id,
+            msgCount: raw.msg_count,
+            mentionCount: raw.mention_count,
+        };
+    }
+
+    /** Mark a channel as read */
+    async markChannelAsRead(channelId: string): Promise<void> {
+        const me = await this.getMe();
+        await this._request('POST', `/channels/members/${me.id}/view`, {
+            channel_id: channelId,
+        });
+    }
+
+    // ─── User Search ──────────────────────────────────────────────
+
+    /** Search users by term (username, email, first/last name) */
+    async searchUsers(term: string): Promise<MattermostUser[]> {
+        const raw = await this._request<MmApiUser[]>('POST', '/users/search', {
+            term,
+            limit: 25,
+        });
+        return raw.map((u) => this._parseUser(u));
+    }
+
+    // ─── Emoji ────────────────────────────────────────────────────
+
+    /** Autocomplete emoji by name prefix */
+    async getEmojiAutocomplete(name: string): Promise<MattermostEmoji[]> {
+        const raw = await this._request<MmApiEmoji[]>(
+            'GET',
+            `/emoji/autocomplete?name=${encodeURIComponent(name)}`,
+        );
+        return raw.map((e) => ({ id: e.id, creatorId: e.creator_id, name: e.name }));
+    }
+
+    /** Build the URL for a custom emoji image */
+    async getCustomEmojiImageUrl(emojiId: string): Promise<string> {
+        const base = await this._getBaseUrl();
+        return `${base}/emoji/${emojiId}/image`;
     }
 
     // ─── Parsers ──────────────────────────────────────────────────
@@ -763,6 +1038,15 @@ export class MattermostService {
             firstName: u.first_name,
             lastName: u.last_name,
             nickname: u.nickname,
+        };
+    }
+
+    private _parseReaction(r: MmApiReaction): MattermostReaction {
+        return {
+            userId: r.user_id,
+            postId: r.post_id,
+            emojiName: r.emoji_name,
+            createAt: r.create_at,
         };
     }
 
@@ -818,6 +1102,33 @@ export class MattermostService {
             firstName: user.firstName,
             lastName: user.lastName,
             nickname: user.nickname,
+        };
+    }
+
+    static toUserStatusData(status: MattermostUserStatus): MattermostUserStatusData {
+        return {
+            userId: status.userId,
+            status: status.status,
+        };
+    }
+
+    static toReactionData(
+        reaction: MattermostReaction,
+        username: string,
+    ): MattermostReactionData {
+        return {
+            userId: reaction.userId,
+            postId: reaction.postId,
+            emojiName: reaction.emojiName,
+            username,
+        };
+    }
+
+    static toChannelUnreadData(unread: MattermostChannelUnread): MattermostChannelUnreadData {
+        return {
+            channelId: unread.channelId,
+            msgCount: unread.msgCount,
+            mentionCount: unread.mentionCount,
         };
     }
 }

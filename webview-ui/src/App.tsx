@@ -9,6 +9,10 @@ import {
     type MattermostChannelData,
     type MattermostPostData,
     type MattermostUserData,
+    type MattermostReactionData,
+    type MattermostUserStatusData,
+    type MattermostChannelUnreadData,
+    type MattermostEmojiData,
 } from './mattermostStore';
 import { useAppStore } from './appStore';
 import { onMessage, postMessage } from './vscode';
@@ -405,7 +409,12 @@ export const App: React.FC = () => {
                 case 'mattermostPostCreated': {
                     const mmStore = useMattermostStore.getState();
                     if (msg.post) {
-                        mmStore.prependNewPost(msg.post as MattermostPostData);
+                        const createdPost = msg.post as MattermostPostData;
+                        mmStore.prependNewPost(createdPost);
+                        // If this post is a thread reply in the active thread, add to thread too
+                        if (createdPost.rootId && createdPost.rootId === mmStore.activeThreadRootId) {
+                            mmStore.appendThreadPost(createdPost);
+                        }
                     }
                     mmStore.setSendingMessage(false);
                     break;
@@ -421,6 +430,148 @@ export const App: React.FC = () => {
                     mmStore.setLoadingChannels(false);
                     mmStore.setLoadingPosts(false);
                     mmStore.setSendingMessage(false);
+                    mmStore.setLoadingThread(false);
+                    break;
+                }
+
+                // ─── Mattermost DM channels ───
+                case 'mattermostDmChannels': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setDmChannels(msg.payload as MattermostChannelData[]);
+                    break;
+                }
+
+                // ─── Mattermost WebSocket real-time events ───
+                case 'mattermostConnectionStatus': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setConnected(msg.connected as boolean);
+                    break;
+                }
+
+                case 'mattermostNewPost': {
+                    const mmStore = useMattermostStore.getState();
+                    const newPost = msg.post as MattermostPostData;
+                    // Add to main channel feed if it belongs to the selected channel
+                    if (newPost.channelId === mmStore.selectedChannelId) {
+                        mmStore.prependNewPost(newPost);
+                    }
+                    // Also add to thread panel if this is a reply in the active thread
+                    if (newPost.rootId && newPost.rootId === mmStore.activeThreadRootId) {
+                        mmStore.appendThreadPost(newPost);
+                    }
+                    break;
+                }
+
+                case 'mattermostPostEdited': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.updatePost(msg.post as MattermostPostData);
+                    break;
+                }
+
+                case 'mattermostPostDeleted': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.removePost(msg.postId as string);
+                    break;
+                }
+
+                case 'mattermostTyping': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.addTyping(msg.userId as string, msg.channelId as string);
+                    break;
+                }
+
+                case 'mattermostStatusChange': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.updateUserStatus(
+                        msg.userId as string,
+                        msg.status as 'online' | 'away' | 'offline' | 'dnd',
+                    );
+                    break;
+                }
+
+                case 'mattermostReactionAdded': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.addReaction(msg.reaction as MattermostReactionData);
+                    break;
+                }
+
+                case 'mattermostReactionRemoved': {
+                    const mmStore = useMattermostStore.getState();
+                    const r = msg.reaction as MattermostReactionData;
+                    mmStore.removeReaction(r.userId, r.postId, r.emojiName);
+                    break;
+                }
+
+                // ─── Mattermost Thread ───
+                case 'mattermostThreadLoading': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setLoadingThread(true);
+                    break;
+                }
+
+                case 'mattermostThread': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setThreadPosts(msg.payload as MattermostPostData[]);
+                    break;
+                }
+
+                // ─── Mattermost User Statuses ───
+                case 'mattermostUserStatuses': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setUserStatuses(msg.payload as MattermostUserStatusData[]);
+                    break;
+                }
+
+                // ─── Mattermost Reactions (bulk) ───
+                case 'mattermostBulkReactions': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setBulkReactions(msg.payload as MattermostReactionData[]);
+                    break;
+                }
+
+                case 'mattermostReactions': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setReactionsForPost(
+                        msg.postId as string,
+                        msg.payload as MattermostReactionData[],
+                    );
+                    break;
+                }
+
+                // ─── Mattermost Unread ───
+                case 'mattermostUnread': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setUnread(msg.payload as MattermostChannelUnreadData);
+                    break;
+                }
+
+                case 'mattermostMarkedRead': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.markChannelRead(msg.channelId as string);
+                    break;
+                }
+
+                // ─── Mattermost DM ───
+                case 'mattermostDmCreated': {
+                    const mmStore = useMattermostStore.getState();
+                    const newDm = msg.channel as MattermostChannelData;
+                    // Add to DM channel list and auto-select it
+                    mmStore.setDmChannels([...mmStore.dmChannels, newDm]);
+                    mmStore.selectChannel(newDm.id, newDm.displayName);
+                    postMessage('mattermost.getPosts', { channelId: newDm.id });
+                    break;
+                }
+
+                case 'mattermostUserSearchResults': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setUserSearchResults(msg.payload as MattermostUserData[]);
+                    break;
+                }
+
+                // ─── Mattermost Emoji Autocomplete ───
+                case 'mattermostEmojiAutocomplete': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setEmojiSuggestions(msg.payload as MattermostEmojiData[]);
                     break;
                 }
 

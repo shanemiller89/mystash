@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { MattermostService, MattermostTeam, MattermostChannel } from './mattermostService';
-import { MattermostTeamItem, MattermostChannelItem } from './mattermostItem';
+import { MattermostTeamItem, MattermostChannelItem, MattermostSeparatorItem } from './mattermostItem';
 
-type MattermostTreeItem = MattermostTeamItem | MattermostChannelItem;
+type MattermostTreeItem = MattermostTeamItem | MattermostChannelItem | MattermostSeparatorItem;
 
 /**
  * TreeDataProvider for the Mattermost sidebar tree view.
@@ -24,6 +24,11 @@ export class MattermostProvider
     /** Cache: team → channels */
     private _cachedTeams: MattermostTeam[] = [];
     private _cachedChannels = new Map<string, MattermostChannel[]>();
+    private _cachedDmChannels = new Map<string, MattermostChannel[]>();
+    private _cachedGroupChannels = new Map<string, MattermostChannel[]>();
+    /** Cache: DM channel ID → resolved display name */
+    private _dmDisplayNames = new Map<string, string>();
+    private _myUserId: string | undefined;
 
     // Search
     private _searchQuery = '';
@@ -130,9 +135,18 @@ export class MattermostProvider
             return this._getTeams();
         }
 
-        // Team children: channels
+        // Team children: separator items for channels and DMs
         if (element instanceof MattermostTeamItem) {
-            return this._getChannels(element.team.id);
+            return this._getTeamSections(element.team.id);
+        }
+
+        // Separator children: channels or DMs
+        if (element instanceof MattermostSeparatorItem) {
+            if (element.section === 'channels') {
+                return this._getChannels(element.teamId);
+            } else {
+                return this._getDmChannels(element.teamId);
+            }
         }
 
         return [];
@@ -145,6 +159,15 @@ export class MattermostProvider
         try {
             this._cachedTeams = await this._mattermostService.getMyTeams();
             this._cachedChannels.clear();
+            this._cachedDmChannels.clear();
+            this._cachedGroupChannels.clear();
+            this._dmDisplayNames.clear();
+
+            // Cache my user ID for DM name resolution
+            try {
+                const me = await this._mattermostService.getMe();
+                this._myUserId = me.id;
+            } catch { /* non-critical */ }
 
             const totalTeams = this._cachedTeams.length;
             void vscode.commands.executeCommand(
@@ -169,8 +192,11 @@ export class MattermostProvider
         try {
             let channels = this._cachedChannels.get(teamId);
             if (!channels) {
-                channels = await this._mattermostService.getMyChannels(teamId);
+                const all = await this._mattermostService.getAllMyChannels(teamId);
+                channels = all.channels;
                 this._cachedChannels.set(teamId, channels);
+                this._cachedDmChannels.set(teamId, all.dmChannels);
+                this._cachedGroupChannels.set(teamId, all.groupChannels);
             }
 
             let filtered = channels;
@@ -189,6 +215,69 @@ export class MattermostProvider
         } catch (error: unknown) {
             this._outputChannel?.appendLine(
                 `[Mattermost] getChannels error: ${error instanceof Error ? error.message : error}`,
+            );
+            return [];
+        }
+    }
+
+    private _getTeamSections(teamId: string): MattermostTreeItem[] {
+        return [
+            new MattermostSeparatorItem('Channels', teamId, 'channels'),
+            new MattermostSeparatorItem('Direct Messages', teamId, 'dms'),
+        ];
+    }
+
+    private async _getDmChannels(teamId: string): Promise<MattermostTreeItem[]> {
+        try {
+            // Ensure caches are populated
+            if (!this._cachedDmChannels.has(teamId)) {
+                const all = await this._mattermostService.getAllMyChannels(teamId);
+                this._cachedChannels.set(teamId, all.channels);
+                this._cachedDmChannels.set(teamId, all.dmChannels);
+                this._cachedGroupChannels.set(teamId, all.groupChannels);
+            }
+
+            const dmChannels = this._cachedDmChannels.get(teamId) ?? [];
+            const groupChannels = this._cachedGroupChannels.get(teamId) ?? [];
+            const allDm = [...dmChannels, ...groupChannels];
+
+            // Resolve display names for DM channels
+            if (this._myUserId) {
+                for (const ch of dmChannels) {
+                    if (!this._dmDisplayNames.has(ch.id)) {
+                        try {
+                            const name = await this._mattermostService.resolveDmDisplayName(
+                                ch,
+                                this._myUserId,
+                            );
+                            this._dmDisplayNames.set(ch.id, name);
+                        } catch { /* use default */ }
+                    }
+                }
+            }
+
+            let filtered = allDm;
+            if (this._searchQuery) {
+                const q = this._searchQuery.toLowerCase();
+                filtered = allDm.filter((c) => {
+                    const resolved = this._dmDisplayNames.get(c.id) ?? c.displayName;
+                    return resolved.toLowerCase().includes(q) ||
+                        c.name.toLowerCase().includes(q);
+                });
+            }
+
+            return filtered.map((c) => {
+                // Override display name for DM channels
+                const resolvedName = this._dmDisplayNames.get(c.id);
+                if (resolvedName && c.type === 'D') {
+                    const clone = { ...c, displayName: resolvedName };
+                    return new MattermostChannelItem(clone, this._searchQuery || undefined);
+                }
+                return new MattermostChannelItem(c, this._searchQuery || undefined);
+            });
+        } catch (error: unknown) {
+            this._outputChannel?.appendLine(
+                `[Mattermost] getDmChannels error: ${error instanceof Error ? error.message : error}`,
             );
             return [];
         }

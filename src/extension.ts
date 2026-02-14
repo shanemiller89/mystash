@@ -20,7 +20,7 @@ import { IssueProvider } from './issueProvider';
 import { IssueItem } from './issueItem';
 import { MattermostService } from './mattermostService';
 import { MattermostProvider } from './mattermostProvider';
-import { MattermostChannelItem } from './mattermostItem';
+import { MattermostChannelItem, MattermostSeparatorItem } from './mattermostItem';
 import { pickStash } from './uiUtils';
 import { getConfig } from './utils';
 
@@ -521,7 +521,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('mystash.openPanel', () => {
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
         }),
     );
 
@@ -753,7 +753,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the note in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
             StashPanel.currentPanel?.openNote(item.note.id);
         }),
     );
@@ -952,7 +952,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the PR in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
             StashPanel.currentPanel?.openPR(item.pr.number);
         }),
     );
@@ -1042,7 +1042,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the issue in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
             StashPanel.currentPanel?.openIssue(item.issue.number);
         }),
     );
@@ -1146,7 +1146,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the channel in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
             StashPanel.currentPanel?.openChannel(item.channel.id, item.channel.displayName);
         }),
     );

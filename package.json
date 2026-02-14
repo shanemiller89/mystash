@@ -539,6 +539,11 @@
                     "group": "navigation"
                 },
                 {
+                    "command": "mystash.openPanel",
+                    "when": "view == gistNotesView",
+                    "group": "navigation"
+                },
+                {
                     "command": "workstash.notes.create",
                     "when": "view == gistNotesView && workstash.isAuthenticated",
                     "group": "navigation"
@@ -568,6 +573,11 @@
                     "group": "navigation"
                 },
                 {
+                    "command": "mystash.openPanel",
+                    "when": "view == pullRequestsView",
+                    "group": "navigation"
+                },
+                {
                     "command": "workstash.prs.filter",
                     "when": "view == pullRequestsView && workstash.isAuthenticated",
                     "group": "navigation"
@@ -593,6 +603,11 @@
                     "group": "navigation"
                 },
                 {
+                    "command": "mystash.openPanel",
+                    "when": "view == issuesView",
+                    "group": "navigation"
+                },
+                {
                     "command": "workstash.issues.filter",
                     "when": "view == issuesView && workstash.isAuthenticated",
                     "group": "navigation"
@@ -614,6 +629,11 @@
                 },
                 {
                     "command": "workstash.mattermost.refresh",
+                    "when": "view == mattermostView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "mystash.openPanel",
                     "when": "view == mattermostView",
                     "group": "navigation"
                 },
