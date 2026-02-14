@@ -194,7 +194,7 @@ export const SettingsTab: React.FC = () => {
                         <div>
                             <h2 className="text-[14px] font-semibold text-fg">Settings</h2>
                             <p className="text-[11px] text-fg/40">
-                                Configure WorkStash preferences
+                                Configure CoreNexus preferences
                             </p>
                         </div>
                     </div>

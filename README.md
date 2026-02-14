@@ -1,9 +1,9 @@
-# Workstash — Git Stash Management & Gist Notes for VS Code
+# CoreNexus — Git Stash Management & Gist Notes for VS Code
 
 ![Version](https://img.shields.io/badge/version-0.2.0-blue)
 ![VS Code](https://img.shields.io/badge/VS%20Code-^1.106.0-blue)
 
-Workstash gives you a rich sidebar UI and a full webview panel for managing git stashes — create, browse, apply, pop, drop, and inspect stash contents with side-by-side diffs — all without leaving VS Code. Plus, Gist-backed Markdown notes for your workspace.
+CoreNexus gives you a rich sidebar UI and a full webview panel for managing git stashes — create, browse, apply, pop, drop, and inspect stash contents with side-by-side diffs — all without leaving VS Code. Plus, Gist-backed Markdown notes for your workspace.
 
 ## ✨ Features
 
@@ -17,7 +17,7 @@ Workstash gives you a rich sidebar UI and a full webview panel for managing git 
 
 ### Webview Panel
 
-- Open a **React + Tailwind CSS** panel in an editor tab (`Workstash: Open Stash Panel`).
+- Open a **React + Tailwind CSS** panel in an editor tab (`CoreNexus: Open Stash Panel`).
 - **Search & filter** stashes by message, branch, or filename.
 - **Inline stash creation form** — message input + mode selector (All / Staged / Untracked).
 - **Loading skeletons** during refresh.
@@ -27,14 +27,14 @@ Workstash gives you a rich sidebar UI and a full webview panel for managing git 
 
 | Action     | Tree View     | Command Palette                  | Webview      |
 | ---------- | ------------- | -------------------------------- | ------------ |
-| Create     | Title bar `+` | `Workstash: Create New Stash`    | Inline form  |
-| Apply      | Inline ✓      | `Workstash: Apply Stash`         | Hover button |
-| Pop        | Inline ↑      | `Workstash: Pop Stash`           | Hover button |
-| Drop       | Inline 🗑     | `Workstash: Drop Stash`          | Hover button |
-| Show diff  | Inline 👁     | `Workstash: Show Stash Contents` | —            |
-| Show stats | Context menu  | `Workstash: Show Stash Stats`    | —            |
-| Clear all  | Title bar     | `Workstash: Clear All Stashes`   | Footer link  |
-| Refresh    | Title bar ↻   | `Workstash: Refresh Stash List`  | Button       |
+| Create     | Title bar `+` | `CoreNexus: Create New Stash`    | Inline form  |
+| Apply      | Inline ✓      | `CoreNexus: Apply Stash`         | Hover button |
+| Pop        | Inline ↑      | `CoreNexus: Pop Stash`           | Hover button |
+| Drop       | Inline 🗑     | `CoreNexus: Drop Stash`          | Hover button |
+| Show diff  | Inline 👁     | `CoreNexus: Show Stash Contents` | —            |
+| Show stats | Context menu  | `CoreNexus: Show Stash Stats`    | —            |
+| Clear all  | Title bar     | `CoreNexus: Clear All Stashes`   | Footer link  |
+| Refresh    | Title bar ↻   | `CoreNexus: Refresh Stash List`  | Button       |
 
 ### Create Stash Modes
 
@@ -84,8 +84,8 @@ Workstash gives you a rich sidebar UI and a full webview panel for managing git 
 | `mystash.defaultIncludeUntracked`   | boolean             | `false`  | Default to Include Untracked on create          |
 | `mystash.sortOrder`                 | `newest` / `oldest` | `newest` | Sort order for the stash list                   |
 | `mystash.showBranchInDescription`   | boolean             | `true`   | Show branch name in tree item description       |
-| `workstash.notes.autosaveDelay`     | number              | `30`     | Autosave delay in seconds (5–300, 0 to disable) |
-| `workstash.notes.defaultVisibility` | `secret` / `public` | `secret` | Default visibility for new notes                |
+| `corenexus.notes.autosaveDelay`     | number              | `30`     | Autosave delay in seconds (5–300, 0 to disable) |
+| `corenexus.notes.defaultVisibility` | `secret` / `public` | `secret` | Default visibility for new notes                |
 
 ## 📋 Commands
 
@@ -93,21 +93,21 @@ All commands are available via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+
 
 | Command                          | Description                            |
 | -------------------------------- | -------------------------------------- |
-| `Workstash: Refresh Stash List`  | Refresh the stash list                 |
-| `Workstash: Create New Stash`    | Create a new stash (3-way mode picker) |
-| `Workstash: Apply Stash`         | Apply a stash (keep in list)           |
-| `Workstash: Pop Stash`           | Apply and remove a stash               |
-| `Workstash: Drop Stash`          | Drop a stash permanently               |
-| `Workstash: Show Stash Contents` | View full stash diff                   |
-| `Workstash: Show Stash Stats`    | View stash stat summary                |
-| `Workstash: Open Stash Panel`    | Open the rich webview panel            |
-| `Workstash: Clear All Stashes`   | Remove all stashes                     |
-| `Workstash: Sign In to GitHub`   | Authenticate for Gist Notes            |
-| `Workstash: Sign Out of GitHub`  | Sign out of GitHub                     |
-| `Workstash: Create Note`         | Create a new Gist Note                 |
-| `Workstash: Refresh Notes`       | Refresh the notes list                 |
-| `Workstash: Search Notes`        | Search notes by title or content       |
-| `Workstash: Clear Notes Search`  | Clear notes search filter              |
+| `CoreNexus: Refresh Stash List`  | Refresh the stash list                 |
+| `CoreNexus: Create New Stash`    | Create a new stash (3-way mode picker) |
+| `CoreNexus: Apply Stash`         | Apply a stash (keep in list)           |
+| `CoreNexus: Pop Stash`           | Apply and remove a stash               |
+| `CoreNexus: Drop Stash`          | Drop a stash permanently               |
+| `CoreNexus: Show Stash Contents` | View full stash diff                   |
+| `CoreNexus: Show Stash Stats`    | View stash stat summary                |
+| `CoreNexus: Open Stash Panel`    | Open the rich webview panel            |
+| `CoreNexus: Clear All Stashes`   | Remove all stashes                     |
+| `CoreNexus: Sign In to GitHub`   | Authenticate for Gist Notes            |
+| `CoreNexus: Sign Out of GitHub`  | Sign out of GitHub                     |
+| `CoreNexus: Create Note`         | Create a new Gist Note                 |
+| `CoreNexus: Refresh Notes`       | Refresh the notes list                 |
+| `CoreNexus: Search Notes`        | Search notes by title or content       |
+| `CoreNexus: Clear Notes Search`  | Clear notes search filter              |
 
 ## 📦 Requirements
 
@@ -121,7 +121,7 @@ All commands are available via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+
 ### Setup
 
 ```bash
-git clone https://github.com/shanemiller89/workstash.git
+git clone https://github.com/shanemiller89/corenexus.git
 cd mystash
 npm install
 ```
@@ -154,7 +154,7 @@ npx @vscode/vsce package
 ### Project Structure
 
 ```
-Workstash/
+CoreNexus/
 ├── src/
 │   ├── extension.ts            # Activate/deactivate, command registration
 │   ├── gitService.ts           # All git CLI operations (injectable ExecFn)

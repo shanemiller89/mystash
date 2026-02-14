@@ -28,10 +28,10 @@ import { pickStash } from './uiUtils';
 import { getConfig } from './utils';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Workstash extension is now active!');
+    console.log('CoreNexus extension is now active!');
 
     // 0b-i: Create output channel for diagnostics
-    const outputChannel = vscode.window.createOutputChannel('Workstash');
+    const outputChannel = vscode.window.createOutputChannel('CoreNexus');
     context.subscriptions.push(outputChannel);
 
     const gitService = new GitService(
@@ -46,8 +46,8 @@ export function activate(context: vscode.ExtensionContext) {
     // 15b: Update context key when auth state changes
     const updateAuthContext = async () => {
         const isAuth = await authService.isAuthenticated();
-        await vscode.commands.executeCommand('setContext', 'workstash.isAuthenticated', isAuth);
-        outputChannel.appendLine(`[Auth] workstash.isAuthenticated = ${isAuth}`);
+        await vscode.commands.executeCommand('setContext', 'corenexus.isAuthenticated', isAuth);
+        outputChannel.appendLine(`[Auth] corenexus.isAuthenticated = ${isAuth}`);
     };
     context.subscriptions.push(authService.onDidChangeAuthentication(() => updateAuthContext()));
     // Set initial auth state on activation
@@ -97,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Set isGitHubRepo context key
     const updateGitHubRepoContext = async () => {
         const ghRepo = await gitService.getGitHubRepo();
-        await vscode.commands.executeCommand('setContext', 'workstash.isGitHubRepo', !!ghRepo);
+        await vscode.commands.executeCommand('setContext', 'corenexus.isGitHubRepo', !!ghRepo);
     };
     updateGitHubRepoContext();
 
@@ -200,7 +200,7 @@ export function activate(context: vscode.ExtensionContext) {
     // 9b-i: Status bar item — shows stash count, click → focus tree view
     const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
     statusBarItem.command = 'mystashView.focus';
-    statusBarItem.tooltip = 'Workstash — Click to view stashes';
+    statusBarItem.tooltip = 'CoreNexus — Click to view stashes';
     context.subscriptions.push(statusBarItem);
     stashProvider.setStatusBarItem(statusBarItem);
 
@@ -720,7 +720,7 @@ export function activate(context: vscode.ExtensionContext) {
     // --- 15c: Notes auth commands ---
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.notes.signIn', async () => {
+        vscode.commands.registerCommand('corenexus.notes.signIn', async () => {
             const session = await authService.signIn();
             if (session) {
                 vscode.window.showInformationMessage(
@@ -731,7 +731,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.notes.signOut', async () => {
+        vscode.commands.registerCommand('corenexus.notes.signOut', async () => {
             await authService.signOut();
             vscode.window.showInformationMessage('Signed out of GitHub');
         }),
@@ -740,7 +740,7 @@ export function activate(context: vscode.ExtensionContext) {
     // --- 16-17: Notes CRUD commands ---
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.notes.create', async () => {
+        vscode.commands.registerCommand('corenexus.notes.create', async () => {
             const title = await vscode.window.showInputBox({
                 prompt: 'Note title',
                 placeHolder: 'My new note',
@@ -751,7 +751,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             const defaultVisibility = vscode.workspace
-                .getConfiguration('workstash.notes')
+                .getConfiguration('corenexus.notes')
                 .get<string>('defaultVisibility', 'secret');
             const isPublic = defaultVisibility === 'public';
 
@@ -776,7 +776,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.notes.open', async (item?: GistNoteItem) => {
+        vscode.commands.registerCommand('corenexus.notes.open', async (item?: GistNoteItem) => {
             if (!item) {
                 return;
             }
@@ -787,7 +787,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.notes.delete', async (item?: GistNoteItem) => {
+        vscode.commands.registerCommand('corenexus.notes.delete', async (item?: GistNoteItem) => {
             if (!item) {
                 return;
             }
@@ -823,7 +823,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.notes.copyLink', async (item?: GistNoteItem) => {
+        vscode.commands.registerCommand('corenexus.notes.copyLink', async (item?: GistNoteItem) => {
             if (!item) {
                 return;
             }
@@ -834,7 +834,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand(
-            'workstash.notes.toggleVisibility',
+            'corenexus.notes.toggleVisibility',
             async (item?: GistNoteItem) => {
                 if (!item) {
                     return;
@@ -875,13 +875,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.notes.refresh', () => {
+        vscode.commands.registerCommand('corenexus.notes.refresh', () => {
             gistNotesProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.notes.search', async () => {
+        vscode.commands.registerCommand('corenexus.notes.search', async () => {
             const query = await vscode.window.showInputBox({
                 prompt: 'Search notes by title or content',
                 placeHolder: 'e.g. meeting notes, TODO',
@@ -893,16 +893,16 @@ export function activate(context: vscode.ExtensionContext) {
             gistNotesProvider.setSearchQuery(query);
             await vscode.commands.executeCommand(
                 'setContext',
-                'workstash.notes.isSearching',
+                'corenexus.notes.isSearching',
                 query.length > 0,
             );
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.notes.clearSearch', () => {
+        vscode.commands.registerCommand('corenexus.notes.clearSearch', () => {
             gistNotesProvider.setSearchQuery('');
-            vscode.commands.executeCommand('setContext', 'workstash.notes.isSearching', false);
+            vscode.commands.executeCommand('setContext', 'corenexus.notes.isSearching', false);
         }),
     );
 
@@ -969,13 +969,13 @@ export function activate(context: vscode.ExtensionContext) {
     // ─── PR commands ───
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.prs.refresh', () => {
+        vscode.commands.registerCommand('corenexus.prs.refresh', () => {
             prProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.prs.open', async (item?: PrItem) => {
+        vscode.commands.registerCommand('corenexus.prs.open', async (item?: PrItem) => {
             if (!item) {
                 return;
             }
@@ -986,7 +986,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.prs.openInBrowser', async (item?: PrItem) => {
+        vscode.commands.registerCommand('corenexus.prs.openInBrowser', async (item?: PrItem) => {
             if (!item) {
                 return;
             }
@@ -995,7 +995,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.prs.signIn', async () => {
+        vscode.commands.registerCommand('corenexus.prs.signIn', async () => {
             const session = await authService.signIn();
             if (session) {
                 vscode.window.showInformationMessage(
@@ -1006,7 +1006,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.prs.filter', async () => {
+        vscode.commands.registerCommand('corenexus.prs.filter', async () => {
             const current = prProvider.stateFilter;
             const items: vscode.QuickPickItem[] = [
                 { label: 'Open', description: current === 'open' ? '(current)' : '' },
@@ -1031,7 +1031,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.prs.search', async () => {
+        vscode.commands.registerCommand('corenexus.prs.search', async () => {
             const query = await vscode.window.showInputBox({
                 prompt: 'Search pull requests by title, number, or branch',
                 placeHolder: 'e.g. fix, #42, feature/auth',
@@ -1043,29 +1043,29 @@ export function activate(context: vscode.ExtensionContext) {
             prProvider.setSearchQuery(query);
             await vscode.commands.executeCommand(
                 'setContext',
-                'workstash.prs.isSearching',
+                'corenexus.prs.isSearching',
                 query.length > 0,
             );
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.prs.clearSearch', () => {
+        vscode.commands.registerCommand('corenexus.prs.clearSearch', () => {
             prProvider.setSearchQuery('');
-            vscode.commands.executeCommand('setContext', 'workstash.prs.isSearching', false);
+            vscode.commands.executeCommand('setContext', 'corenexus.prs.isSearching', false);
         }),
     );
 
     // ─── Issue commands ───
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.issues.refresh', () => {
+        vscode.commands.registerCommand('corenexus.issues.refresh', () => {
             issueProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.issues.open', async (item?: IssueItem) => {
+        vscode.commands.registerCommand('corenexus.issues.open', async (item?: IssueItem) => {
             if (!item) {
                 return;
             }
@@ -1076,7 +1076,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.issues.openInBrowser', async (item?: IssueItem) => {
+        vscode.commands.registerCommand('corenexus.issues.openInBrowser', async (item?: IssueItem) => {
             if (!item) {
                 return;
             }
@@ -1085,7 +1085,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.issues.signIn', async () => {
+        vscode.commands.registerCommand('corenexus.issues.signIn', async () => {
             const session = await authService.signIn();
             if (session) {
                 vscode.window.showInformationMessage(
@@ -1096,7 +1096,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.issues.filter', async () => {
+        vscode.commands.registerCommand('corenexus.issues.filter', async () => {
             const current = issueProvider.stateFilter;
             const items: vscode.QuickPickItem[] = [
                 { label: 'Open', description: current === 'open' ? '(current)' : '' },
@@ -1119,7 +1119,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.issues.search', async () => {
+        vscode.commands.registerCommand('corenexus.issues.search', async () => {
             const query = await vscode.window.showInputBox({
                 prompt: 'Search issues by title, number, or label',
                 placeHolder: 'e.g. bug, #15, enhancement',
@@ -1131,29 +1131,29 @@ export function activate(context: vscode.ExtensionContext) {
             issueProvider.setSearchQuery(query);
             await vscode.commands.executeCommand(
                 'setContext',
-                'workstash.issues.isSearching',
+                'corenexus.issues.isSearching',
                 query.length > 0,
             );
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.issues.clearSearch', () => {
+        vscode.commands.registerCommand('corenexus.issues.clearSearch', () => {
             issueProvider.setSearchQuery('');
-            vscode.commands.executeCommand('setContext', 'workstash.issues.isSearching', false);
+            vscode.commands.executeCommand('setContext', 'corenexus.issues.isSearching', false);
         }),
     );
 
     // ─── Mattermost commands ───
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.mattermost.refresh', () => {
+        vscode.commands.registerCommand('corenexus.mattermost.refresh', () => {
             mattermostProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.mattermost.signIn', async () => {
+        vscode.commands.registerCommand('corenexus.mattermost.signIn', async () => {
             const success = await mattermostService.signIn();
             if (success) {
                 mattermostProvider.refresh('sign-in');
@@ -1162,14 +1162,14 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.mattermost.signOut', async () => {
+        vscode.commands.registerCommand('corenexus.mattermost.signOut', async () => {
             await mattermostService.signOut();
             mattermostProvider.refresh('sign-out');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.mattermost.openChannel', async (item?: MattermostChannelItem) => {
+        vscode.commands.registerCommand('corenexus.mattermost.openChannel', async (item?: MattermostChannelItem) => {
             if (!item) {
                 return;
             }
@@ -1180,22 +1180,22 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.mattermost.search', async () => {
+        vscode.commands.registerCommand('corenexus.mattermost.search', async () => {
             await mattermostProvider.search();
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.mattermost.clearSearch', () => {
+        vscode.commands.registerCommand('corenexus.mattermost.clearSearch', () => {
             mattermostProvider.clearSearch();
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.mattermost.configure', () => {
+        vscode.commands.registerCommand('corenexus.mattermost.configure', () => {
             vscode.commands.executeCommand(
                 'workbench.action.openSettings',
-                'workstash.mattermost.serverUrl',
+                'corenexus.mattermost.serverUrl',
             );
         }),
     );
@@ -1203,25 +1203,25 @@ export function activate(context: vscode.ExtensionContext) {
     // ─── Projects commands ───
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.projects.refresh', () => {
+        vscode.commands.registerCommand('corenexus.projects.refresh', () => {
             projectProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.projects.signIn', async () => {
+        vscode.commands.registerCommand('corenexus.projects.signIn', async () => {
             await authService.signIn();
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.projects.signOut', async () => {
+        vscode.commands.registerCommand('corenexus.projects.signOut', async () => {
             await authService.signOut();
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.projects.openItem', async (item?: ProjectItemTreeItem) => {
+        vscode.commands.registerCommand('corenexus.projects.openItem', async (item?: ProjectItemTreeItem) => {
             if (!item) {
                 return;
             }
@@ -1232,7 +1232,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.projects.openInBrowser', async (item?: ProjectItemTreeItem) => {
+        vscode.commands.registerCommand('corenexus.projects.openInBrowser', async (item?: ProjectItemTreeItem) => {
             if (!item) {
                 return;
             }
@@ -1244,7 +1244,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.projects.filter', async () => {
+        vscode.commands.registerCommand('corenexus.projects.filter', async () => {
             const options = projectProvider.getStatusOptions();
             if (options.length === 0) {
                 vscode.window.showInformationMessage('No status options available. Select a project first.');
@@ -1264,7 +1264,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.projects.search', async () => {
+        vscode.commands.registerCommand('corenexus.projects.search', async () => {
             const query = await vscode.window.showInputBox({
                 placeHolder: 'Search project items…',
                 prompt: 'Enter a search term to filter project items',
@@ -1273,7 +1273,7 @@ export function activate(context: vscode.ExtensionContext) {
                 projectProvider.setSearchQuery(query);
                 vscode.commands.executeCommand(
                     'setContext',
-                    'workstash.projects.isSearching',
+                    'corenexus.projects.isSearching',
                     query.length > 0,
                 );
             }
@@ -1281,9 +1281,9 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('workstash.projects.clearSearch', () => {
+        vscode.commands.registerCommand('corenexus.projects.clearSearch', () => {
             projectProvider.setSearchQuery('');
-            vscode.commands.executeCommand('setContext', 'workstash.projects.isSearching', false);
+            vscode.commands.executeCommand('setContext', 'corenexus.projects.isSearching', false);
         }),
     );
 }

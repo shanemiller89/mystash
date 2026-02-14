@@ -109,7 +109,7 @@ export class AuthService implements vscode.Disposable {
             // Request a new session with forceNewSession — if the user cancels,
             // the old session is cleared. This is the standard VS Code pattern.
             await vscode.authentication.getSession(AuthService._providerId, AuthService._scopes, {
-                forceNewSession: { detail: 'Sign out of Workstash Gist Notes' },
+                forceNewSession: { detail: 'Sign out of CoreNexus Gist Notes' },
             });
         } catch {
             // User cancelled or error — either way, session is cleared

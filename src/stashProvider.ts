@@ -278,7 +278,7 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
             if (this._statusBarItem) {
                 if (hasStashes) {
                     this._statusBarItem.text = `$(archive) ${stashes.length}`;
-                    this._statusBarItem.tooltip = `Workstash — ${stashes.length} stash${stashes.length !== 1 ? 'es' : ''}`;
+                    this._statusBarItem.tooltip = `CoreNexus — ${stashes.length} stash${stashes.length !== 1 ? 'es' : ''}`;
                     this._statusBarItem.show();
                 } else {
                     this._statusBarItem.hide();

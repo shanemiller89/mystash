@@ -1,15 +1,15 @@
 <!-- Workspace-specific instructions for GitHub Copilot. -->
 <!-- Docs: https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
 
-# WorkStash — VS Code Extension for Developer Workflow
+# CoreNexus — VS Code Extension for Developer Workflow
 
 ## Project Overview
 
-WorkStash is a VS Code extension that provides a unified sidebar for managing git stashes, GitHub Issues & PRs, Gist-backed notes, and Mattermost team chat — all from a single webview panel with a tabbed React UI.
+CoreNexus is a VS Code extension that provides a unified sidebar for managing git stashes, GitHub Issues & PRs, Gist-backed notes, and Mattermost team chat — all from a single webview panel with a tabbed React UI.
 
-- **Repository**: `shanemiller89/workstash` on GitHub
+- **Repository**: `shanemiller89/corenexus` on GitHub
 - **Branch strategy**: `main` (single branch for now)
-- **Package name**: `workstash` (npm/vsix), display name "Workstash"
+- **Package name**: `corenexus` (npm/vsix), display name "CoreNexus"
 
 ## Technology Stack
 
@@ -281,7 +281,7 @@ postMessage('apply', { index: stash.index });
 
 ### Error Handling Pattern
 - **User-facing errors**: `vscode.window.showErrorMessage()` with clear context
-- **Diagnostics**: Log to `OutputChannel('WorkStash')` — git commands, exit codes, stderr
+- **Diagnostics**: Log to `OutputChannel('CoreNexus')` — git commands, exit codes, stderr
 - **Tree view errors**: Return empty array + let welcome view handle messaging
 - **Conflict detection**: Check `exitCode !== 0` AND `stderr.includes('CONFLICT')`
 
@@ -306,7 +306,7 @@ postMessage('apply', { index: stash.index });
 ### VS Code Extension API
 - Push all disposables to `context.subscriptions`.
 - Use `vscode.ThemeIcon` for icons — not file paths.
-- Use `vscode.workspace.getConfiguration('mystash')` or `('workstash')` for settings.
+- Use `vscode.workspace.getConfiguration('mystash')` or `('corenexus')` for settings.
 - Use `vscode.commands.executeCommand('setContext', key, value)` for `when` clause keys.
 - Use `vscode.window.withProgress()` for operations > 500ms.
 
@@ -320,7 +320,7 @@ postMessage('apply', { index: stash.index });
 - Interfaces: `PascalCase` — `StashEntry`, `GitResult`
 - React Components: `PascalCase` — `StashCard`, `PRDetail`
 - Commands: `mystash.verbNoun` — `mystash.showFile`, `mystash.refresh`
-- Settings: `mystash.camelCase` or `workstash.feature.setting`
+- Settings: `mystash.camelCase` or `corenexus.feature.setting`
 - Context keys: `mystash.camelCase`
 - Stores: `use[Domain]Store` — `useStashStore`, `usePRStore`
 
@@ -365,6 +365,6 @@ npm test
 | `mystash.defaultIncludeUntracked`   | bool    | `false`   | Default include untracked on create  |
 | `mystash.sortOrder`                 | enum    | `newest`  | Stash list sort: `newest` / `oldest` |
 | `mystash.showBranchInDescription`   | bool    | `true`    | Show branch name in tree item desc   |
-| `workstash.notes.autosaveDelay`     | number  | `30`      | Autosave delay in seconds (0=off)    |
-| `workstash.notes.defaultVisibility` | enum    | `secret`  | Default note visibility              |
-| `workstash.mattermost.serverUrl`    | string  | `""`      | Mattermost server URL                |
+| `corenexus.notes.autosaveDelay`     | number  | `30`      | Autosave delay in seconds (0=off)    |
+| `corenexus.notes.defaultVisibility` | enum    | `secret`  | Default note visibility              |
+| `corenexus.mattermost.serverUrl`    | string  | `""`      | Mattermost server URL                |

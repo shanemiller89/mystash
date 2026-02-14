@@ -12,12 +12,12 @@ import * as vscode from 'vscode';
 suite('Extension Integration Tests', () => {
     // 10c-i: Extension activation
     test('Extension should be present', () => {
-        const ext = vscode.extensions.getExtension('shanemiller89.workstash');
+        const ext = vscode.extensions.getExtension('shanemiller89.corenexus');
         assert.ok(ext, 'Extension should be found by ID');
     });
 
     test('Extension should activate', async () => {
-        const ext = vscode.extensions.getExtension('shanemiller89.workstash');
+        const ext = vscode.extensions.getExtension('shanemiller89.corenexus');
         assert.ok(ext);
         if (!ext.isActive) {
             await ext.activate();
@@ -38,16 +38,16 @@ suite('Extension Integration Tests', () => {
             'mystash.showFile',
             'mystash.openPanel',
             'mystash.showStats',
-            'workstash.notes.signIn',
-            'workstash.notes.signOut',
-            'workstash.notes.create',
-            'workstash.notes.open',
-            'workstash.notes.delete',
-            'workstash.notes.copyLink',
-            'workstash.notes.toggleVisibility',
-            'workstash.notes.refresh',
-            'workstash.notes.search',
-            'workstash.notes.clearSearch',
+            'corenexus.notes.signIn',
+            'corenexus.notes.signOut',
+            'corenexus.notes.create',
+            'corenexus.notes.open',
+            'corenexus.notes.delete',
+            'corenexus.notes.copyLink',
+            'corenexus.notes.toggleVisibility',
+            'corenexus.notes.refresh',
+            'corenexus.notes.search',
+            'corenexus.notes.clearSearch',
         ];
 
         for (const cmd of expected) {

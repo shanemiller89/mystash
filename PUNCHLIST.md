@@ -580,18 +580,18 @@ MyStash/
 
 ---
 
-## 14. 🔄 Rebrand — MyStash → Workstash
+## 14. 🔄 Rebrand — MyStash → CoreNexus
 
-> The extension broadens from stash-only to a general workspace toolkit. User-facing strings change; internal command/setting IDs stay for backward compatibility. New features use `workstash.*` prefix.
+> The extension broadens from stash-only to a general workspace toolkit. User-facing strings change; internal command/setting IDs stay for backward compatibility. New features use `corenexus.*` prefix.
 
 - [x] **14a. User-facing rebrand**
-    - `package.json`: `displayName` → `"Workstash"`, `description` → `"Git Stash Management & Gist Notes for VS Code"`
-    - Activity bar container title → `"Workstash"`
-    - Panel title → `"Workstash"` (dynamic: `"Workstash (3)"` when stashes loaded)
-    - Status bar tooltip → `"Workstash — N stashes"`
+    - `package.json`: `displayName` → `"CoreNexus"`, `description` → `"Git Stash Management & Gist Notes for VS Code"`
+    - Activity bar container title → `"CoreNexus"`
+    - Panel title → `"CoreNexus"` (dynamic: `"CoreNexus (3)"` when stashes loaded)
+    - Status bar tooltip → `"CoreNexus — N stashes"`
     - **Keep** `"name": "mystash"` (npm/marketplace ID — breaking if changed)
     - **Keep** all `mystash.*` commands, settings, context keys (backward compatible)
-    - New features use `workstash.notes.*` prefix
+    - New features use `corenexus.notes.*` prefix
     - 📁 `package.json`, `src/stashPanel.ts`, `src/stashProvider.ts`, `src/extension.ts`
 
 - [x] **14b. README & CHANGELOG update**
@@ -619,13 +619,13 @@ MyStash/
     - 📁 `src/authService.ts`
 
 - [x] **15b. Auth event wiring**
-    - `vscode.authentication.onDidChangeSessions` listener → update context key `workstash.isAuthenticated`
+    - `vscode.authentication.onDidChangeSessions` listener → update context key `corenexus.isAuthenticated`
     - Context key drives welcome view and tree view states
     - 📁 `src/extension.ts`, `src/authService.ts`
 
 - [x] **15c. Sign-in command**
-    - `workstash.notes.signIn` — triggers interactive GitHub login
-    - `workstash.notes.signOut` — clears session
+    - `corenexus.notes.signIn` — triggers interactive GitHub login
+    - `corenexus.notes.signOut` — clears session
     - Registered in command palette, also callable from webview
     - 📁 `src/extension.ts`, `package.json`
 
@@ -651,17 +651,17 @@ MyStash/
           createdAt: Date;
           updatedAt: Date;
           htmlUrl: string; // Gist URL for sharing
-          description: string; // Gist description (contains "[Workstash]" marker)
+          description: string; // Gist description (contains "[CoreNexus]" marker)
       }
       ```
     - 📁 `src/gistService.ts`
 
 - [x] **16c. Convention: note identification**
-    - Each note gist has description prefixed with `[Workstash] ` followed by the note title
+    - Each note gist has description prefixed with `[CoreNexus] ` followed by the note title
     - Each note gist contains two files:
         - `{title}.md` — the Markdown content
-        - `.workstash-note` — empty marker file for discovery
-    - Discovery: `GET /gists` → filter by gists containing `.workstash-note` file
+        - `.corenexus-note` — empty marker file for discovery
+    - Discovery: `GET /gists` → filter by gists containing `.corenexus-note` file
     - 📁 `src/gistService.ts`
 
 - [x] **16d. CRUD methods**
@@ -689,15 +689,15 @@ MyStash/
 
 ## 17. ✅ Gist Notes Tree View
 
-> A second tree view in the Workstash sidebar, below the stash tree. Shows a flat list of notes with metadata.
+> A second tree view in the CoreNexus sidebar, below the stash tree. Shows a flat list of notes with metadata.
 
 - [x] **17a. Package.json: register tree view**
     - Add `gistNotesView` to `views.mystash-container[]`
     - Title: `"Gist Notes"`
     - Icon: `$(note)`
     - Welcome views:
-        - Not authenticated: `"Sign in to GitHub to sync your notes.\n[Sign In](command:workstash.notes.signIn)"`
-        - Authenticated, no notes: `"No notes yet.\n[Create Note](command:workstash.notes.create)"`
+        - Not authenticated: `"Sign in to GitHub to sync your notes.\n[Sign In](command:corenexus.notes.signIn)"`
+        - Authenticated, no notes: `"No notes yet.\n[Create Note](command:corenexus.notes.create)"`
     - 📁 `package.json`
 
 - [x] **17b. GistNoteItem tree item**
@@ -709,7 +709,7 @@ MyStash/
         - `iconPath`: `ThemeIcon('note')` — or `ThemeIcon('globe')` if public
         - `contextValue`: `'gistNote'` (for menus) or `'gistNotePublic'`
         - `id`: `gist-note-{gistId}` (stable)
-        - `command`: click → opens note in webview (`workstash.notes.open`)
+        - `command`: click → opens note in webview (`corenexus.notes.open`)
     - 📁 `src/gistNoteItem.ts`
 
 - [x] **17c. GistNotesProvider (TreeDataProvider)**
@@ -723,20 +723,20 @@ MyStash/
     - 📁 `src/gistNotesProvider.ts`
 
 - [x] **17d. Tree view commands**
-    - `workstash.notes.create` — create new note (title prompt → opens in webview)
-    - `workstash.notes.open` — open note in webview panel Notes tab
-    - `workstash.notes.delete` — delete note with confirmation modal
-    - `workstash.notes.copyLink` — copy gist HTML URL to clipboard
-    - `workstash.notes.toggleVisibility` — toggle public/secret
-    - `workstash.notes.refresh` — manual refresh
+    - `corenexus.notes.create` — create new note (title prompt → opens in webview)
+    - `corenexus.notes.open` — open note in webview panel Notes tab
+    - `corenexus.notes.delete` — delete note with confirmation modal
+    - `corenexus.notes.copyLink` — copy gist HTML URL to clipboard
+    - `corenexus.notes.toggleVisibility` — toggle public/secret
+    - `corenexus.notes.refresh` — manual refresh
     - Menus: inline (open, copyLink), context (delete, toggleVisibility), title bar (create, refresh)
     - 📁 `package.json`, `src/extension.ts`
 
 - [x] **17e. Tree view registration & wiring**
     - Register `GistNotesProvider` with `createTreeView('gistNotesView', ...)`
     - Wire `AuthService.onDidChangeSession` → refresh tree on login/logout
-    - Set context key `workstash.isAuthenticated` for welcome view `when` clauses
-    - Set context key `workstash.hasNotes` for empty state
+    - Set context key `corenexus.isAuthenticated` for welcome view `when` clauses
+    - Set context key `corenexus.hasNotes` for empty state
     - 📁 `src/extension.ts`
 
 ---
@@ -761,7 +761,7 @@ MyStash/
     - 📁 `webview-ui/src/App.tsx`
 
 - [x] **18c. Deep-link from tree view**
-    - When `workstash.notes.open` is invoked from the tree:
+    - When `corenexus.notes.open` is invoked from the tree:
         - Open/reveal the webview panel
         - Post message `{ type: 'openNote', noteId: '...' }` to the webview
         - Webview switches to Notes tab and selects the note
@@ -839,9 +839,9 @@ MyStash/
     - 📁 (protocol, implemented across `src/stashPanel.ts` and webview stores)
 
 - [x] **19b-iii. StashPanel message handler expansion**
-    - Add all `workstash.notes.*` message cases to `_handleMessage()` switch block
+    - Add all `corenexus.notes.*` message cases to `_handleMessage()` switch block
     - Inject `GistService` + `AuthService` into `StashPanel` constructor
-    - (Consider renaming `StashPanel` → `WorkstashPanel` in a follow-up, keep `StashPanel` name for now)
+    - (Consider renaming `StashPanel` → `CoreNexusPanel` in a follow-up, keep `StashPanel` name for now)
     - ⚠️ Depends on: 16d, 15a
     - 📁 `src/stashPanel.ts`
 
@@ -940,8 +940,8 @@ MyStash/
 ### 21B. Integration Tests
 
 - [x] **21b-i. Auth flow integration**
-    - Verify `workstash.notes.signIn` command registered
-    - Verify context key `workstash.isAuthenticated` updates
+    - Verify `corenexus.notes.signIn` command registered
+    - Verify context key `corenexus.isAuthenticated` updates
     - 📁 `src/test/extension.test.ts`
 
 - [x] **21b-ii. Tree view registration**
@@ -958,7 +958,7 @@ MyStash/
     - 📁 `.vscodeignore`
 
 - [x] **22b. CHANGELOG v0.2.0**
-    - Rebrand to Workstash
+    - Rebrand to CoreNexus
     - Gist Notes feature (auth, CRUD, webview, tree view, Markdown, sharing)
     - 📁 `CHANGELOG.md`
 
@@ -1019,8 +1019,8 @@ package.json                 # Rebrand displayName, add notes commands/views/set
 
 | Setting                             | Type   | Default  | Description                              |
 | ----------------------------------- | ------ | -------- | ---------------------------------------- |
-| `workstash.notes.autosaveDelay`     | number | `30`     | Autosave delay in seconds (0 to disable) |
-| `workstash.notes.defaultVisibility` | enum   | `secret` | Default visibility: `secret` / `public`  |
+| `corenexus.notes.autosaveDelay`     | number | `30`     | Autosave delay in seconds (0 to disable) |
+| `corenexus.notes.defaultVisibility` | enum   | `secret` | Default visibility: `secret` / `public`  |
 
 ---
 
@@ -1028,14 +1028,14 @@ package.json                 # Rebrand displayName, add notes commands/views/set
 
 | Command                            | Description                | Palette | Tree View |
 | ---------------------------------- | -------------------------- | ------- | --------- |
-| `workstash.notes.signIn`           | Sign in to GitHub          | ✅      | Welcome   |
-| `workstash.notes.signOut`          | Sign out of GitHub         | ✅      | —         |
-| `workstash.notes.create`           | Create a new note          | ✅      | Title bar |
-| `workstash.notes.open`             | Open note in webview       | Hidden  | Inline    |
-| `workstash.notes.delete`           | Delete a note              | ✅      | Context   |
-| `workstash.notes.copyLink`         | Copy gist URL to clipboard | ✅      | Inline    |
-| `workstash.notes.toggleVisibility` | Toggle note public/secret  | ✅      | Context   |
-| `workstash.notes.refresh`          | Refresh notes list         | ✅      | Title bar |
+| `corenexus.notes.signIn`           | Sign in to GitHub          | ✅      | Welcome   |
+| `corenexus.notes.signOut`          | Sign out of GitHub         | ✅      | —         |
+| `corenexus.notes.create`           | Create a new note          | ✅      | Title bar |
+| `corenexus.notes.open`             | Open note in webview       | Hidden  | Inline    |
+| `corenexus.notes.delete`           | Delete a note              | ✅      | Context   |
+| `corenexus.notes.copyLink`         | Copy gist URL to clipboard | ✅      | Inline    |
+| `corenexus.notes.toggleVisibility` | Toggle note public/secret  | ✅      | Context   |
+| `corenexus.notes.refresh`          | Refresh notes list         | ✅      | Title bar |
 
 ---
 
@@ -1043,8 +1043,8 @@ package.json                 # Rebrand displayName, add notes commands/views/set
 
 | Key                         | Type    | Description                   |
 | --------------------------- | ------- | ----------------------------- |
-| `workstash.isAuthenticated` | boolean | GitHub session active         |
-| `workstash.hasNotes`        | boolean | At least one gist note exists |
+| `corenexus.isAuthenticated` | boolean | GitHub session active         |
+| `corenexus.hasNotes`        | boolean | At least one gist note exists |
 
 ---
 
@@ -1109,7 +1109,7 @@ All features          ──→ 22d (build verification)
 | 11. Packaging & Release       | 5         | 5       | 0         |
 | 12. TreeView Advanced UX      | 12        | 12      | 0         |
 | 13. Stash Detail Pane         | 7         | 7       | 0         |
-| 14. Rebrand → Workstash       | 2         | 2       | 0         |
+| 14. Rebrand → CoreNexus       | 2         | 2       | 0         |
 | 15. GitHub Authentication     | 3         | 3       | 0         |
 | 16. Gist Service              | 5         | 5       | 0         |
 | 17. Gist Notes Tree View      | 5         | 5       | 0         |

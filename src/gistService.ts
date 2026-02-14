@@ -11,7 +11,7 @@ export interface GistNote {
     createdAt: Date;
     updatedAt: Date;
     htmlUrl: string; // Gist URL for sharing
-    description: string; // Gist description (contains "[Workstash]" marker)
+    description: string; // Gist description (contains "[CoreNexus]" marker)
 }
 
 /** Lightweight version sent to webview (dates as ISO strings) */
@@ -27,11 +27,11 @@ export interface GistNoteData {
 
 // ─── Convention Constants (16c) ───────────────────────────────────
 
-/** Prefix in gist description to identify Workstash notes */
-const MARKER_PREFIX = '[Workstash] ';
+/** Prefix in gist description to identify CoreNexus notes */
+const MARKER_PREFIX = '[CoreNexus] ';
 
-/** Marker file included in every Workstash note gist for discovery */
-const MARKER_FILENAME = '.workstash-note';
+/** Marker file included in every CoreNexus note gist for discovery */
+const MARKER_FILENAME = '.corenexus-note';
 
 /** Marker file content — JSON metadata for forward-compatible versioning */
 const MARKER_CONTENT = JSON.stringify({ v: 1 });
@@ -194,7 +194,7 @@ export class GistService {
             return undefined;
         }
 
-        // Must have the [Workstash] description prefix
+        // Must have the [CoreNexus] description prefix
         const description = gist.description ?? '';
         if (!description.startsWith(MARKER_PREFIX)) {
             return undefined;
@@ -231,7 +231,7 @@ export class GistService {
     // ─── CRUD Methods (16d) ───────────────────────────────────────
 
     /**
-     * List all Workstash notes (capped at MAX_PAGES × PER_PAGE = 200).
+     * List all CoreNexus notes (capped at MAX_PAGES × PER_PAGE = 200).
      * Filters gists by marker file presence.
      */
     async listNotes(): Promise<GistNote[]> {
@@ -268,7 +268,7 @@ export class GistService {
         const { data } = await this._request<GitHubGist>('GET', `/gists/${id}`);
         const note = this._parseGist(data);
         if (!note) {
-            throw new Error('Gist is not a Workstash note.');
+            throw new Error('Gist is not a CoreNexus note.');
         }
         return note;
     }

@@ -1,6 +1,6 @@
 {
-    "name": "workstash",
-    "displayName": "Workstash",
+    "name": "corenexus",
+    "displayName": "CoreNexus",
     "description": "Git Stash Management & Gist Notes for VS Code",
     "version": "0.1.0",
     "publisher": "shanemiller89",
@@ -12,11 +12,11 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/shanemiller89/workstash"
+        "url": "https://github.com/shanemiller89/corenexus"
     },
-    "homepage": "https://github.com/shanemiller89/workstash#readme",
+    "homepage": "https://github.com/shanemiller89/corenexus#readme",
     "bugs": {
-        "url": "https://github.com/shanemiller89/workstash/issues"
+        "url": "https://github.com/shanemiller89/corenexus/issues"
     },
     "engines": {
         "vscode": "^1.106.0"
@@ -40,7 +40,7 @@
     "main": "./dist/extension.js",
     "contributes": {
         "configuration": {
-            "title": "Workstash",
+            "title": "CoreNexus",
             "properties": {
                 "mystash.autoRefresh": {
                     "type": "boolean",
@@ -85,14 +85,14 @@
                     "default": true,
                     "description": "Show the branch name in the stash item description."
                 },
-                "workstash.notes.autosaveDelay": {
+                "corenexus.notes.autosaveDelay": {
                     "type": "number",
                     "default": 30,
                     "minimum": 5,
                     "maximum": 300,
                     "description": "Autosave delay in seconds for note editing. Set to 0 to disable autosave."
                 },
-                "workstash.notes.defaultVisibility": {
+                "corenexus.notes.defaultVisibility": {
                     "type": "string",
                     "default": "secret",
                     "enum": [
@@ -105,22 +105,22 @@
                     ],
                     "description": "Default visibility for newly created notes."
                 },
-                "workstash.mattermost.serverUrl": {
+                "corenexus.mattermost.serverUrl": {
                     "type": "string",
                     "default": "",
                     "description": "Mattermost server URL (e.g. https://mattermost.example.com). Required for Mattermost integration."
                 },
-                "workstash.ai.includeSecretGists": {
+                "corenexus.ai.includeSecretGists": {
                     "type": "boolean",
                     "default": false,
                     "description": "Include secret Gist note content when gathering AI context for summaries, chat, and agent analysis. When disabled, only public notes are shared with the language model."
                 },
-                "workstash.ai.includePrivateMessages": {
+                "corenexus.ai.includePrivateMessages": {
                     "type": "boolean",
                     "default": false,
                     "description": "Include direct messages and group messages from Mattermost when gathering AI context. When disabled, only public and private channel posts are shared with the language model."
                 },
-                "workstash.ai.provider": {
+                "corenexus.ai.provider": {
                     "type": "string",
                     "default": "auto",
                     "enum": ["auto", "copilot", "gemini"],
@@ -132,13 +132,13 @@
                     "description": "Which AI provider to use. 'auto' prefers Copilot when available and falls back to Gemini.",
                     "order": 0
                 },
-                "workstash.ai.geminiApiKey": {
+                "corenexus.ai.geminiApiKey": {
                     "type": "string",
                     "default": "",
                     "description": "Google Gemini API key for AI features (summaries, chat, agent). Required when GitHub Copilot is not available (e.g. in Cursor, Windsurf, or Antigravity). Get a free key at https://aistudio.google.com/apikey",
                     "order": 1
                 },
-                "workstash.ai.geminiModel": {
+                "corenexus.ai.geminiModel": {
                     "type": "string",
                     "default": "gemini-2.5-flash",
                     "enum": [
@@ -156,19 +156,19 @@
                     "description": "Default Gemini model to use when the Gemini provider is active.",
                     "order": 2
                 },
-                "workstash.ai.modelOverride.summary": {
+                "corenexus.ai.modelOverride.summary": {
                     "type": "string",
                     "default": "",
                     "description": "Override model for AI summaries. Leave empty to use the provider default.",
                     "order": 3
                 },
-                "workstash.ai.modelOverride.chat": {
+                "corenexus.ai.modelOverride.chat": {
                     "type": "string",
                     "default": "",
                     "description": "Override model for AI chat. Leave empty to use the provider default.",
                     "order": 4
                 },
-                "workstash.ai.modelOverride.agent": {
+                "corenexus.ai.modelOverride.agent": {
                     "type": "string",
                     "default": "",
                     "description": "Override model for AI agent analysis. Leave empty to use the provider default.",
@@ -180,7 +180,7 @@
             "activitybar": [
                 {
                     "id": "mystash-container",
-                    "title": "Workstash",
+                    "title": "CoreNexus",
                     "icon": "$(archive)"
                 }
             ]
@@ -191,41 +191,41 @@
                     "id": "mystashView",
                     "name": "Git Stashes",
                     "icon": "$(archive)",
-                    "contextualTitle": "Workstash"
+                    "contextualTitle": "CoreNexus"
                 },
                 {
                     "id": "gistNotesView",
                     "name": "Gist Notes",
                     "icon": "$(note)",
-                    "contextualTitle": "Workstash",
+                    "contextualTitle": "CoreNexus",
                     "visibility": "visible"
                 },
                 {
                     "id": "pullRequestsView",
                     "name": "Pull Requests",
                     "icon": "$(git-pull-request)",
-                    "contextualTitle": "Workstash",
+                    "contextualTitle": "CoreNexus",
                     "visibility": "visible"
                 },
                 {
                     "id": "issuesView",
                     "name": "Issues",
                     "icon": "$(issues)",
-                    "contextualTitle": "Workstash",
+                    "contextualTitle": "CoreNexus",
                     "visibility": "visible"
                 },
                 {
                     "id": "projectsView",
                     "name": "Projects",
                     "icon": "$(layout)",
-                    "contextualTitle": "Workstash",
+                    "contextualTitle": "CoreNexus",
                     "visibility": "visible"
                 },
                 {
                     "id": "mattermostView",
                     "name": "Mattermost",
                     "icon": "$(comment-discussion)",
-                    "contextualTitle": "Workstash",
+                    "contextualTitle": "CoreNexus",
                     "visibility": "visible"
                 }
             ]
@@ -248,391 +248,391 @@
             },
             {
                 "view": "gistNotesView",
-                "contents": "Sign in to GitHub to sync your notes as Gists.\n[Sign In to GitHub](command:workstash.notes.signIn)",
-                "when": "!workstash.isAuthenticated"
+                "contents": "Sign in to GitHub to sync your notes as Gists.\n[Sign In to GitHub](command:corenexus.notes.signIn)",
+                "when": "!corenexus.isAuthenticated"
             },
             {
                 "view": "gistNotesView",
-                "contents": "No notes yet.\nCreate a note to get started.\n[Create Note](command:workstash.notes.create)",
-                "when": "workstash.isAuthenticated && !workstash.hasNotes"
+                "contents": "No notes yet.\nCreate a note to get started.\n[Create Note](command:corenexus.notes.create)",
+                "when": "corenexus.isAuthenticated && !corenexus.hasNotes"
             },
             {
                 "view": "pullRequestsView",
-                "contents": "Sign in to GitHub to see your pull requests.\n[Sign In to GitHub](command:workstash.prs.signIn)",
-                "when": "!workstash.isAuthenticated"
+                "contents": "Sign in to GitHub to see your pull requests.\n[Sign In to GitHub](command:corenexus.prs.signIn)",
+                "when": "!corenexus.isAuthenticated"
             },
             {
                 "view": "pullRequestsView",
                 "contents": "Not a GitHub repository.\nPull requests require a GitHub remote.",
-                "when": "workstash.isAuthenticated && !workstash.isGitHubRepo"
+                "when": "corenexus.isAuthenticated && !corenexus.isGitHubRepo"
             },
             {
                 "view": "pullRequestsView",
-                "contents": "No pull requests found.\n[Refresh](command:workstash.prs.refresh)",
-                "when": "workstash.isAuthenticated && workstash.isGitHubRepo && !workstash.hasPRs"
+                "contents": "No pull requests found.\n[Refresh](command:corenexus.prs.refresh)",
+                "when": "corenexus.isAuthenticated && corenexus.isGitHubRepo && !corenexus.hasPRs"
             },
             {
                 "view": "issuesView",
-                "contents": "Sign in to GitHub to see issues.\n[Sign In to GitHub](command:workstash.issues.signIn)",
-                "when": "!workstash.isAuthenticated"
+                "contents": "Sign in to GitHub to see issues.\n[Sign In to GitHub](command:corenexus.issues.signIn)",
+                "when": "!corenexus.isAuthenticated"
             },
             {
                 "view": "issuesView",
                 "contents": "Not a GitHub repository.\nIssues require a GitHub remote.",
-                "when": "workstash.isAuthenticated && !workstash.isGitHubRepo"
+                "when": "corenexus.isAuthenticated && !corenexus.isGitHubRepo"
             },
             {
                 "view": "issuesView",
-                "contents": "No issues found.\n[Refresh](command:workstash.issues.refresh)",
-                "when": "workstash.isAuthenticated && workstash.isGitHubRepo && !workstash.hasIssues"
+                "contents": "No issues found.\n[Refresh](command:corenexus.issues.refresh)",
+                "when": "corenexus.isAuthenticated && corenexus.isGitHubRepo && !corenexus.hasIssues"
             },
             {
                 "view": "projectsView",
-                "contents": "Sign in to GitHub to see projects.\n[Sign In to GitHub](command:workstash.projects.signIn)",
-                "when": "!workstash.isAuthenticated"
+                "contents": "Sign in to GitHub to see projects.\n[Sign In to GitHub](command:corenexus.projects.signIn)",
+                "when": "!corenexus.isAuthenticated"
             },
             {
                 "view": "projectsView",
                 "contents": "Not a GitHub repository.\nProjects require a GitHub remote.",
-                "when": "workstash.isAuthenticated && !workstash.isGitHubRepo"
+                "when": "corenexus.isAuthenticated && !corenexus.isGitHubRepo"
             },
             {
                 "view": "projectsView",
-                "contents": "No projects found.\n[Refresh](command:workstash.projects.refresh)",
-                "when": "workstash.isAuthenticated && workstash.isGitHubRepo && !workstash.hasProjects"
+                "contents": "No projects found.\n[Refresh](command:corenexus.projects.refresh)",
+                "when": "corenexus.isAuthenticated && corenexus.isGitHubRepo && !corenexus.hasProjects"
             },
             {
                 "view": "mattermostView",
-                "contents": "No Mattermost server configured.\nSet the server URL in settings to get started.\n[Configure Server](command:workstash.mattermost.configure)",
-                "when": "!workstash.isMattermostConfigured"
+                "contents": "No Mattermost server configured.\nSet the server URL in settings to get started.\n[Configure Server](command:corenexus.mattermost.configure)",
+                "when": "!corenexus.isMattermostConfigured"
             },
             {
                 "view": "mattermostView",
-                "contents": "Sign in to Mattermost to view your channels.\n[Sign In](command:workstash.mattermost.signIn)",
-                "when": "workstash.isMattermostConfigured && !workstash.isMattermostAuthenticated"
+                "contents": "Sign in to Mattermost to view your channels.\n[Sign In](command:corenexus.mattermost.signIn)",
+                "when": "corenexus.isMattermostConfigured && !corenexus.isMattermostAuthenticated"
             },
             {
                 "view": "mattermostView",
-                "contents": "No teams found.\n[Refresh](command:workstash.mattermost.refresh)",
-                "when": "workstash.isMattermostAuthenticated && !workstash.hasMattermostTeams"
+                "contents": "No teams found.\n[Refresh](command:corenexus.mattermost.refresh)",
+                "when": "corenexus.isMattermostAuthenticated && !corenexus.hasMattermostTeams"
             }
         ],
         "commands": [
             {
                 "command": "mystash.refresh",
                 "title": "Refresh Stash List",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(refresh)"
             },
             {
                 "command": "mystash.stash",
                 "title": "Create New Stash",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(add)"
             },
             {
                 "command": "mystash.apply",
                 "title": "Apply Stash",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(check)"
             },
             {
                 "command": "mystash.pop",
                 "title": "Pop Stash",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(arrow-up)"
             },
             {
                 "command": "mystash.drop",
                 "title": "Drop Stash",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(trash)"
             },
             {
                 "command": "mystash.show",
                 "title": "Show Stash Contents",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(eye)"
             },
             {
                 "command": "mystash.clear",
                 "title": "Clear All Stashes",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(clear-all)"
             },
             {
                 "command": "mystash.showFile",
                 "title": "Show File Diff",
-                "category": "Workstash"
+                "category": "CoreNexus"
             },
             {
                 "command": "mystash.openPanel",
                 "title": "Open Stash Panel",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(open-preview)"
             },
             {
                 "command": "mystash.showStats",
                 "title": "Show Stash Stats",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(graph)"
             },
             {
                 "command": "mystash.search",
                 "title": "Search Stashes",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(search)"
             },
             {
                 "command": "mystash.clearSearch",
                 "title": "Clear Stash Search",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(close)"
             },
             {
                 "command": "mystash.applySelected",
                 "title": "Apply Selected Stashes",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(check-all)"
             },
             {
                 "command": "mystash.dropSelected",
                 "title": "Drop Selected Stashes",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(trash)"
             },
             {
-                "command": "workstash.notes.signIn",
+                "command": "corenexus.notes.signIn",
                 "title": "Sign In to GitHub",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "workstash.notes.signOut",
+                "command": "corenexus.notes.signOut",
                 "title": "Sign Out of GitHub",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(sign-out)"
             },
             {
-                "command": "workstash.notes.create",
+                "command": "corenexus.notes.create",
                 "title": "Create Note",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(add)"
             },
             {
-                "command": "workstash.notes.open",
+                "command": "corenexus.notes.open",
                 "title": "Open Note",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "workstash.notes.delete",
+                "command": "corenexus.notes.delete",
                 "title": "Delete Note",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(trash)"
             },
             {
-                "command": "workstash.notes.copyLink",
+                "command": "corenexus.notes.copyLink",
                 "title": "Copy Gist Link",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(link)"
             },
             {
-                "command": "workstash.notes.toggleVisibility",
+                "command": "corenexus.notes.toggleVisibility",
                 "title": "Toggle Note Visibility",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(eye)"
             },
             {
-                "command": "workstash.notes.refresh",
+                "command": "corenexus.notes.refresh",
                 "title": "Refresh Notes",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(refresh)"
             },
             {
-                "command": "workstash.notes.search",
+                "command": "corenexus.notes.search",
                 "title": "Search Notes",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(search)"
             },
             {
-                "command": "workstash.notes.clearSearch",
+                "command": "corenexus.notes.clearSearch",
                 "title": "Clear Notes Search",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(close)"
             },
             {
-                "command": "workstash.prs.refresh",
+                "command": "corenexus.prs.refresh",
                 "title": "Refresh Pull Requests",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(refresh)"
             },
             {
-                "command": "workstash.prs.open",
+                "command": "corenexus.prs.open",
                 "title": "Open Pull Request",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "workstash.prs.openInBrowser",
+                "command": "corenexus.prs.openInBrowser",
                 "title": "Open PR in Browser",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(link-external)"
             },
             {
-                "command": "workstash.prs.signIn",
+                "command": "corenexus.prs.signIn",
                 "title": "Sign In for Pull Requests",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "workstash.prs.filter",
+                "command": "corenexus.prs.filter",
                 "title": "Filter Pull Requests",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(filter)"
             },
             {
-                "command": "workstash.prs.search",
+                "command": "corenexus.prs.search",
                 "title": "Search Pull Requests",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(search)"
             },
             {
-                "command": "workstash.prs.clearSearch",
+                "command": "corenexus.prs.clearSearch",
                 "title": "Clear PR Search",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(close)"
             },
             {
-                "command": "workstash.issues.refresh",
+                "command": "corenexus.issues.refresh",
                 "title": "Refresh Issues",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(refresh)"
             },
             {
-                "command": "workstash.issues.open",
+                "command": "corenexus.issues.open",
                 "title": "Open Issue",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "workstash.issues.openInBrowser",
+                "command": "corenexus.issues.openInBrowser",
                 "title": "Open Issue in Browser",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(link-external)"
             },
             {
-                "command": "workstash.issues.signIn",
+                "command": "corenexus.issues.signIn",
                 "title": "Sign In for Issues",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "workstash.issues.filter",
+                "command": "corenexus.issues.filter",
                 "title": "Filter Issues",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(filter)"
             },
             {
-                "command": "workstash.issues.search",
+                "command": "corenexus.issues.search",
                 "title": "Search Issues",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(search)"
             },
             {
-                "command": "workstash.issues.clearSearch",
+                "command": "corenexus.issues.clearSearch",
                 "title": "Clear Issue Search",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(close)"
             },
             {
-                "command": "workstash.projects.refresh",
+                "command": "corenexus.projects.refresh",
                 "title": "Refresh Projects",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(refresh)"
             },
             {
-                "command": "workstash.projects.openItem",
+                "command": "corenexus.projects.openItem",
                 "title": "Open Project Item",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "workstash.projects.openInBrowser",
+                "command": "corenexus.projects.openInBrowser",
                 "title": "Open in Browser",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(link-external)"
             },
             {
-                "command": "workstash.projects.signIn",
+                "command": "corenexus.projects.signIn",
                 "title": "Sign In for Projects",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "workstash.projects.signOut",
+                "command": "corenexus.projects.signOut",
                 "title": "Sign Out of Projects",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(sign-out)"
             },
             {
-                "command": "workstash.projects.filter",
+                "command": "corenexus.projects.filter",
                 "title": "Filter Project Items",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(filter)"
             },
             {
-                "command": "workstash.projects.search",
+                "command": "corenexus.projects.search",
                 "title": "Search Project Items",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(search)"
             },
             {
-                "command": "workstash.projects.clearSearch",
+                "command": "corenexus.projects.clearSearch",
                 "title": "Clear Project Search",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(close)"
             },
             {
-                "command": "workstash.mattermost.refresh",
+                "command": "corenexus.mattermost.refresh",
                 "title": "Refresh Mattermost",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(refresh)"
             },
             {
-                "command": "workstash.mattermost.signIn",
+                "command": "corenexus.mattermost.signIn",
                 "title": "Sign In to Mattermost",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "workstash.mattermost.signOut",
+                "command": "corenexus.mattermost.signOut",
                 "title": "Sign Out of Mattermost",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(sign-out)"
             },
             {
-                "command": "workstash.mattermost.openChannel",
+                "command": "corenexus.mattermost.openChannel",
                 "title": "Open Channel",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(comment-discussion)"
             },
             {
-                "command": "workstash.mattermost.search",
+                "command": "corenexus.mattermost.search",
                 "title": "Search Channels",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(search)"
             },
             {
-                "command": "workstash.mattermost.clearSearch",
+                "command": "corenexus.mattermost.clearSearch",
                 "title": "Clear Channel Search",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(close)"
             },
             {
-                "command": "workstash.mattermost.configure",
+                "command": "corenexus.mattermost.configure",
                 "title": "Configure Mattermost Server",
-                "category": "Workstash",
+                "category": "CoreNexus",
                 "icon": "$(gear)"
             }
         ],
@@ -668,7 +668,7 @@
                     "when": "view == mystashView"
                 },
                 {
-                    "command": "workstash.notes.refresh",
+                    "command": "corenexus.notes.refresh",
                     "when": "view == gistNotesView",
                     "group": "navigation"
                 },
@@ -678,31 +678,31 @@
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.notes.create",
-                    "when": "view == gistNotesView && workstash.isAuthenticated",
+                    "command": "corenexus.notes.create",
+                    "when": "view == gistNotesView && corenexus.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.notes.search",
-                    "when": "view == gistNotesView && !workstash.notes.isSearching",
+                    "command": "corenexus.notes.search",
+                    "when": "view == gistNotesView && !corenexus.notes.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.notes.clearSearch",
-                    "when": "view == gistNotesView && workstash.notes.isSearching",
+                    "command": "corenexus.notes.clearSearch",
+                    "when": "view == gistNotesView && corenexus.notes.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.notes.signIn",
-                    "when": "view == gistNotesView && !workstash.isAuthenticated",
+                    "command": "corenexus.notes.signIn",
+                    "when": "view == gistNotesView && !corenexus.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.notes.signOut",
-                    "when": "view == gistNotesView && workstash.isAuthenticated"
+                    "command": "corenexus.notes.signOut",
+                    "when": "view == gistNotesView && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.prs.refresh",
+                    "command": "corenexus.prs.refresh",
                     "when": "view == pullRequestsView",
                     "group": "navigation"
                 },
@@ -712,27 +712,27 @@
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.prs.filter",
-                    "when": "view == pullRequestsView && workstash.isAuthenticated",
+                    "command": "corenexus.prs.filter",
+                    "when": "view == pullRequestsView && corenexus.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.prs.search",
-                    "when": "view == pullRequestsView && !workstash.prs.isSearching",
+                    "command": "corenexus.prs.search",
+                    "when": "view == pullRequestsView && !corenexus.prs.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.prs.clearSearch",
-                    "when": "view == pullRequestsView && workstash.prs.isSearching",
+                    "command": "corenexus.prs.clearSearch",
+                    "when": "view == pullRequestsView && corenexus.prs.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.prs.signIn",
-                    "when": "view == pullRequestsView && !workstash.isAuthenticated",
+                    "command": "corenexus.prs.signIn",
+                    "when": "view == pullRequestsView && !corenexus.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.issues.refresh",
+                    "command": "corenexus.issues.refresh",
                     "when": "view == issuesView",
                     "group": "navigation"
                 },
@@ -742,27 +742,27 @@
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.issues.filter",
-                    "when": "view == issuesView && workstash.isAuthenticated",
+                    "command": "corenexus.issues.filter",
+                    "when": "view == issuesView && corenexus.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.issues.search",
-                    "when": "view == issuesView && !workstash.issues.isSearching",
+                    "command": "corenexus.issues.search",
+                    "when": "view == issuesView && !corenexus.issues.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.issues.clearSearch",
-                    "when": "view == issuesView && workstash.issues.isSearching",
+                    "command": "corenexus.issues.clearSearch",
+                    "when": "view == issuesView && corenexus.issues.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.issues.signIn",
-                    "when": "view == issuesView && !workstash.isAuthenticated",
+                    "command": "corenexus.issues.signIn",
+                    "when": "view == issuesView && !corenexus.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.projects.refresh",
+                    "command": "corenexus.projects.refresh",
                     "when": "view == projectsView",
                     "group": "navigation"
                 },
@@ -772,27 +772,27 @@
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.projects.filter",
-                    "when": "view == projectsView && workstash.isAuthenticated",
+                    "command": "corenexus.projects.filter",
+                    "when": "view == projectsView && corenexus.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.projects.search",
-                    "when": "view == projectsView && !workstash.projects.isSearching",
+                    "command": "corenexus.projects.search",
+                    "when": "view == projectsView && !corenexus.projects.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.projects.clearSearch",
-                    "when": "view == projectsView && workstash.projects.isSearching",
+                    "command": "corenexus.projects.clearSearch",
+                    "when": "view == projectsView && corenexus.projects.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.projects.signIn",
-                    "when": "view == projectsView && !workstash.isAuthenticated",
+                    "command": "corenexus.projects.signIn",
+                    "when": "view == projectsView && !corenexus.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.mattermost.refresh",
+                    "command": "corenexus.mattermost.refresh",
                     "when": "view == mattermostView",
                     "group": "navigation"
                 },
@@ -802,26 +802,26 @@
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.mattermost.search",
-                    "when": "view == mattermostView && workstash.isMattermostAuthenticated && !workstash.mattermost.isSearching",
+                    "command": "corenexus.mattermost.search",
+                    "when": "view == mattermostView && corenexus.isMattermostAuthenticated && !corenexus.mattermost.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.mattermost.clearSearch",
-                    "when": "view == mattermostView && workstash.mattermost.isSearching",
+                    "command": "corenexus.mattermost.clearSearch",
+                    "when": "view == mattermostView && corenexus.mattermost.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.mattermost.signIn",
-                    "when": "view == mattermostView && workstash.isMattermostConfigured && !workstash.isMattermostAuthenticated",
+                    "command": "corenexus.mattermost.signIn",
+                    "when": "view == mattermostView && corenexus.isMattermostConfigured && !corenexus.isMattermostAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "workstash.mattermost.signOut",
-                    "when": "view == mattermostView && workstash.isMattermostAuthenticated"
+                    "command": "corenexus.mattermost.signOut",
+                    "when": "view == mattermostView && corenexus.isMattermostAuthenticated"
                 },
                 {
-                    "command": "workstash.mattermost.configure",
+                    "command": "corenexus.mattermost.configure",
                     "when": "view == mattermostView"
                 }
             ],
@@ -882,102 +882,102 @@
                     "group": "3_batch@2"
                 },
                 {
-                    "command": "workstash.notes.open",
+                    "command": "corenexus.notes.open",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "inline@1"
                 },
                 {
-                    "command": "workstash.notes.copyLink",
+                    "command": "corenexus.notes.copyLink",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "inline@2"
                 },
                 {
-                    "command": "workstash.notes.delete",
+                    "command": "corenexus.notes.delete",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "inline@3"
                 },
                 {
-                    "command": "workstash.notes.open",
+                    "command": "corenexus.notes.open",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "1_note@1"
                 },
                 {
-                    "command": "workstash.notes.copyLink",
+                    "command": "corenexus.notes.copyLink",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "1_note@2"
                 },
                 {
-                    "command": "workstash.notes.toggleVisibility",
+                    "command": "corenexus.notes.toggleVisibility",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "1_note@3"
                 },
                 {
-                    "command": "workstash.notes.delete",
+                    "command": "corenexus.notes.delete",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "2_destructive"
                 },
                 {
-                    "command": "workstash.prs.open",
+                    "command": "corenexus.prs.open",
                     "when": "view == pullRequestsView && viewItem =~ /^prItem/",
                     "group": "inline@1"
                 },
                 {
-                    "command": "workstash.prs.openInBrowser",
+                    "command": "corenexus.prs.openInBrowser",
                     "when": "view == pullRequestsView && viewItem =~ /^prItem/",
                     "group": "inline@2"
                 },
                 {
-                    "command": "workstash.prs.open",
+                    "command": "corenexus.prs.open",
                     "when": "view == pullRequestsView && viewItem =~ /^prItem/",
                     "group": "1_pr@1"
                 },
                 {
-                    "command": "workstash.prs.openInBrowser",
+                    "command": "corenexus.prs.openInBrowser",
                     "when": "view == pullRequestsView && viewItem =~ /^prItem/",
                     "group": "1_pr@2"
                 },
                 {
-                    "command": "workstash.issues.open",
+                    "command": "corenexus.issues.open",
                     "when": "view == issuesView && viewItem =~ /^issueItem/",
                     "group": "inline@1"
                 },
                 {
-                    "command": "workstash.issues.openInBrowser",
+                    "command": "corenexus.issues.openInBrowser",
                     "when": "view == issuesView && viewItem =~ /^issueItem/",
                     "group": "inline@2"
                 },
                 {
-                    "command": "workstash.issues.open",
+                    "command": "corenexus.issues.open",
                     "when": "view == issuesView && viewItem =~ /^issueItem/",
                     "group": "1_issue@1"
                 },
                 {
-                    "command": "workstash.issues.openInBrowser",
+                    "command": "corenexus.issues.openInBrowser",
                     "when": "view == issuesView && viewItem =~ /^issueItem/",
                     "group": "1_issue@2"
                 },
                 {
-                    "command": "workstash.projects.openItem",
+                    "command": "corenexus.projects.openItem",
                     "when": "view == projectsView && viewItem =~ /^projectItem/",
                     "group": "inline@1"
                 },
                 {
-                    "command": "workstash.projects.openInBrowser",
+                    "command": "corenexus.projects.openInBrowser",
                     "when": "view == projectsView && viewItem =~ /^projectItem/",
                     "group": "inline@2"
                 },
                 {
-                    "command": "workstash.projects.openItem",
+                    "command": "corenexus.projects.openItem",
                     "when": "view == projectsView && viewItem =~ /^projectItem/",
                     "group": "1_project@1"
                 },
                 {
-                    "command": "workstash.projects.openInBrowser",
+                    "command": "corenexus.projects.openInBrowser",
                     "when": "view == projectsView && viewItem =~ /^projectItem/",
                     "group": "1_project@2"
                 },
                 {
-                    "command": "workstash.mattermost.openChannel",
+                    "command": "corenexus.mattermost.openChannel",
                     "when": "view == mattermostView && viewItem =~ /^mattermostChannel/",
                     "group": "inline@1"
                 }
@@ -1040,159 +1040,159 @@
                     "when": "false"
                 },
                 {
-                    "command": "workstash.notes.signIn",
-                    "when": "workspaceFolderCount > 0 && !workstash.isAuthenticated"
+                    "command": "corenexus.notes.signIn",
+                    "when": "workspaceFolderCount > 0 && !corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.notes.signOut",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.notes.signOut",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.notes.create",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.notes.create",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.notes.open",
+                    "command": "corenexus.notes.open",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.notes.delete",
+                    "command": "corenexus.notes.delete",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.notes.copyLink",
+                    "command": "corenexus.notes.copyLink",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.notes.toggleVisibility",
+                    "command": "corenexus.notes.toggleVisibility",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.notes.refresh",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.notes.refresh",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.notes.search",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.notes.search",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.notes.clearSearch",
-                    "when": "workspaceFolderCount > 0 && workstash.notes.isSearching"
+                    "command": "corenexus.notes.clearSearch",
+                    "when": "workspaceFolderCount > 0 && corenexus.notes.isSearching"
                 },
                 {
-                    "command": "workstash.prs.refresh",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.prs.refresh",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.prs.open",
+                    "command": "corenexus.prs.open",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.prs.openInBrowser",
+                    "command": "corenexus.prs.openInBrowser",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.prs.signIn",
-                    "when": "workspaceFolderCount > 0 && !workstash.isAuthenticated"
+                    "command": "corenexus.prs.signIn",
+                    "when": "workspaceFolderCount > 0 && !corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.prs.filter",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.prs.filter",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.prs.search",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.prs.search",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.prs.clearSearch",
-                    "when": "workspaceFolderCount > 0 && workstash.prs.isSearching"
+                    "command": "corenexus.prs.clearSearch",
+                    "when": "workspaceFolderCount > 0 && corenexus.prs.isSearching"
                 },
                 {
-                    "command": "workstash.issues.refresh",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.issues.refresh",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.issues.open",
+                    "command": "corenexus.issues.open",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.issues.openInBrowser",
+                    "command": "corenexus.issues.openInBrowser",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.issues.signIn",
-                    "when": "workspaceFolderCount > 0 && !workstash.isAuthenticated"
+                    "command": "corenexus.issues.signIn",
+                    "when": "workspaceFolderCount > 0 && !corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.issues.filter",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.issues.filter",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.issues.search",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.issues.search",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.issues.clearSearch",
-                    "when": "workspaceFolderCount > 0 && workstash.issues.isSearching"
+                    "command": "corenexus.issues.clearSearch",
+                    "when": "workspaceFolderCount > 0 && corenexus.issues.isSearching"
                 },
                 {
-                    "command": "workstash.projects.refresh",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.projects.refresh",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.projects.openItem",
+                    "command": "corenexus.projects.openItem",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.projects.openInBrowser",
+                    "command": "corenexus.projects.openInBrowser",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.projects.signIn",
-                    "when": "workspaceFolderCount > 0 && !workstash.isAuthenticated"
+                    "command": "corenexus.projects.signIn",
+                    "when": "workspaceFolderCount > 0 && !corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.projects.signOut",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.projects.signOut",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.projects.filter",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.projects.filter",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.projects.search",
-                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                    "command": "corenexus.projects.search",
+                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
                 },
                 {
-                    "command": "workstash.projects.clearSearch",
-                    "when": "workspaceFolderCount > 0 && workstash.projects.isSearching"
+                    "command": "corenexus.projects.clearSearch",
+                    "when": "workspaceFolderCount > 0 && corenexus.projects.isSearching"
                 },
                 {
-                    "command": "workstash.mattermost.refresh",
-                    "when": "workspaceFolderCount > 0 && workstash.isMattermostAuthenticated"
+                    "command": "corenexus.mattermost.refresh",
+                    "when": "workspaceFolderCount > 0 && corenexus.isMattermostAuthenticated"
                 },
                 {
-                    "command": "workstash.mattermost.signIn",
-                    "when": "workspaceFolderCount > 0 && workstash.isMattermostConfigured && !workstash.isMattermostAuthenticated"
+                    "command": "corenexus.mattermost.signIn",
+                    "when": "workspaceFolderCount > 0 && corenexus.isMattermostConfigured && !corenexus.isMattermostAuthenticated"
                 },
                 {
-                    "command": "workstash.mattermost.signOut",
-                    "when": "workspaceFolderCount > 0 && workstash.isMattermostAuthenticated"
+                    "command": "corenexus.mattermost.signOut",
+                    "when": "workspaceFolderCount > 0 && corenexus.isMattermostAuthenticated"
                 },
                 {
-                    "command": "workstash.mattermost.openChannel",
+                    "command": "corenexus.mattermost.openChannel",
                     "when": "false"
                 },
                 {
-                    "command": "workstash.mattermost.search",
-                    "when": "workspaceFolderCount > 0 && workstash.isMattermostAuthenticated"
+                    "command": "corenexus.mattermost.search",
+                    "when": "workspaceFolderCount > 0 && corenexus.isMattermostAuthenticated"
                 },
                 {
-                    "command": "workstash.mattermost.clearSearch",
-                    "when": "workspaceFolderCount > 0 && workstash.mattermost.isSearching"
+                    "command": "corenexus.mattermost.clearSearch",
+                    "when": "workspaceFolderCount > 0 && corenexus.mattermost.isSearching"
                 },
                 {
-                    "command": "workstash.mattermost.configure",
+                    "command": "corenexus.mattermost.configure",
                     "when": "workspaceFolderCount > 0"
                 }
             ]

@@ -11,7 +11,7 @@ import { AiService } from './aiService';
 import { formatRelativeTime, getConfig } from './utils';
 
 /**
- * Manages the Workstash webview panel — a rich, interactive stash explorer
+ * Manages the CoreNexus webview panel — a rich, interactive stash explorer
  * that opens as an editor tab, powered by a React + Zustand + Tailwind UI.
  */
 export class StashPanel {
@@ -132,7 +132,7 @@ export class StashPanel {
             return StashPanel._instance;
         }
 
-        const panel = vscode.window.createWebviewPanel(StashPanel.viewType, 'Workstash', column, {
+        const panel = vscode.window.createWebviewPanel(StashPanel.viewType, 'CoreNexus', column, {
             enableScripts: true,
             retainContextWhenHidden: true,
             localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')],
@@ -236,10 +236,10 @@ export class StashPanel {
             this._panel.webview.postMessage({ type: 'stashData', payload });
 
             // 8b-vi: Update panel title with stash count
-            this._panel.title = stashes.length > 0 ? `Workstash (${stashes.length})` : 'Workstash';
+            this._panel.title = stashes.length > 0 ? `CoreNexus (${stashes.length})` : 'CoreNexus';
         } catch {
             this._panel.webview.postMessage({ type: 'stashData', payload: [] });
-            this._panel.title = 'Workstash';
+            this._panel.title = 'CoreNexus';
         }
     }
 
@@ -536,13 +536,13 @@ export class StashPanel {
             // ─── Notes messages from webview ───
 
             case 'notes.signIn':
-                await vscode.commands.executeCommand('workstash.notes.signIn');
+                await vscode.commands.executeCommand('corenexus.notes.signIn');
                 await this._sendAuthStatus();
                 await this._refreshNotes();
                 break;
 
             case 'notes.signOut':
-                await vscode.commands.executeCommand('workstash.notes.signOut');
+                await vscode.commands.executeCommand('corenexus.notes.signOut');
                 await this._sendAuthStatus();
                 break;
 
@@ -708,7 +708,7 @@ export class StashPanel {
                 break;
 
             case 'prs.signIn':
-                await vscode.commands.executeCommand('workstash.prs.signIn');
+                await vscode.commands.executeCommand('corenexus.prs.signIn');
                 await this._sendAuthStatus();
                 await this._refreshPRs();
                 break;
@@ -922,7 +922,7 @@ export class StashPanel {
                 break;
 
             case 'issues.signIn':
-                await vscode.commands.executeCommand('workstash.issues.signIn');
+                await vscode.commands.executeCommand('corenexus.issues.signIn');
                 await this._sendAuthStatus();
                 await this._refreshIssues();
                 break;
@@ -2032,7 +2032,7 @@ export class StashPanel {
                 // Open the settings UI focused on the Gemini API key setting
                 await vscode.commands.executeCommand(
                     'workbench.action.openSettings',
-                    'workstash.ai.geminiApiKey',
+                    'corenexus.ai.geminiApiKey',
                 );
                 break;
             }
@@ -2041,7 +2041,7 @@ export class StashPanel {
 
             case 'settings.getSettings': {
                 const mystash = vscode.workspace.getConfiguration('mystash');
-                const workstash = vscode.workspace.getConfiguration('workstash');
+                const corenexus = vscode.workspace.getConfiguration('corenexus');
                 this._panel.webview.postMessage({
                     type: 'settingsData',
                     settings: {
@@ -2054,18 +2054,18 @@ export class StashPanel {
                         sortOrder: mystash.get<string>('sortOrder', 'newest'),
                         showBranchInDescription: mystash.get<boolean>('showBranchInDescription', true),
                         // Notes
-                        autosaveDelay: workstash.get<number>('notes.autosaveDelay', 30),
-                        defaultVisibility: workstash.get<string>('notes.defaultVisibility', 'secret'),
+                        autosaveDelay: corenexus.get<number>('notes.autosaveDelay', 30),
+                        defaultVisibility: corenexus.get<string>('notes.defaultVisibility', 'secret'),
                         // Mattermost
-                        mattermostServerUrl: workstash.get<string>('mattermost.serverUrl', ''),
+                        mattermostServerUrl: corenexus.get<string>('mattermost.serverUrl', ''),
                         // AI Privacy
-                        includeSecretGists: workstash.get<boolean>('ai.includeSecretGists', false),
-                        includePrivateMessages: workstash.get<boolean>('ai.includePrivateMessages', false),
+                        includeSecretGists: corenexus.get<boolean>('ai.includeSecretGists', false),
+                        includePrivateMessages: corenexus.get<boolean>('ai.includePrivateMessages', false),
                         // AI Provider
                         aiProvider: AiService.activeProvider(),
-                        providerPreference: workstash.get<string>('ai.provider', 'auto'),
-                        geminiApiKey: workstash.get<string>('ai.geminiApiKey', ''),
-                        geminiModel: workstash.get<string>('ai.geminiModel', 'gemini-2.5-flash'),
+                        providerPreference: corenexus.get<string>('ai.provider', 'auto'),
+                        geminiApiKey: corenexus.get<string>('ai.geminiApiKey', ''),
+                        geminiModel: corenexus.get<string>('ai.geminiModel', 'gemini-2.5-flash'),
                     },
                 });
                 break;
@@ -2085,14 +2085,14 @@ export class StashPanel {
                     defaultIncludeUntracked: { section: 'mystash', key: 'defaultIncludeUntracked' },
                     sortOrder: { section: 'mystash', key: 'sortOrder' },
                     showBranchInDescription: { section: 'mystash', key: 'showBranchInDescription' },
-                    autosaveDelay: { section: 'workstash.notes', key: 'autosaveDelay' },
-                    defaultVisibility: { section: 'workstash.notes', key: 'defaultVisibility' },
-                    mattermostServerUrl: { section: 'workstash.mattermost', key: 'serverUrl' },
-                    includeSecretGists: { section: 'workstash.ai', key: 'includeSecretGists' },
-                    includePrivateMessages: { section: 'workstash.ai', key: 'includePrivateMessages' },
-                    providerPreference: { section: 'workstash.ai', key: 'provider' },
-                    geminiApiKey: { section: 'workstash.ai', key: 'geminiApiKey' },
-                    geminiModel: { section: 'workstash.ai', key: 'geminiModel' },
+                    autosaveDelay: { section: 'corenexus.notes', key: 'autosaveDelay' },
+                    defaultVisibility: { section: 'corenexus.notes', key: 'defaultVisibility' },
+                    mattermostServerUrl: { section: 'corenexus.mattermost', key: 'serverUrl' },
+                    includeSecretGists: { section: 'corenexus.ai', key: 'includeSecretGists' },
+                    includePrivateMessages: { section: 'corenexus.ai', key: 'includePrivateMessages' },
+                    providerPreference: { section: 'corenexus.ai', key: 'provider' },
+                    geminiApiKey: { section: 'corenexus.ai', key: 'geminiApiKey' },
+                    geminiModel: { section: 'corenexus.ai', key: 'geminiModel' },
                 };
 
                 const mapping = SETTING_MAP[settingKey];
@@ -2121,7 +2121,7 @@ export class StashPanel {
             }
 
             case 'settings.openInVSCode': {
-                vscode.commands.executeCommand('workbench.action.openSettings', '@ext:shanemiller89.workstash');
+                vscode.commands.executeCommand('workbench.action.openSettings', '@ext:shanemiller89.corenexus');
                 break;
             }
         }
@@ -2138,7 +2138,7 @@ export class StashPanel {
         const shouldInclude = (key: string) => !tabKey || tabKey === key;
 
         // Read AI privacy settings
-        const aiConfig = vscode.workspace.getConfiguration('workstash.ai');
+        const aiConfig = vscode.workspace.getConfiguration('corenexus.ai');
         const includeSecretGists = aiConfig.get<boolean>('includeSecretGists', false);
         const includePrivateMessages = aiConfig.get<boolean>('includePrivateMessages', false);
 
@@ -2966,7 +2966,7 @@ export class StashPanel {
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; img-src https: http: data: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src https: http:;">
     <link rel="stylesheet" href="${styleUri}">
-    <title>Workstash</title>
+    <title>CoreNexus</title>
 </head>
 <body>
     <div id="root"></div>

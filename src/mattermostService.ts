@@ -309,9 +309,9 @@ interface MmApiChannelUnread {
 
 // ─── Secret Storage Keys ──────────────────────────────────────────
 
-const SECRET_KEY_TOKEN = 'workstash.mattermost.token';
-const SECRET_KEY_URL = 'workstash.mattermost.serverUrl';
-const SECRET_KEY_AUTH_METHOD = 'workstash.mattermost.authMethod';
+const SECRET_KEY_TOKEN = 'corenexus.mattermost.token';
+const SECRET_KEY_URL = 'corenexus.mattermost.serverUrl';
+const SECRET_KEY_AUTH_METHOD = 'corenexus.mattermost.authMethod';
 
 /** How the user authenticated with Mattermost */
 export type MattermostAuthMethod = 'pat' | 'password' | 'session';
@@ -354,7 +354,7 @@ export class MattermostService {
     async getServerUrl(): Promise<string | undefined> {
         // Check VS Code setting first
         const settingUrl = vscode.workspace
-            .getConfiguration('workstash.mattermost')
+            .getConfiguration('corenexus.mattermost')
             .get<string>('serverUrl');
         if (settingUrl?.trim()) {
             return settingUrl.trim().replace(/\/+$/, '');
@@ -1124,7 +1124,7 @@ export class MattermostService {
         const url = `${baseUrl}/files`;
 
         // Build multipart/form-data manually using a boundary
-        const boundary = `----WorkStashUpload${Date.now()}`;
+        const boundary = `----CoreNexusUpload${Date.now()}`;
         const parts: Buffer[] = [];
 
         // Add channel_id field

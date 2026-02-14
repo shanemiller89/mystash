@@ -71,7 +71,7 @@ export class MattermostChannelItem extends vscode.TreeItem {
 
         // Click → open channel in webview
         this.command = {
-            command: 'workstash.mattermost.openChannel',
+            command: 'corenexus.mattermost.openChannel',
             title: 'Open Channel',
             arguments: [this],
         };
