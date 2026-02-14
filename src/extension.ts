@@ -18,6 +18,9 @@ import { PrItem } from './prItem';
 import { IssueService } from './issueService';
 import { IssueProvider } from './issueProvider';
 import { IssueItem } from './issueItem';
+import { ProjectService } from './projectService';
+import { ProjectProvider } from './projectProvider';
+import { ProjectItemTreeItem } from './projectItem';
 import { MattermostService } from './mattermostService';
 import { MattermostProvider } from './mattermostProvider';
 import { MattermostChannelItem, MattermostSeparatorItem } from './mattermostItem';
@@ -127,6 +130,31 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         authService.onDidChangeAuthentication(() => {
             issueProvider.refresh('auth-changed');
+        }),
+    );
+
+    // ─── Projects Feature ─────────────────────────────────────────
+
+    // ProjectService — GitHub Projects V2 GraphQL API
+    const projectService = new ProjectService(authService, outputChannel);
+
+    // ProjectProvider — tree data provider for Projects sidebar
+    const projectProvider = new ProjectProvider(projectService, gitService, authService, outputChannel);
+    context.subscriptions.push(projectProvider);
+
+    // Register the projects tree view
+    const projectsTreeView = vscode.window.createTreeView('projectsView', {
+        treeDataProvider: projectProvider,
+        showCollapseAll: false,
+        canSelectMany: false,
+    });
+    context.subscriptions.push(projectsTreeView);
+    projectProvider.setTreeView(projectsTreeView);
+
+    // Refresh projects when auth state changes
+    context.subscriptions.push(
+        authService.onDidChangeAuthentication(() => {
+            projectProvider.refresh('auth-changed');
         }),
     );
 
@@ -521,7 +549,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('mystash.openPanel', () => {
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
         }),
     );
 
@@ -753,7 +781,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the note in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
             StashPanel.currentPanel?.openNote(item.note.id);
         }),
     );
@@ -952,7 +980,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the PR in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
             StashPanel.currentPanel?.openPR(item.pr.number);
         }),
     );
@@ -1042,7 +1070,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the issue in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
             StashPanel.currentPanel?.openIssue(item.issue.number);
         }),
     );
@@ -1146,7 +1174,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the channel in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
             StashPanel.currentPanel?.openChannel(item.channel.id, item.channel.displayName);
         }),
     );
@@ -1169,6 +1197,93 @@ export function activate(context: vscode.ExtensionContext) {
                 'workbench.action.openSettings',
                 'workstash.mattermost.serverUrl',
             );
+        }),
+    );
+
+    // ─── Projects commands ───
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.projects.refresh', () => {
+            projectProvider.refresh('manual');
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.projects.signIn', async () => {
+            await authService.signIn();
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.projects.signOut', async () => {
+            await authService.signOut();
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.projects.openItem', async (item?: ProjectItemTreeItem) => {
+            if (!item) {
+                return;
+            }
+            // Open the project item in the webview panel
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
+            StashPanel.currentPanel?.openProjectItem(item.projectItem.id);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.projects.openInBrowser', async (item?: ProjectItemTreeItem) => {
+            if (!item) {
+                return;
+            }
+            const url = item.projectItem.content?.url;
+            if (url) {
+                vscode.env.openExternal(vscode.Uri.parse(url));
+            }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.projects.filter', async () => {
+            const options = projectProvider.getStatusOptions();
+            if (options.length === 0) {
+                vscode.window.showInformationMessage('No status options available. Select a project first.');
+                return;
+            }
+            const items = [
+                { label: 'All', value: '' },
+                ...options.map((o) => ({ label: o, value: o })),
+            ];
+            const picked = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Filter by status',
+            });
+            if (picked) {
+                projectProvider.setStatusFilter(picked.value);
+            }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.projects.search', async () => {
+            const query = await vscode.window.showInputBox({
+                placeHolder: 'Search project items…',
+                prompt: 'Enter a search term to filter project items',
+            });
+            if (query !== undefined) {
+                projectProvider.setSearchQuery(query);
+                vscode.commands.executeCommand(
+                    'setContext',
+                    'workstash.projects.isSearching',
+                    query.length > 0,
+                );
+            }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.projects.clearSearch', () => {
+            projectProvider.setSearchQuery('');
+            vscode.commands.executeCommand('setContext', 'workstash.projects.isSearching', false);
         }),
     );
 }

@@ -151,6 +151,13 @@
                     "visibility": "visible"
                 },
                 {
+                    "id": "projectsView",
+                    "name": "Projects",
+                    "icon": "$(layout)",
+                    "contextualTitle": "Workstash",
+                    "visibility": "visible"
+                },
+                {
                     "id": "mattermostView",
                     "name": "Mattermost",
                     "icon": "$(comment-discussion)",
@@ -214,6 +221,21 @@
                 "view": "issuesView",
                 "contents": "No issues found.\n[Refresh](command:workstash.issues.refresh)",
                 "when": "workstash.isAuthenticated && workstash.isGitHubRepo && !workstash.hasIssues"
+            },
+            {
+                "view": "projectsView",
+                "contents": "Sign in to GitHub to see projects.\n[Sign In to GitHub](command:workstash.projects.signIn)",
+                "when": "!workstash.isAuthenticated"
+            },
+            {
+                "view": "projectsView",
+                "contents": "Not a GitHub repository.\nProjects require a GitHub remote.",
+                "when": "workstash.isAuthenticated && !workstash.isGitHubRepo"
+            },
+            {
+                "view": "projectsView",
+                "contents": "No projects found.\n[Refresh](command:workstash.projects.refresh)",
+                "when": "workstash.isAuthenticated && workstash.isGitHubRepo && !workstash.hasProjects"
             },
             {
                 "view": "mattermostView",
@@ -460,6 +482,54 @@
                 "icon": "$(close)"
             },
             {
+                "command": "workstash.projects.refresh",
+                "title": "Refresh Projects",
+                "category": "Workstash",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "workstash.projects.openItem",
+                "title": "Open Project Item",
+                "category": "Workstash",
+                "icon": "$(go-to-file)"
+            },
+            {
+                "command": "workstash.projects.openInBrowser",
+                "title": "Open in Browser",
+                "category": "Workstash",
+                "icon": "$(link-external)"
+            },
+            {
+                "command": "workstash.projects.signIn",
+                "title": "Sign In for Projects",
+                "category": "Workstash",
+                "icon": "$(sign-in)"
+            },
+            {
+                "command": "workstash.projects.signOut",
+                "title": "Sign Out of Projects",
+                "category": "Workstash",
+                "icon": "$(sign-out)"
+            },
+            {
+                "command": "workstash.projects.filter",
+                "title": "Filter Project Items",
+                "category": "Workstash",
+                "icon": "$(filter)"
+            },
+            {
+                "command": "workstash.projects.search",
+                "title": "Search Project Items",
+                "category": "Workstash",
+                "icon": "$(search)"
+            },
+            {
+                "command": "workstash.projects.clearSearch",
+                "title": "Clear Project Search",
+                "category": "Workstash",
+                "icon": "$(close)"
+            },
+            {
                 "command": "workstash.mattermost.refresh",
                 "title": "Refresh Mattermost",
                 "category": "Workstash",
@@ -628,6 +698,36 @@
                     "group": "navigation"
                 },
                 {
+                    "command": "workstash.projects.refresh",
+                    "when": "view == projectsView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "mystash.openPanel",
+                    "when": "view == projectsView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.projects.filter",
+                    "when": "view == projectsView && workstash.isAuthenticated",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.projects.search",
+                    "when": "view == projectsView && !workstash.projects.isSearching",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.projects.clearSearch",
+                    "when": "view == projectsView && workstash.projects.isSearching",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.projects.signIn",
+                    "when": "view == projectsView && !workstash.isAuthenticated",
+                    "group": "navigation"
+                },
+                {
                     "command": "workstash.mattermost.refresh",
                     "when": "view == mattermostView",
                     "group": "navigation"
@@ -793,6 +893,26 @@
                     "group": "1_issue@2"
                 },
                 {
+                    "command": "workstash.projects.openItem",
+                    "when": "view == projectsView && viewItem =~ /^projectItem/",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "workstash.projects.openInBrowser",
+                    "when": "view == projectsView && viewItem =~ /^projectItem/",
+                    "group": "inline@2"
+                },
+                {
+                    "command": "workstash.projects.openItem",
+                    "when": "view == projectsView && viewItem =~ /^projectItem/",
+                    "group": "1_project@1"
+                },
+                {
+                    "command": "workstash.projects.openInBrowser",
+                    "when": "view == projectsView && viewItem =~ /^projectItem/",
+                    "group": "1_project@2"
+                },
+                {
                     "command": "workstash.mattermost.openChannel",
                     "when": "view == mattermostView && viewItem =~ /^mattermostChannel/",
                     "group": "inline@1"
@@ -950,6 +1070,38 @@
                 {
                     "command": "workstash.issues.clearSearch",
                     "when": "workspaceFolderCount > 0 && workstash.issues.isSearching"
+                },
+                {
+                    "command": "workstash.projects.refresh",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.projects.openItem",
+                    "when": "false"
+                },
+                {
+                    "command": "workstash.projects.openInBrowser",
+                    "when": "false"
+                },
+                {
+                    "command": "workstash.projects.signIn",
+                    "when": "workspaceFolderCount > 0 && !workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.projects.signOut",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.projects.filter",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.projects.search",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.projects.clearSearch",
+                    "when": "workspaceFolderCount > 0 && workstash.projects.isSearching"
                 },
                 {
                     "command": "workstash.mattermost.refresh",

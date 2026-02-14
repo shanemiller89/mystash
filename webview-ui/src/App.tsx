@@ -15,7 +15,8 @@ import {
     type MattermostEmojiData,
     type MattermostFileInfoData,
 } from './mattermostStore';
-import { useAppStore } from './appStore';
+import { useAppStore, type RepoInfo, type AvailableRepo } from './appStore';
+import { useProjectStore, type ProjectItemData, type ProjectData, type ProjectSummary } from './projectStore';
 import { onMessage, postMessage } from './vscode';
 import { StashList } from './components/StashList';
 import { StashDetail } from './components/StashDetail';
@@ -23,8 +24,10 @@ import { TabBar } from './components/TabBar';
 import { NotesTab } from './components/NotesTab';
 import { PRsTab } from './components/PRsTab';
 import { IssuesTab } from './components/IssuesTab';
+import { ProjectsTab } from './components/ProjectsTab';
 import { MattermostTab } from './components/MattermostTab';
 import { ResizableLayout } from './components/ResizableLayout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 /** Stash master-detail pane (extracted from old App root) */
 const StashesTab: React.FC = () => {
@@ -70,6 +73,14 @@ export const App: React.FC = () => {
                     break;
                 case 'fileDiff':
                     stashStore.setFileDiff(msg.key as string, msg.diff as string);
+                    break;
+
+                // ─── Repo context ───
+                case 'repoContext':
+                    appStore.setRepoContext(
+                        (msg.current as RepoInfo) ?? null,
+                        (msg.repos as AvailableRepo[]) ?? [],
+                    );
                     break;
 
                 // ─── Notes messages ───
@@ -318,6 +329,74 @@ export const App: React.FC = () => {
                         const issueStore = useIssueStore.getState();
                         issueStore.selectIssue(msg.issueNumber as number);
                         postMessage('issues.getComments', { issueNumber: msg.issueNumber });
+                    }
+                    break;
+
+                // ─── Project messages ───
+                case 'projectsLoading': {
+                    const projStore = useProjectStore.getState();
+                    projStore.setLoading(true);
+                    break;
+                }
+                case 'projectsItemsLoading': {
+                    const projStore = useProjectStore.getState();
+                    projStore.setItemsLoading(true);
+                    break;
+                }
+                case 'projectsRepoNotFound': {
+                    const projStore = useProjectStore.getState();
+                    projStore.setRepoNotFound(true);
+                    break;
+                }
+                case 'projectsAvailable': {
+                    const projStore = useProjectStore.getState();
+                    projStore.setAvailableProjects(msg.payload as ProjectSummary[]);
+                    break;
+                }
+                case 'projectData': {
+                    const projStore = useProjectStore.getState();
+                    projStore.setSelectedProject(msg.payload as ProjectData);
+                    break;
+                }
+                case 'projectItemsData': {
+                    const projStore = useProjectStore.getState();
+                    projStore.setItems(msg.payload as ProjectItemData[]);
+                    break;
+                }
+                case 'projectFieldUpdated': {
+                    const projStore = useProjectStore.getState();
+                    projStore.setFieldUpdating(false);
+                    break;
+                }
+                case 'projectFieldUpdating': {
+                    const projStore = useProjectStore.getState();
+                    projStore.setFieldUpdating(true);
+                    break;
+                }
+                case 'projectItemDeleted': {
+                    const projStore = useProjectStore.getState();
+                    projStore.removeItem(msg.itemId as string);
+                    break;
+                }
+                case 'projectItemAdded': {
+                    const projStore = useProjectStore.getState();
+                    projStore.addItem(msg.item as ProjectItemData);
+                    break;
+                }
+                case 'projectError': {
+                    const projStore = useProjectStore.getState();
+                    projStore.setLoading(false);
+                    projStore.setItemsLoading(false);
+                    projStore.setFieldUpdating(false);
+                    break;
+                }
+
+                // ─── Deep-link: open a specific project item ───
+                case 'openProjectItem':
+                    appStore.setActiveTab('projects');
+                    if (msg.itemId) {
+                        const projStore = useProjectStore.getState();
+                        projStore.selectItem(msg.itemId as string);
                     }
                     break;
 
@@ -742,18 +821,34 @@ export const App: React.FC = () => {
 
     return (
         <div className="h-screen bg-bg text-fg text-[13px] flex flex-col">
-            <TabBar />
+            <ErrorBoundary label="TabBar">
+                <TabBar />
+            </ErrorBoundary>
             <div className="flex-1 overflow-hidden">
                 {activeTab === 'stashes' ? (
-                    <StashesTab />
+                    <ErrorBoundary key="stashes" label="Stashes">
+                        <StashesTab />
+                    </ErrorBoundary>
                 ) : activeTab === 'notes' ? (
-                    <NotesTab />
+                    <ErrorBoundary key="notes" label="Notes">
+                        <NotesTab />
+                    </ErrorBoundary>
                 ) : activeTab === 'prs' ? (
-                    <PRsTab />
+                    <ErrorBoundary key="prs" label="Pull Requests">
+                        <PRsTab />
+                    </ErrorBoundary>
                 ) : activeTab === 'issues' ? (
-                    <IssuesTab />
+                    <ErrorBoundary key="issues" label="Issues">
+                        <IssuesTab />
+                    </ErrorBoundary>
+                ) : activeTab === 'projects' ? (
+                    <ErrorBoundary key="projects" label="Projects">
+                        <ProjectsTab />
+                    </ErrorBoundary>
                 ) : (
-                    <MattermostTab />
+                    <ErrorBoundary key="mattermost" label="Mattermost">
+                        <MattermostTab />
+                    </ErrorBoundary>
                 )}
             </div>
         </div>

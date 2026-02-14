@@ -1,13 +1,15 @@
 import React from 'react';
 import { useAppStore } from '../appStore';
-import { Archive, StickyNote, GitPullRequest, CircleDot, MessageSquare } from 'lucide-react';
+import { Archive, StickyNote, GitPullRequest, CircleDot, MessageSquare, Kanban } from 'lucide-react';
 import { Button } from './ui/button';
+import { RepoSwitcher } from './RepoSwitcher';
 
 const tabs = [
     { key: 'mattermost' as const, label: 'Chat', Icon: MessageSquare },
     { key: 'notes' as const, label: 'Notes', Icon: StickyNote },
     { key: 'prs' as const, label: 'PRs', Icon: GitPullRequest },
     { key: 'issues' as const, label: 'Issues', Icon: CircleDot },
+    { key: 'projects' as const, label: 'Projects', Icon: Kanban },
 ] as const;
 
 export const TabBar: React.FC = () => {
@@ -38,22 +40,25 @@ export const TabBar: React.FC = () => {
                     </Button>
                 );
             })}
-            {/* Stash — icon-only, pushed to far right */}
+            {/* Stash — icon-only, pushed to far right + repo switcher */}
             <div className="flex-1" />
-            <Button
-                variant="ghost"
-                className={`rounded-none h-auto px-3 py-2 border-b-2 ${
-                    isStashActive
-                        ? 'border-accent text-fg'
-                        : 'border-transparent text-fg/50 hover:text-fg/80'
-                }`}
-                onClick={() => setActiveTab('stashes')}
-                role="tab"
-                aria-selected={isStashActive}
-                title="Stashes"
-            >
-                <Archive size={14} />
-            </Button>
+            <div className="flex items-center gap-1 pr-1">
+                <RepoSwitcher />
+                <Button
+                    variant="ghost"
+                    className={`rounded-none h-auto px-3 py-2 border-b-2 ${
+                        isStashActive
+                            ? 'border-accent text-fg'
+                            : 'border-transparent text-fg/50 hover:text-fg/80'
+                    }`}
+                    onClick={() => setActiveTab('stashes')}
+                    role="tab"
+                    aria-selected={isStashActive}
+                    title="Stashes"
+                >
+                    <Archive size={14} />
+                </Button>
+            </div>
         </div>
     );
 };

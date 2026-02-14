@@ -1,9 +1,20 @@
 import { create } from 'zustand';
 
 /** App-level UI state shared across tabs */
+type TabKey = 'stashes' | 'notes' | 'prs' | 'issues' | 'projects' | 'mattermost';
+
+export interface RepoInfo {
+    owner: string;
+    repo: string;
+}
+
+export interface AvailableRepo extends RepoInfo {
+    remote: string;
+}
+
 interface AppStore {
-    activeTab: 'stashes' | 'notes' | 'prs' | 'issues' | 'mattermost';
-    setActiveTab: (tab: 'stashes' | 'notes' | 'prs' | 'issues' | 'mattermost') => void;
+    activeTab: TabKey;
+    setActiveTab: (tab: TabKey) => void;
     /** Deep-link: note ID to open when switching to notes tab */
     pendingNoteId: string | null;
     setPendingNoteId: (id: string | null) => void;
@@ -17,6 +28,16 @@ interface AppStore {
     pendingChannelId: string | null;
     pendingChannelName: string | null;
     setPendingChannel: (id: string | null, name: string | null) => void;
+    /** Deep-link: Project item ID to open when switching to projects tab */
+    pendingProjectItemId: string | null;
+    setPendingProjectItemId: (id: string | null) => void;
+
+    // ─── Repo switcher ───
+    /** Currently active repo (auto-detected or user-overridden) */
+    currentRepo: RepoInfo | null;
+    /** All GitHub repos discovered from git remotes */
+    availableRepos: AvailableRepo[];
+    setRepoContext: (current: RepoInfo | null, repos: AvailableRepo[]) => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -32,4 +53,9 @@ export const useAppStore = create<AppStore>((set) => ({
     pendingChannelName: null,
     setPendingChannel: (pendingChannelId, pendingChannelName) =>
         set({ pendingChannelId, pendingChannelName }),
+    pendingProjectItemId: null,
+    setPendingProjectItemId: (pendingProjectItemId) => set({ pendingProjectItemId }),
+    currentRepo: null,
+    availableRepos: [],
+    setRepoContext: (currentRepo, availableRepos) => set({ currentRepo, availableRepos }),
 }));

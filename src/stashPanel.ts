@@ -6,6 +6,7 @@ import { PrService } from './prService';
 import { IssueService } from './issueService';
 import { MattermostService, MattermostPostData, MattermostChannelData } from './mattermostService';
 import { MattermostWebSocket, MmWsPostedData, MmWsReactionData, MmWsStatusChangeData, MmWsTypingData } from './mattermostWebSocket';
+import { ProjectService } from './projectService';
 import { formatRelativeTime, getConfig } from './utils';
 
 /**
@@ -23,11 +24,19 @@ export class StashPanel {
     private readonly _prService: PrService | undefined;
     private readonly _issueService: IssueService | undefined;
     private readonly _mattermostService: MattermostService | undefined;
+    private readonly _projectService: ProjectService | undefined;
     private readonly _extensionUri: vscode.Uri;
     private readonly _outputChannel: vscode.OutputChannel;
     private _disposables: vscode.Disposable[] = [];
     private _isReady = false;
     private _mmWebSocket: MattermostWebSocket | undefined;
+
+    /**
+     * Optional repo override chosen by the user in the webview.
+     * When set, GitHub-related tabs (PRs, Issues, Projects) use this
+     * instead of auto-detecting from the git origin remote.
+     */
+    private _repoOverride: { owner: string; repo: string } | undefined;
 
     /** Access the current panel instance (e.g. for openNote deep-links). */
     public static get currentPanel(): StashPanel | undefined {
@@ -44,6 +53,36 @@ export class StashPanel {
         }
     }
 
+    /**
+     * Resolve the active GitHub repo — uses the user's webview override
+     * if set, otherwise falls back to auto-detecting from the git origin.
+     */
+    private async _getRepoInfo(): Promise<{ owner: string; repo: string } | undefined> {
+        if (this._repoOverride) {
+            return this._repoOverride;
+        }
+        return this._gitService.getGitHubRepo();
+    }
+
+    /**
+     * Send the current repo context + all available GitHub remotes to the
+     * webview so it can render the repo switcher.
+     */
+    private async _sendRepoContext(): Promise<void> {
+        const current = await this._getRepoInfo();
+        const allRemotes = await this._gitService.getAllGitHubRemotes();
+        const repos = allRemotes.map((r) => ({
+            owner: r.owner,
+            repo: r.repo,
+            remote: r.remote,
+        }));
+        this._panel.webview.postMessage({
+            type: 'repoContext',
+            current: current ? { owner: current.owner, repo: current.repo } : null,
+            repos,
+        });
+    }
+
     public static createOrShow(
         extensionUri: vscode.Uri,
         gitService: GitService,
@@ -53,6 +92,7 @@ export class StashPanel {
         prService?: PrService,
         issueService?: IssueService,
         mattermostService?: MattermostService,
+        projectService?: ProjectService,
     ): StashPanel {
         const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -78,6 +118,7 @@ export class StashPanel {
             prService,
             issueService,
             mattermostService,
+            projectService,
         );
         return StashPanel._instance;
     }
@@ -92,6 +133,7 @@ export class StashPanel {
         prService?: PrService,
         issueService?: IssueService,
         mattermostService?: MattermostService,
+        projectService?: ProjectService,
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -102,6 +144,7 @@ export class StashPanel {
         this._prService = prService;
         this._issueService = issueService;
         this._mattermostService = mattermostService;
+        this._projectService = projectService;
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
         this._panel.webview.html = this._getHtml();
@@ -141,6 +184,13 @@ export class StashPanel {
     public openChannel(channelId: string, channelName: string): void {
         if (this._isReady) {
             this._panel.webview.postMessage({ type: 'openChannel', channelId, channelName });
+        }
+    }
+
+    /** Deep-link: switch to Projects tab and select a specific item. */
+    public openProjectItem(itemId: string): void {
+        if (this._isReady) {
+            this._panel.webview.postMessage({ type: 'openProjectItem', itemId });
         }
     }
 
@@ -255,20 +305,48 @@ export class StashPanel {
         url?: string;
         // Optimistic message correlation
         pendingId?: string;
+        // Project message properties
+        projectId?: string;
+        itemId?: string;
+        fieldId?: string;
+        value?: unknown;
+        contentId?: string;
+        // Repo switcher properties
+        owner?: string;
+        repo?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
                 this._isReady = true;
                 await this._refresh();
                 await this._sendAuthStatus();
+                await this._sendRepoContext();
                 await this._refreshNotes();
                 await this._refreshPRs();
                 await this._refreshIssues();
+                await this._refreshProjects();
                 await this._refreshMattermost();
                 break;
 
             case 'refresh':
                 await this._refresh();
+                break;
+
+            // ─── Repo switcher ───
+            case 'switchRepo':
+                if (msg.owner && msg.repo) {
+                    this._repoOverride = { owner: msg.owner, repo: msg.repo };
+                } else {
+                    // Reset to auto-detect from git origin
+                    this._repoOverride = undefined;
+                }
+                await this._sendRepoContext();
+                // Re-fetch all GitHub-dependent data with the new repo
+                await Promise.all([
+                    this._refreshPRs(),
+                    this._refreshIssues(),
+                    this._refreshProjects(),
+                ]);
                 break;
 
             case 'apply':
@@ -601,7 +679,7 @@ export class StashPanel {
             case 'prs.createComment':
                 if (msg.prNumber !== undefined && msg.body && this._prService) {
                     try {
-                        const repoInfo = await this._gitService.getGitHubRepo();
+                        const repoInfo = await this._getRepoInfo();
                         if (!repoInfo) {
                             break;
                         }
@@ -627,7 +705,7 @@ export class StashPanel {
             case 'prs.replyToComment':
                 if (msg.prNumber !== undefined && msg.commentId !== undefined && msg.body && this._prService) {
                     try {
-                        const repoInfo = await this._gitService.getGitHubRepo();
+                        const repoInfo = await this._getRepoInfo();
                         if (!repoInfo) {
                             break;
                         }
@@ -695,7 +773,7 @@ export class StashPanel {
 
             case 'prs.openInBrowser':
                 if (msg.prNumber !== undefined) {
-                    const repoInfo = await this._gitService.getGitHubRepo();
+                    const repoInfo = await this._getRepoInfo();
                     if (repoInfo) {
                         const url = `https://github.com/${repoInfo.owner}/${repoInfo.repo}/pull/${msg.prNumber}`;
                         await vscode.env.openExternal(vscode.Uri.parse(url));
@@ -720,7 +798,7 @@ export class StashPanel {
             case 'prs.getCollaborators':
                 if (this._prService) {
                     try {
-                        const repoInfo = await this._gitService.getGitHubRepo();
+                        const repoInfo = await this._getRepoInfo();
                         if (!repoInfo) { break; }
                         const collaborators = await this._prService.getCollaborators(
                             repoInfo.owner,
@@ -740,7 +818,7 @@ export class StashPanel {
             case 'prs.requestReview':
                 if (msg.prNumber !== undefined && msg.reviewers?.length && this._prService) {
                     try {
-                        const repoInfo = await this._gitService.getGitHubRepo();
+                        const repoInfo = await this._getRepoInfo();
                         if (!repoInfo) { break; }
                         this._panel.webview.postMessage({ type: 'prRequestingReview' });
                         const reviewers = await this._prService.requestReviewers(
@@ -767,7 +845,7 @@ export class StashPanel {
             case 'prs.removeReviewRequest':
                 if (msg.prNumber !== undefined && msg.reviewer && this._prService) {
                     try {
-                        const repoInfo = await this._gitService.getGitHubRepo();
+                        const repoInfo = await this._getRepoInfo();
                         if (!repoInfo) { break; }
                         await this._prService.removeReviewRequest(
                             repoInfo.owner,
@@ -814,7 +892,7 @@ export class StashPanel {
             case 'issues.createComment':
                 if (msg.issueNumber !== undefined && msg.body && this._issueService) {
                     try {
-                        const repoInfo = await this._gitService.getGitHubRepo();
+                        const repoInfo = await this._getRepoInfo();
                         if (!repoInfo) { break; }
                         this._panel.webview.postMessage({ type: 'issueCommentSaving' });
                         const comment = await this._issueService.createComment(
@@ -838,7 +916,7 @@ export class StashPanel {
             case 'issues.close':
                 if (msg.issueNumber !== undefined && this._issueService) {
                     try {
-                        const repoInfo = await this._gitService.getGitHubRepo();
+                        const repoInfo = await this._getRepoInfo();
                         if (!repoInfo) { break; }
                         const reason = (msg.stateReason === 'not_planned' ? 'not_planned' : 'completed') as 'completed' | 'not_planned';
                         const updated = await this._issueService.closeIssue(
@@ -864,7 +942,7 @@ export class StashPanel {
             case 'issues.reopen':
                 if (msg.issueNumber !== undefined && this._issueService) {
                     try {
-                        const repoInfo = await this._gitService.getGitHubRepo();
+                        const repoInfo = await this._getRepoInfo();
                         if (!repoInfo) { break; }
                         const updated = await this._issueService.reopenIssue(
                             repoInfo.owner,
@@ -887,7 +965,7 @@ export class StashPanel {
 
             case 'issues.openInBrowser':
                 if (msg.issueNumber !== undefined) {
-                    const repoInfo = await this._gitService.getGitHubRepo();
+                    const repoInfo = await this._getRepoInfo();
                     if (repoInfo) {
                         const url = `https://github.com/${repoInfo.owner}/${repoInfo.repo}/issues/${msg.issueNumber}`;
                         await vscode.env.openExternal(vscode.Uri.parse(url));
@@ -899,6 +977,120 @@ export class StashPanel {
                 if (msg.body) {
                     await vscode.env.clipboard.writeText(msg.body);
                     vscode.window.showInformationMessage('Comment copied to clipboard');
+                }
+                break;
+
+            // ─── Project Message Handlers ──────────────────────────
+
+            case 'projects.refresh':
+                await this._refreshProjects();
+                break;
+
+            case 'projects.signIn':
+                if (this._authService) {
+                    await this._authService.signIn();
+                    await this._refreshProjects();
+                }
+                break;
+
+            case 'projects.selectProject':
+                if (this._projectService && msg.projectId) {
+                    try {
+                        this._panel.webview.postMessage({ type: 'projectsItemsLoading' });
+                        const project = await this._projectService.getProjectById(msg.projectId as string);
+                        const projectData = ProjectService.toData(project);
+                        this._panel.webview.postMessage({ type: 'projectData', payload: projectData });
+                        const result = await this._projectService.listProjectItems(project.id);
+                        const items = result.items.map((i) => ProjectService.toItemData(i));
+                        this._panel.webview.postMessage({ type: 'projectItemsData', payload: items });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to load project: ${m}`);
+                        this._panel.webview.postMessage({ type: 'projectError', message: m });
+                    }
+                }
+                break;
+
+            case 'projects.updateField':
+                if (this._projectService && msg.projectId && msg.itemId && msg.fieldId && msg.value) {
+                    try {
+                        this._panel.webview.postMessage({ type: 'projectFieldUpdating' });
+                        await this._projectService.updateFieldValue(
+                            msg.projectId as string,
+                            msg.itemId as string,
+                            msg.fieldId as string,
+                            msg.value as Record<string, unknown>,
+                        );
+                        this._panel.webview.postMessage({ type: 'projectFieldUpdated' });
+                        // Refresh items to get updated values
+                        await this._refreshProjectItems(msg.projectId as string);
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to update field: ${m}`);
+                        this._panel.webview.postMessage({ type: 'projectError', message: m });
+                    }
+                }
+                break;
+
+            case 'projects.deleteItem':
+                if (this._projectService && msg.projectId && msg.itemId) {
+                    try {
+                        await this._projectService.deleteItem(
+                            msg.projectId as string,
+                            msg.itemId as string,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'projectItemDeleted',
+                            itemId: msg.itemId,
+                        });
+                        vscode.window.showInformationMessage('Item removed from project');
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to delete item: ${m}`);
+                        this._panel.webview.postMessage({ type: 'projectError', message: m });
+                    }
+                }
+                break;
+
+            case 'projects.addDraftIssue':
+                if (this._projectService && msg.projectId && msg.title) {
+                    try {
+                        const newItemId = await this._projectService.addDraftIssue(
+                            msg.projectId as string,
+                            msg.title as string,
+                            msg.body as string | undefined,
+                        );
+                        vscode.window.showInformationMessage('Draft issue added to project');
+                        // Refresh items to include the new item
+                        await this._refreshProjectItems(msg.projectId as string);
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to add draft issue: ${m}`);
+                        this._panel.webview.postMessage({ type: 'projectError', message: m });
+                    }
+                }
+                break;
+
+            case 'projects.addExistingItem':
+                if (this._projectService && msg.projectId && msg.contentId) {
+                    try {
+                        await this._projectService.addItemToProject(
+                            msg.projectId as string,
+                            msg.contentId as string,
+                        );
+                        vscode.window.showInformationMessage('Item added to project');
+                        await this._refreshProjectItems(msg.projectId as string);
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to add item: ${m}`);
+                        this._panel.webview.postMessage({ type: 'projectError', message: m });
+                    }
+                }
+                break;
+
+            case 'projects.openInBrowser':
+                if (msg.url) {
+                    vscode.env.openExternal(vscode.Uri.parse(msg.url as string));
                 }
                 break;
 
@@ -1667,7 +1859,7 @@ export class StashPanel {
                 return;
             }
 
-            const repoInfo = await this._gitService.getGitHubRepo();
+            const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
                 this._panel.webview.postMessage({ type: 'prRepoNotFound' });
                 return;
@@ -1702,7 +1894,7 @@ export class StashPanel {
             return;
         }
         try {
-            const repoInfo = await this._gitService.getGitHubRepo();
+            const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
                 return;
             }
@@ -1738,7 +1930,7 @@ export class StashPanel {
                 return;
             }
 
-            const repoInfo = await this._gitService.getGitHubRepo();
+            const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
                 this._panel.webview.postMessage({ type: 'issueRepoNotFound' });
                 return;
@@ -1765,7 +1957,7 @@ export class StashPanel {
             return;
         }
         try {
-            const repoInfo = await this._gitService.getGitHubRepo();
+            const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
                 return;
             }
@@ -1786,6 +1978,69 @@ export class StashPanel {
         } catch (e: unknown) {
             const m = e instanceof Error ? e.message : 'Unknown error';
             this._panel.webview.postMessage({ type: 'issueError', message: m });
+        }
+    }
+
+    /** Discover projects for the current repo and load the first one. */
+    private async _refreshProjects(): Promise<void> {
+        if (!this._projectService || !this._authService) {
+            return;
+        }
+        try {
+            const isAuth = await this._authService.isAuthenticated();
+            if (!isAuth) {
+                return;
+            }
+
+            const repoInfo = await this._getRepoInfo();
+            if (!repoInfo) {
+                this._panel.webview.postMessage({ type: 'projectsRepoNotFound' });
+                return;
+            }
+
+            this._panel.webview.postMessage({ type: 'projectsLoading' });
+
+            // Discover projects linked to this repo
+            const projects = await this._projectService.listRepositoryProjects(
+                repoInfo.owner,
+                repoInfo.repo,
+            );
+            this._panel.webview.postMessage({ type: 'projectsAvailable', payload: projects });
+
+            if (projects.length === 0) {
+                this._panel.webview.postMessage({ type: 'projectItemsData', payload: [] });
+                return;
+            }
+
+            // Auto-select first open project
+            const firstOpen = projects.find((p) => !p.closed) ?? projects[0];
+            const project = await this._projectService.getProjectById(firstOpen.id);
+            const projectData = ProjectService.toData(project);
+            this._panel.webview.postMessage({ type: 'projectData', payload: projectData });
+
+            // Load items
+            const result = await this._projectService.listProjectItems(project.id);
+            const items = result.items.map((i) => ProjectService.toItemData(i));
+            this._panel.webview.postMessage({ type: 'projectItemsData', payload: items });
+        } catch (e: unknown) {
+            const m = e instanceof Error ? e.message : 'Unknown error';
+            this._panel.webview.postMessage({ type: 'projectError', message: m });
+        }
+    }
+
+    /** Refresh items for a specific project (e.g. after mutation). */
+    private async _refreshProjectItems(projectId: string): Promise<void> {
+        if (!this._projectService) {
+            return;
+        }
+        try {
+            this._panel.webview.postMessage({ type: 'projectsItemsLoading' });
+            const result = await this._projectService.listProjectItems(projectId);
+            const items = result.items.map((i) => ProjectService.toItemData(i));
+            this._panel.webview.postMessage({ type: 'projectItemsData', payload: items });
+        } catch (e: unknown) {
+            const m = e instanceof Error ? e.message : 'Unknown error';
+            this._panel.webview.postMessage({ type: 'projectError', message: m });
         }
     }
 

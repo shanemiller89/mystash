@@ -1,0 +1,280 @@
+import { create } from 'zustand';
+
+// ─── Data Shapes (mirror projectService webview types) ────────────
+
+export interface ProjectFieldOption {
+    id: string;
+    name: string;
+    color?: string;
+    description?: string;
+}
+
+export interface ProjectIteration {
+    id: string;
+    title: string;
+    startDate: string;
+    duration: number;
+}
+
+export interface ProjectFieldData {
+    id: string;
+    name: string;
+    dataType: string;
+    options?: ProjectFieldOption[];
+    iterations?: ProjectIteration[];
+}
+
+export interface ProjectFieldValueData {
+    fieldId: string;
+    fieldName: string;
+    fieldType: string;
+    text?: string;
+    number?: number;
+    date?: string;
+    singleSelectOptionId?: string;
+    singleSelectOptionName?: string;
+    iterationId?: string;
+    iterationTitle?: string;
+    iterationStartDate?: string;
+    labels?: { name: string; color: string }[];
+    users?: { login: string; avatarUrl: string }[];
+    milestoneTitle?: string;
+}
+
+export interface ProjectItemContent {
+    type: 'Issue' | 'PullRequest' | 'DraftIssue';
+    nodeId: string;
+    number?: number;
+    title: string;
+    state?: string;
+    url?: string;
+    body?: string;
+    author?: string;
+    authorAvatarUrl?: string;
+    labels?: { name: string; color: string }[];
+    assignees?: { login: string; avatarUrl: string }[];
+}
+
+export interface ProjectItemData {
+    id: string;
+    type: 'ISSUE' | 'PULL_REQUEST' | 'DRAFT_ISSUE' | 'REDACTED';
+    isArchived: boolean;
+    createdAt: string;
+    updatedAt: string;
+    fieldValues: ProjectFieldValueData[];
+    content?: ProjectItemContent;
+}
+
+export interface ProjectViewData {
+    id: string;
+    number: number;
+    name: string;
+    layout: 'TABLE' | 'BOARD' | 'ROADMAP';
+    filter?: string;
+}
+
+export interface ProjectSummary {
+    id: string;
+    number: number;
+    title: string;
+    closed: boolean;
+    url: string;
+}
+
+export interface ProjectData {
+    id: string;
+    number: number;
+    title: string;
+    shortDescription: string | null;
+    url: string;
+    closed: boolean;
+    public: boolean;
+    fields: ProjectFieldData[];
+    views: ProjectViewData[];
+    totalItemCount: number;
+}
+
+// ─── Store ────────────────────────────────────────────────────────
+
+interface ProjectStore {
+    // Available projects for the repo
+    availableProjects: ProjectSummary[];
+    selectedProjectId: string | null;
+    selectedProject: ProjectData | null;
+
+    // Items & fields
+    items: ProjectItemData[];
+    fields: ProjectFieldData[];
+
+    // Selected item
+    selectedItemId: string | null;
+
+    // Filters
+    statusFilter: string; // 'all' or option name
+    searchQuery: string;
+
+    // Loading states
+    isLoading: boolean;
+    isItemsLoading: boolean;
+    isFieldUpdating: boolean;
+    isRepoNotFound: boolean;
+
+    // Actions
+    setAvailableProjects: (projects: ProjectSummary[]) => void;
+    setSelectedProject: (project: ProjectData) => void;
+    setItems: (items: ProjectItemData[]) => void;
+    setFields: (fields: ProjectFieldData[]) => void;
+    selectItem: (itemId: string) => void;
+    clearSelection: () => void;
+    setStatusFilter: (filter: string) => void;
+    setSearchQuery: (query: string) => void;
+    setLoading: (loading: boolean) => void;
+    setItemsLoading: (loading: boolean) => void;
+    setFieldUpdating: (updating: boolean) => void;
+    setRepoNotFound: (notFound: boolean) => void;
+    updateItemFieldValue: (itemId: string, fieldId: string, value: ProjectFieldValueData) => void;
+    removeItem: (itemId: string) => void;
+    addItem: (item: ProjectItemData) => void;
+
+    // Selectors
+    filteredItems: () => ProjectItemData[];
+    selectedItem: () => ProjectItemData | undefined;
+    statusOptions: () => ProjectFieldOption[];
+}
+
+export const useProjectStore = create<ProjectStore>((set, get) => ({
+    availableProjects: [],
+    selectedProjectId: null,
+    selectedProject: null,
+    items: [],
+    fields: [],
+    selectedItemId: null,
+    statusFilter: 'all',
+    searchQuery: '',
+    isLoading: false,
+    isItemsLoading: false,
+    isFieldUpdating: false,
+    isRepoNotFound: false,
+
+    setAvailableProjects: (projects) => set({ availableProjects: projects }),
+
+    setSelectedProject: (project) =>
+        set({
+            selectedProject: project,
+            selectedProjectId: project.id,
+            fields: project.fields,
+            selectedItemId: null,
+            statusFilter: 'all',
+            searchQuery: '',
+        }),
+
+    setItems: (items) => {
+        const { selectedItemId } = get();
+        const stillExists = selectedItemId !== null && items.some((i) => i.id === selectedItemId);
+        set({
+            items,
+            isItemsLoading: false,
+            isLoading: false,
+            ...(stillExists ? {} : { selectedItemId: null }),
+        });
+    },
+
+    setFields: (fields) => set({ fields }),
+
+    selectItem: (itemId) => {
+        const { selectedItemId } = get();
+        if (itemId === selectedItemId) {
+            return;
+        }
+        set({ selectedItemId: itemId });
+    },
+
+    clearSelection: () => set({ selectedItemId: null }),
+
+    setStatusFilter: (statusFilter) =>
+        set({ statusFilter }),
+
+    setSearchQuery: (searchQuery) => set({ searchQuery }),
+
+    setLoading: (loading) => set({ isLoading: loading }),
+    setItemsLoading: (loading) => set({ isItemsLoading: loading }),
+    setFieldUpdating: (updating) => set({ isFieldUpdating: updating }),
+    setRepoNotFound: (notFound) => set({ isRepoNotFound: notFound, isLoading: false }),
+
+    updateItemFieldValue: (itemId, fieldId, value) => {
+        set((state) => ({
+            items: state.items.map((item) => {
+                if (item.id !== itemId) {
+                    return item;
+                }
+                const existingIdx = item.fieldValues.findIndex((fv) => fv.fieldId === fieldId);
+                const newFieldValues = [...item.fieldValues];
+                if (existingIdx >= 0) {
+                    newFieldValues[existingIdx] = value;
+                } else {
+                    newFieldValues.push(value);
+                }
+                return { ...item, fieldValues: newFieldValues };
+            }),
+            isFieldUpdating: false,
+        }));
+    },
+
+    removeItem: (itemId) => {
+        set((state) => ({
+            items: state.items.filter((i) => i.id !== itemId),
+            selectedItemId: state.selectedItemId === itemId ? null : state.selectedItemId,
+        }));
+    },
+
+    addItem: (item) => {
+        set((state) => ({
+            items: [item, ...state.items],
+        }));
+    },
+
+    filteredItems: () => {
+        const { items, statusFilter, searchQuery } = get();
+
+        let filtered = items.filter((i) => !i.isArchived);
+
+        // Status filter
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter((item) => {
+                const statusFv = item.fieldValues.find(
+                    (fv) => fv.fieldName === 'Status' && fv.fieldType === 'SINGLE_SELECT',
+                );
+                return statusFv?.singleSelectOptionName === statusFilter;
+            });
+        }
+
+        // Search filter
+        const q = searchQuery.trim().toLowerCase();
+        if (q) {
+            filtered = filtered.filter((item) => {
+                const title = item.content?.title?.toLowerCase() ?? '';
+                const number = item.content?.number ? `#${item.content.number}` : '';
+                const labels = item.content?.labels?.map((l) => l.name.toLowerCase()).join(' ') ?? '';
+                return title.includes(q) || number.includes(q) || labels.includes(q);
+            });
+        }
+
+        return filtered;
+    },
+
+    selectedItem: () => {
+        const { items, selectedItemId } = get();
+        if (!selectedItemId) {
+            return undefined;
+        }
+        return items.find((i) => i.id === selectedItemId);
+    },
+
+    statusOptions: () => {
+        const { fields } = get();
+        const statusField = fields.find(
+            (f) => f.name === 'Status' && f.dataType === 'SINGLE_SELECT',
+        );
+        return statusField?.options ?? [];
+    },
+}));

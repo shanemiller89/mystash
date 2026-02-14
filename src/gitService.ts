@@ -349,6 +349,49 @@ export class GitService {
     }
 
     /**
+     * List all configured git remotes and their URLs.
+     * Returns an array of `{ name, url }` pairs.
+     */
+    async getAllRemotes(): Promise<{ name: string; url: string }[]> {
+        const { stdout, exitCode } = await this.execGit('remote -v');
+        if (exitCode !== 0 || !stdout) {
+            return [];
+        }
+        const seen = new Set<string>();
+        const remotes: { name: string; url: string }[] = [];
+        for (const line of stdout.split('\n')) {
+            // Format: "origin\thttps://github.com/owner/repo.git (fetch)"
+            const match = line.match(/^(\S+)\s+(\S+)\s+\(fetch\)$/);
+            if (match && !seen.has(match[1])) {
+                seen.add(match[1]);
+                remotes.push({ name: match[1], url: match[2] });
+            }
+        }
+        return remotes;
+    }
+
+    /**
+     * Discover all unique GitHub owner/repo pairs from all configured remotes.
+     * Each entry includes the remote name for display purposes.
+     */
+    async getAllGitHubRemotes(): Promise<{ owner: string; repo: string; remote: string }[]> {
+        const remotes = await this.getAllRemotes();
+        const seen = new Set<string>();
+        const repos: { owner: string; repo: string; remote: string }[] = [];
+        for (const r of remotes) {
+            const parsed = GitService.parseGitHubUrl(r.url);
+            if (parsed) {
+                const key = `${parsed.owner}/${parsed.repo}`.toLowerCase();
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    repos.push({ ...parsed, remote: r.name });
+                }
+            }
+        }
+        return repos;
+    }
+
+    /**
      * Parse the GitHub owner/repo from the origin remote URL.
      * Supports HTTPS (`https://github.com/owner/repo.git`) and
      * SSH (`git@github.com:owner/repo.git`) formats.
