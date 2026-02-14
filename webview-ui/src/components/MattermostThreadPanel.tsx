@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useMattermostStore, type MattermostPostData, type MattermostReactionData } from '../mattermostStore';
+import { useMattermostStore, type MattermostPostData } from '../mattermostStore';
 import { postMessage } from '../vscode';
 import { MarkdownBody } from './MarkdownBody';
+import { ReactionBar } from './ReactionBar';
 import {
     X,
     Send,
@@ -9,7 +10,7 @@ import {
     Check,
     Loader2,
 } from 'lucide-react';
-import { EmojiPickerButton } from './EmojiPicker';
+import { EmojiPickerButton, ComposeEmojiPickerButton } from './EmojiPicker';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
 
 function formatTime(iso: string): string {
@@ -43,51 +44,6 @@ function StatusDot({ userId }: { userId: string }) {
         />
     );
 }
-
-/** Compact reaction bar */
-const ReactionBar: React.FC<{ postId: string; currentUserId: string | null }> = ({ postId, currentUserId }) => {
-    const reactions = useMattermostStore((s) => s.reactions[postId]);
-    if (!reactions || reactions.length === 0) { return null; }
-
-    const grouped = useMemo(() => {
-        const map = new Map<string, MattermostReactionData[]>();
-        for (const r of reactions) {
-            const list = map.get(r.emojiName) ?? [];
-            list.push(r);
-            map.set(r.emojiName, list);
-        }
-        return Array.from(map.entries());
-    }, [reactions]);
-
-    return (
-        <div className="flex flex-wrap gap-1 mt-1">
-            {grouped.map(([emoji, users]) => {
-                const myReaction = users.some((u) => u.userId === currentUserId);
-                return (
-                    <button
-                        key={emoji}
-                        onClick={() => {
-                            if (myReaction) {
-                                postMessage('mattermost.removeReaction', { postId, emojiName: emoji });
-                            } else {
-                                postMessage('mattermost.addReaction', { postId, emojiName: emoji });
-                            }
-                        }}
-                        title={users.map((u) => u.username).join(', ')}
-                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] border transition-colors ${
-                            myReaction
-                                ? 'border-[var(--vscode-textLink-foreground)] bg-[var(--vscode-textLink-foreground)]/10 text-[var(--vscode-textLink-foreground)]'
-                                : 'border-[var(--vscode-panel-border)] text-fg/60 hover:bg-[var(--vscode-list-hoverBackground)]'
-                        }`}
-                    >
-                        <span>:{emoji}:</span>
-                        <span className="font-medium">{users.length}</span>
-                    </button>
-                );
-            })}
-        </div>
-    );
-};
 
 /** Thread post (root or reply) */
 const ThreadMessage: React.FC<{
@@ -168,6 +124,11 @@ export const MattermostThreadPanel: React.FC = () => {
     useEffect(() => {
         setReplyText('');
     }, [activeThreadRootId]);
+
+    const handleInsertEmoji = useCallback((shortcode: string) => {
+        setReplyText((prev) => prev + shortcode);
+        replyTextareaRef.current?.focus();
+    }, []);
 
     const rootPost = useMemo(() => {
         if (!activeThreadRootId || threadPosts.length === 0) { return null; }
@@ -253,19 +214,24 @@ export const MattermostThreadPanel: React.FC = () => {
                         selectedIndex={emojiSelectedIndex}
                         onSelect={emojiAcceptSuggestion}
                     />
-                    <textarea
-                        ref={replyTextareaRef}
-                        value={replyText}
-                        onChange={emojiHandleChange}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Reply… (⌘+Enter)"
-                        rows={2}
-                        className="flex-1 px-2 py-1.5 text-sm rounded-md resize-none
-                            bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]
-                            border border-[var(--vscode-input-border)]
-                            focus:outline-none focus:border-[var(--vscode-focusBorder)]
-                            placeholder:text-fg/40"
-                    />
+                    <div className="flex-1 flex flex-col gap-1">
+                        <textarea
+                            ref={replyTextareaRef}
+                            value={replyText}
+                            onChange={emojiHandleChange}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Reply… (⌘+Enter)"
+                            rows={2}
+                            className="w-full px-2 py-1.5 text-sm rounded-md resize-none
+                                bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]
+                                border border-[var(--vscode-input-border)]
+                                focus:outline-none focus:border-[var(--vscode-focusBorder)]
+                                placeholder:text-fg/40"
+                        />
+                        <div className="flex items-center gap-1 px-1">
+                            <ComposeEmojiPickerButton onInsert={handleInsertEmoji} />
+                        </div>
+                    </div>
                     <button
                         onClick={handleSendReply}
                         disabled={!replyText.trim() || isSendingMessage}

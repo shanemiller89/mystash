@@ -545,6 +545,22 @@ export const App: React.FC = () => {
                     break;
                 }
 
+                case 'mattermostBulkUnreads': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setBulkUnreads(msg.payload as MattermostChannelUnreadData[]);
+                    break;
+                }
+
+                case 'mattermostNewPostUnread': {
+                    // Increment unread count for channels that aren't currently selected
+                    const mmStore = useMattermostStore.getState();
+                    const channelId = msg.channelId as string;
+                    if (channelId !== mmStore.selectedChannelId) {
+                        mmStore.incrementUnread(channelId);
+                    }
+                    break;
+                }
+
                 case 'mattermostMarkedRead': {
                     const mmStore = useMattermostStore.getState();
                     mmStore.markChannelRead(msg.channelId as string);
@@ -564,6 +580,7 @@ export const App: React.FC = () => {
 
                 case 'mattermostUserSearchResults': {
                     const mmStore = useMattermostStore.getState();
+                    mmStore.setIsSearchingUsers(false);
                     mmStore.setUserSearchResults(msg.payload as MattermostUserData[]);
                     break;
                 }

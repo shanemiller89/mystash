@@ -89,6 +89,7 @@ export interface MattermostChannelData {
     header: string;
     purpose: string;
     lastPostAt: string; // ISO string
+    otherUserId?: string; // For DM channels: the other user's ID
 }
 
 export interface MattermostPostData {
@@ -1062,7 +1063,7 @@ export class MattermostService {
         };
     }
 
-    static toChannelData(channel: MattermostChannel): MattermostChannelData {
+    static toChannelData(channel: MattermostChannel, otherUserId?: string): MattermostChannelData {
         return {
             id: channel.id,
             teamId: channel.teamId,
@@ -1074,6 +1075,7 @@ export class MattermostService {
             lastPostAt: channel.lastPostAt
                 ? new Date(channel.lastPostAt).toISOString()
                 : '',
+            otherUserId,
         };
     }
 

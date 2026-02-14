@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useMattermostStore, type MattermostPostData, type MattermostReactionData } from '../mattermostStore';
+import { useMattermostStore, type MattermostPostData } from '../mattermostStore';
 import { postMessage } from '../vscode';
-import { EmojiPickerButton } from './EmojiPicker';
+import { EmojiPickerButton, ComposeEmojiPickerButton } from './EmojiPicker';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
 import { MarkdownBody } from './MarkdownBody';
+import { ReactionBar } from './ReactionBar';
 import {
     Send,
     ArrowLeft,
@@ -14,6 +15,8 @@ import {
     MessageSquare,
     WifiOff,
     Circle,
+    X,
+    Smile,
 } from 'lucide-react';
 
 function formatTime(iso: string): string {
@@ -52,52 +55,6 @@ function StatusDot({ userId }: { userId: string }) {
         />
     );
 }
-
-/** Compact reaction bar under a message */
-const ReactionBar: React.FC<{ postId: string; currentUserId: string | null }> = ({ postId, currentUserId }) => {
-    const reactions = useMattermostStore((s) => s.reactions[postId]);
-    if (!reactions || reactions.length === 0) { return null; }
-
-    // Group by emoji
-    const grouped = useMemo(() => {
-        const map = new Map<string, MattermostReactionData[]>();
-        for (const r of reactions) {
-            const list = map.get(r.emojiName) ?? [];
-            list.push(r);
-            map.set(r.emojiName, list);
-        }
-        return Array.from(map.entries());
-    }, [reactions]);
-
-    return (
-        <div className="flex flex-wrap gap-1 mt-1">
-            {grouped.map(([emoji, users]) => {
-                const myReaction = users.some((u) => u.userId === currentUserId);
-                return (
-                    <button
-                        key={emoji}
-                        onClick={() => {
-                            if (myReaction) {
-                                postMessage('mattermost.removeReaction', { postId, emojiName: emoji });
-                            } else {
-                                postMessage('mattermost.addReaction', { postId, emojiName: emoji });
-                            }
-                        }}
-                        title={users.map((u) => u.username).join(', ')}
-                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
-                            myReaction
-                                ? 'border-[var(--vscode-textLink-foreground)] bg-[var(--vscode-textLink-foreground)]/10 text-[var(--vscode-textLink-foreground)]'
-                                : 'border-[var(--vscode-panel-border)] text-fg/60 hover:bg-[var(--vscode-list-hoverBackground)]'
-                        }`}
-                    >
-                        <span>:{emoji}:</span>
-                        <span className="font-medium">{users.length}</span>
-                    </button>
-                );
-            })}
-        </div>
-    );
-};
 
 /** Group posts by date for visual separation */
 function groupPostsByDate(posts: MattermostPostData[]): { date: string; posts: MattermostPostData[] }[] {
@@ -279,6 +236,10 @@ export const MattermostChat: React.FC<{
     const hasMorePosts = useMattermostStore((s) => s.hasMorePosts);
     const currentUser = useMattermostStore((s) => s.currentUser);
     const openThread = useMattermostStore((s) => s.openThread);
+    const replyToPostId = useMattermostStore((s) => s.replyToPostId);
+    const replyToUsername = useMattermostStore((s) => s.replyToUsername);
+    const setReplyTo = useMattermostStore((s) => s.setReplyTo);
+    const clearReplyTo = useMattermostStore((s) => s.clearReplyTo);
 
     const [messageText, setMessageText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -306,6 +267,11 @@ export const MattermostChat: React.FC<{
         postMessage('mattermost.getThread', { postId: rootId });
     }, [openThread]);
 
+    const handleInsertEmoji = useCallback((shortcode: string) => {
+        setMessageText((prev) => prev + shortcode);
+        textareaRef.current?.focus();
+    }, []);
+
     // Emoji shortcode autocomplete
     const {
         suggestions: emojiSuggestions,
@@ -332,9 +298,11 @@ export const MattermostChat: React.FC<{
         postMessage('mattermost.sendPost', {
             channelId: selectedChannelId,
             message: text,
+            rootId: replyToPostId ?? undefined,
         });
         setMessageText('');
-    }, [messageText, selectedChannelId]);
+        clearReplyTo();
+    }, [messageText, selectedChannelId, replyToPostId, clearReplyTo]);
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -464,6 +432,22 @@ export const MattermostChat: React.FC<{
 
             {/* Compose area */}
             <div className="shrink-0 border-t border-[var(--vscode-panel-border)] p-3">
+                {/* Reply-to indicator */}
+                {replyToPostId && (
+                    <div className="flex items-center gap-2 mb-2 px-1 text-xs text-fg/60">
+                        <MessageSquare size={12} className="text-[var(--vscode-textLink-foreground)]" />
+                        <span>
+                            Replying to <span className="font-semibold text-[var(--vscode-textLink-foreground)]">@{replyToUsername}</span>
+                        </span>
+                        <button
+                            onClick={clearReplyTo}
+                            className="ml-auto p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/40"
+                            title="Cancel reply"
+                        >
+                            <X size={12} />
+                        </button>
+                    </div>
+                )}
                 <div className="relative flex gap-2">
                     {/* Emoji autocomplete dropdown */}
                     <EmojiAutocompleteDropdown
@@ -471,19 +455,24 @@ export const MattermostChat: React.FC<{
                         selectedIndex={emojiSelectedIndex}
                         onSelect={emojiAcceptSuggestion}
                     />
-                    <textarea
-                        ref={textareaRef}
-                        value={messageText}
-                        onChange={handleInputChange}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Type a message… (⌘+Enter to send)"
-                        rows={2}
-                        className="flex-1 px-3 py-2 text-sm rounded-md resize-none
-                            bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]
-                            border border-[var(--vscode-input-border)]
-                            focus:outline-none focus:border-[var(--vscode-focusBorder)]
-                            placeholder:text-fg/40"
-                    />
+                    <div className="flex-1 flex flex-col gap-1">
+                        <textarea
+                            ref={textareaRef}
+                            value={messageText}
+                            onChange={handleInputChange}
+                            onKeyDown={handleKeyDown}
+                            placeholder={replyToPostId ? "Reply… (⌘+Enter to send)" : "Type a message… (⌘+Enter to send)"}
+                            rows={2}
+                            className="w-full px-3 py-2 text-sm rounded-md resize-none
+                                bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]
+                                border border-[var(--vscode-input-border)]
+                                focus:outline-none focus:border-[var(--vscode-focusBorder)]
+                                placeholder:text-fg/40"
+                        />
+                        <div className="flex items-center gap-1 px-1">
+                            <ComposeEmojiPickerButton onInsert={handleInsertEmoji} />
+                        </div>
+                    </div>
                     <button
                         onClick={handleSend}
                         disabled={!messageText.trim() || isSendingMessage}

@@ -116,16 +116,19 @@ function SectionHeader({
 function NewDmDialog({ onClose }: { onClose: () => void }) {
     const [searchTerm, setSearchTerm] = useState('');
     const userSearchResults = useMattermostStore((s) => s.userSearchResults);
+    const isSearchingUsers = useMattermostStore((s) => s.isSearchingUsers);
     const clearUserSearchResults = useMattermostStore((s) => s.clearUserSearchResults);
+    const setIsSearchingUsers = useMattermostStore((s) => s.setIsSearchingUsers);
 
     const handleSearch = useCallback((term: string) => {
         setSearchTerm(term);
         if (term.trim().length >= 2) {
+            setIsSearchingUsers(true);
             postMessage('mattermost.searchUsers', { term: term.trim() });
         } else {
             clearUserSearchResults();
         }
-    }, [clearUserSearchResults]);
+    }, [clearUserSearchResults, setIsSearchingUsers]);
 
     const handleSelectUser = useCallback((userId: string) => {
         postMessage('mattermost.createDM', { targetUserId: userId });
@@ -153,7 +156,10 @@ function NewDmDialog({ onClose }: { onClose: () => void }) {
                     focus:outline-none focus:border-[var(--vscode-focusBorder)]
                     placeholder:text-fg/40"
             />
-            {userSearchResults.length > 0 && (
+            {isSearchingUsers && (
+                <div className="mt-1 text-xs text-fg/50 px-1">Searching…</div>
+            )}
+            {!isSearchingUsers && userSearchResults.length > 0 && (
                 <div className="mt-1 max-h-[160px] overflow-y-auto">
                     {userSearchResults.map((u) => (
                         <button
@@ -189,6 +195,7 @@ export const MattermostChannelList: React.FC = () => {
     const searchQuery = useMattermostStore((s) => s.searchQuery);
     const setSearchQuery = useMattermostStore((s) => s.setSearchQuery);
     const unreads = useMattermostStore((s) => s.unreads);
+    const userStatuses = useMattermostStore((s) => s.userStatuses);
 
     const [channelsOpen, setChannelsOpen] = useState(true);
     const [dmsOpen, setDmsOpen] = useState(true);
@@ -260,6 +267,8 @@ export const MattermostChannelList: React.FC = () => {
     const renderChannel = (channel: MattermostChannelData) => {
         const unread = unreads[channel.id];
         const hasUnread = unread && (unread.msgCount > 0 || unread.mentionCount > 0);
+        const isDm = channel.type === 'D';
+        const dmStatus = isDm && channel.otherUserId ? userStatuses[channel.otherUserId] : undefined;
         return (
             <button
                 key={channel.id}
@@ -270,7 +279,11 @@ export const MattermostChannelList: React.FC = () => {
                         : ''
                 } ${hasUnread ? 'font-semibold' : ''}`}
             >
-                <ChannelIcon type={channel.type} size={14} />
+                {isDm ? (
+                    <StatusDot status={dmStatus} size={10} />
+                ) : (
+                    <ChannelIcon type={channel.type} size={14} />
+                )}
                 <span className="text-sm truncate flex-1">
                     {channel.displayName}
                 </span>

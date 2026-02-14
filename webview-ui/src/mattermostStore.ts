@@ -18,6 +18,7 @@ export interface MattermostChannelData {
     header: string;
     purpose: string;
     lastPostAt: string;
+    otherUserId?: string; // For DM channels: the other user's ID
 }
 
 export interface MattermostPostData {
@@ -122,6 +123,13 @@ interface MattermostStore {
     // Emoji autocomplete results
     emojiSuggestions: MattermostEmojiData[];
 
+    // Reply-to mode: when set, main compose sends a threaded reply
+    replyToPostId: string | null;
+    replyToUsername: string | null;
+
+    // User search loading state
+    isSearchingUsers: boolean;
+
     // User search results (for New DM)
     userSearchResults: MattermostUserData[];
 
@@ -173,12 +181,19 @@ interface MattermostStore {
 
     // Actions — unreads
     setUnread: (data: MattermostChannelUnreadData) => void;
+    setBulkUnreads: (data: MattermostChannelUnreadData[]) => void;
+    incrementUnread: (channelId: string) => void;
     markChannelRead: (channelId: string) => void;
 
     // Actions — emoji
     setEmojiSuggestions: (emojis: MattermostEmojiData[]) => void;
 
+    // Actions — reply-to
+    setReplyTo: (postId: string, username: string) => void;
+    clearReplyTo: () => void;
+
     // Actions — user search
+    setIsSearchingUsers: (searching: boolean) => void;
     setUserSearchResults: (users: MattermostUserData[]) => void;
     clearUserSearchResults: () => void;
 }
@@ -214,6 +229,9 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     typingEntries: [],
     unreads: {},
     emojiSuggestions: EMPTY_EMOJIS,
+    replyToPostId: null,
+    replyToUsername: null,
+    isSearchingUsers: false,
     userSearchResults: EMPTY_USERS,
 
     // ─── Config / Auth ────────────────────────────────────────────
@@ -245,6 +263,8 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
             activeThreadRootId: null,
             threadPosts: EMPTY_POSTS,
             reactions: {},
+            replyToPostId: null,
+            replyToUsername: null,
         }),
     clearChannelSelection: () =>
         set({
@@ -376,6 +396,24 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
         set((state) => ({
             unreads: { ...state.unreads, [data.channelId]: data },
         })),
+    setBulkUnreads: (dataList) =>
+        set((state) => {
+            const next = { ...state.unreads };
+            for (const d of dataList) {
+                next[d.channelId] = d;
+            }
+            return { unreads: next };
+        }),
+    incrementUnread: (channelId) =>
+        set((state) => {
+            const existing = state.unreads[channelId] ?? { channelId, msgCount: 0, mentionCount: 0 };
+            return {
+                unreads: {
+                    ...state.unreads,
+                    [channelId]: { ...existing, msgCount: existing.msgCount + 1 },
+                },
+            };
+        }),
     markChannelRead: (channelId) =>
         set((state) => ({
             unreads: {
@@ -387,7 +425,12 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     // ─── Emoji ────────────────────────────────────────────────────
     setEmojiSuggestions: (emojiSuggestions) => set({ emojiSuggestions }),
 
+    // ─── Reply-to ─────────────────────────────────────────────────
+    setReplyTo: (postId, username) => set({ replyToPostId: postId, replyToUsername: username }),
+    clearReplyTo: () => set({ replyToPostId: null, replyToUsername: null }),
+
     // ─── User Search ──────────────────────────────────────────────
+    setIsSearchingUsers: (isSearchingUsers) => set({ isSearchingUsers }),
     setUserSearchResults: (userSearchResults) => set({ userSearchResults }),
-    clearUserSearchResults: () => set({ userSearchResults: EMPTY_USERS }),
+    clearUserSearchResults: () => set({ userSearchResults: EMPTY_USERS, isSearchingUsers: false }),
 }));

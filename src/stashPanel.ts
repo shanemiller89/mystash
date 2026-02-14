@@ -4,7 +4,7 @@ import { AuthService } from './authService';
 import { GistService } from './gistService';
 import { PrService } from './prService';
 import { IssueService } from './issueService';
-import { MattermostService, MattermostPostData } from './mattermostService';
+import { MattermostService, MattermostPostData, MattermostChannelData } from './mattermostService';
 import { MattermostWebSocket, MmWsPostedData, MmWsReactionData, MmWsStatusChangeData, MmWsTypingData } from './mattermostWebSocket';
 import { formatRelativeTime, getConfig } from './utils';
 
@@ -953,9 +953,18 @@ export class StashPanel {
                 if (!this._mattermostService || !msg.teamId) { break; }
                 try {
                     this._panel.webview.postMessage({ type: 'mattermostChannelsLoading' });
-                    const channels = await this._mattermostService.getMyChannels(msg.teamId);
-                    const payload = channels.map((c) => MattermostService.toChannelData(c));
-                    this._panel.webview.postMessage({ type: 'mattermostChannels', payload });
+                    // Use getAllMyChannels to include DMs/groups (Gap #13 fix)
+                    const { channels, dmChannels, groupChannels } = await this._mattermostService.getAllMyChannels(msg.teamId);
+                    const channelsPayload = channels.map((c) => MattermostService.toChannelData(c));
+                    this._panel.webview.postMessage({ type: 'mattermostChannels', payload: channelsPayload });
+
+                    // Also send DM channels
+                    const me = await this._mattermostService.getMe();
+                    const dmPayload = await this._resolveDmChannelPayloads(
+                        [...dmChannels, ...groupChannels],
+                        me.id,
+                    );
+                    this._panel.webview.postMessage({ type: 'mattermostDmChannels', payload: dmPayload });
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
@@ -1176,9 +1185,23 @@ export class StashPanel {
                     this._panel.webview.postMessage({ type: 'mattermostChannelsLoading' });
                     const { channels, dmChannels, groupChannels } = await this._mattermostService.getAllMyChannels(msg.teamId);
                     const channelsPayload = channels.map((c) => MattermostService.toChannelData(c));
-                    const dmPayload = [...dmChannels, ...groupChannels].map((c) => MattermostService.toChannelData(c));
+
+                    // Resolve DM display names and other-user IDs
+                    const me = await this._mattermostService.getMe();
+                    const dmPayload = await this._resolveDmChannelPayloads(
+                        [...dmChannels, ...groupChannels],
+                        me.id,
+                    );
                     this._panel.webview.postMessage({ type: 'mattermostChannels', payload: channelsPayload });
                     this._panel.webview.postMessage({ type: 'mattermostDmChannels', payload: dmPayload });
+
+                    // Fetch bulk unreads for all channels (non-blocking)
+                    const allChannelIds = [
+                        ...channels.map((c) => c.id),
+                        ...dmChannels.map((c) => c.id),
+                        ...groupChannels.map((c) => c.id),
+                    ];
+                    this._fetchBulkUnreads(allChannelIds).catch(() => { /* ignore */ });
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
@@ -1473,7 +1496,13 @@ export class StashPanel {
                 const firstTeamId = teams[0].id;
                 const { channels, dmChannels, groupChannels } = await this._mattermostService.getAllMyChannels(firstTeamId);
                 const channelsPayload = channels.map((c) => MattermostService.toChannelData(c));
-                const dmPayload = [...dmChannels, ...groupChannels].map((c) => MattermostService.toChannelData(c));
+
+                // Resolve DM display names and other-user IDs
+                const myUserId = me.id;
+                const dmPayload = await this._resolveDmChannelPayloads(
+                    [...dmChannels, ...groupChannels],
+                    myUserId,
+                );
                 this._panel.webview.postMessage({
                     type: 'mattermostChannels',
                     payload: channelsPayload,
@@ -1484,6 +1513,14 @@ export class StashPanel {
                     payload: dmPayload,
                     teamId: firstTeamId,
                 });
+
+                // Fetch bulk unreads for all channels (non-blocking)
+                const allChannelIds = [
+                    ...channels.map((c) => c.id),
+                    ...dmChannels.map((c) => c.id),
+                    ...groupChannels.map((c) => c.id),
+                ];
+                this._fetchBulkUnreads(allChannelIds).catch(() => { /* ignore */ });
             }
 
             // Connect WebSocket for real-time events
@@ -1491,6 +1528,54 @@ export class StashPanel {
         } catch (e: unknown) {
             const m = e instanceof Error ? e.message : 'Unknown error';
             this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+        }
+    }
+
+    /** Resolve DM display names and other-user IDs for a list of DM/group channels. */
+    private async _resolveDmChannelPayloads(
+        dmChannels: import('./mattermostService').MattermostChannel[],
+        myUserId: string,
+    ): Promise<MattermostChannelData[]> {
+        if (!this._mattermostService) { return []; }
+        const results: MattermostChannelData[] = [];
+        for (const c of dmChannels) {
+            if (c.type === 'D') {
+                const otherUserId = this._mattermostService.getDmOtherUserId(c, myUserId);
+                const displayName = await this._mattermostService.resolveDmDisplayName(c, myUserId);
+                const data = MattermostService.toChannelData(
+                    { ...c, displayName },
+                    otherUserId,
+                );
+                results.push(data);
+            } else {
+                results.push(MattermostService.toChannelData(c));
+            }
+        }
+        return results;
+    }
+
+    /** Fetch unreads for all channel IDs and send as bulk to webview. */
+    private async _fetchBulkUnreads(channelIds: string[]): Promise<void> {
+        if (!this._mattermostService || channelIds.length === 0) { return; }
+        const bulkUnreads: Array<{ channelId: string; msgCount: number; mentionCount: number }> = [];
+        // Fetch in parallel batches to avoid overwhelming the server
+        const batchSize = 10;
+        for (let i = 0; i < channelIds.length; i += batchSize) {
+            const batch = channelIds.slice(i, i + batchSize);
+            const results = await Promise.allSettled(
+                batch.map((id) => this._mattermostService!.getChannelUnread(id)),
+            );
+            for (const r of results) {
+                if (r.status === 'fulfilled') {
+                    bulkUnreads.push(MattermostService.toChannelUnreadData(r.value));
+                }
+            }
+        }
+        if (bulkUnreads.length > 0) {
+            this._panel.webview.postMessage({
+                type: 'mattermostBulkUnreads',
+                payload: bulkUnreads,
+            });
         }
     }
 
@@ -1541,6 +1626,12 @@ export class StashPanel {
                     type: rawPost.type,
                 };
                 this._panel.webview.postMessage({ type: 'mattermostNewPost', post: postData });
+
+                // Also tell webview to increment unread for non-active channels
+                this._panel.webview.postMessage({
+                    type: 'mattermostNewPostUnread',
+                    channelId: rawPost.channel_id,
+                });
             } catch (e) {
                 this._outputChannel.appendLine(`[MM WS] Error handling posted event: ${e}`);
             }
