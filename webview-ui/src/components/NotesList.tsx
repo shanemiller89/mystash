@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState, useMemo } from 'react';
 import { useNotesStore, type GistNoteData, type NotesFilterMode } from '../notesStore';
 import { postMessage } from '../vscode';
 import { Lock, Globe, StickyNote, Plus, X, ShieldCheck, FolderGit2, Library } from 'lucide-react';
@@ -22,14 +22,15 @@ export const NotesList: React.FC = () => {
     const isAuthenticated = useNotesStore((s) => s.isAuthenticated);
     const searchQuery = useNotesStore((s) => s.searchQuery);
     const setSearchQuery = useNotesStore((s) => s.setSearchQuery);
-    const notes = useNotesStore((s) => s.filteredNotes());
     const allNotes = useNotesStore((s) => s.notes);
+    const filteredNotesFn = useNotesStore((s) => s.filteredNotes);
+    const filterMode = useNotesStore((s) => s.filterMode);
+    const currentRepo = useNotesStore((s) => s.currentRepo);
+    const notes = useMemo(() => filteredNotesFn(), [filteredNotesFn, allNotes, searchQuery, filterMode, currentRepo]);
     const selectedNoteId = useNotesStore((s) => s.selectedNoteId);
     const selectNote = useNotesStore((s) => s.selectNote);
     const isDirty = useNotesStore((s) => s.isDirty);
-    const filterMode = useNotesStore((s) => s.filterMode);
     const setFilterMode = useNotesStore((s) => s.setFilterMode);
-    const currentRepo = useNotesStore((s) => s.currentRepo);
     const searchRef = useRef<HTMLInputElement>(null);
     const [creatingNote, setCreatingNote] = useState(false);
     const [newNoteTitle, setNewNoteTitle] = useState('');

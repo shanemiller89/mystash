@@ -1019,6 +1019,7 @@ export const App: React.FC = () => {
                     const wikiStore = useWikiStore.getState();
                     wikiStore.setLoading(true);
                     wikiStore.setError(null);
+                    wikiStore.setNoWiki(false);
                     break;
                 }
                 case 'wikiNoWiki': {

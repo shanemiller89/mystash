@@ -432,6 +432,7 @@ export class StashPanel {
                     this._refreshIssues(),
                     this._refreshProjects(),
                     this._refreshWiki(),
+                    this._refreshNotes(),
                 ]);
                 break;
 
