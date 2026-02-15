@@ -37,6 +37,8 @@ import { SettingsTab } from './components/SettingsTab';
 import { TabWithSummary } from './components/TabWithSummary';
 import { DriveTab } from './components/DriveTab';
 import { CalendarTab } from './components/CalendarTab';
+import { WikiTab } from './components/WikiTab';
+import { useWikiStore, type WikiPageSummaryData, type WikiPageData } from './wikiStore';
 
 /** Stash master-detail pane (extracted from old App root) */
 const StashesTab: React.FC = () => {
@@ -983,6 +985,45 @@ export const App: React.FC = () => {
                     useCalendarStore.getState().setError(msg.error as string);
                     break;
                 }
+
+                // ─── Wiki ─────────────────────────────────────
+                case 'wikiPages': {
+                    const wikiStore = useWikiStore.getState();
+                    wikiStore.setPages(msg.pages as WikiPageSummaryData[]);
+                    wikiStore.setLoading(false);
+                    wikiStore.setNoWiki(false);
+                    wikiStore.setError(null);
+                    break;
+                }
+                case 'wikiPageContent': {
+                    const wikiStore = useWikiStore.getState();
+                    wikiStore.setSelectedPage(msg.page as WikiPageData);
+                    wikiStore.setPageLoading(false);
+                    break;
+                }
+                case 'wikiPageLoading': {
+                    useWikiStore.getState().setPageLoading(true);
+                    break;
+                }
+                case 'wikiLoading': {
+                    const wikiStore = useWikiStore.getState();
+                    wikiStore.setLoading(true);
+                    wikiStore.setError(null);
+                    break;
+                }
+                case 'wikiNoWiki': {
+                    const wikiStore = useWikiStore.getState();
+                    wikiStore.setNoWiki(true);
+                    wikiStore.setLoading(false);
+                    break;
+                }
+                case 'wikiError': {
+                    const wikiStore = useWikiStore.getState();
+                    wikiStore.setError(msg.message as string);
+                    wikiStore.setLoading(false);
+                    wikiStore.setPageLoading(false);
+                    break;
+                }
             }
         });
 
@@ -1032,6 +1073,10 @@ export const App: React.FC = () => {
                     ) : activeTab === 'calendar' ? (
                         <ErrorBoundary key="calendar" label="Google Calendar">
                             <CalendarTab />
+                        </ErrorBoundary>
+                    ) : activeTab === 'wiki' ? (
+                        <ErrorBoundary key="wiki" label="Wiki">
+                            <WikiTab />
                         </ErrorBoundary>
                     ) : activeTab === 'agent' ? (
                         <ErrorBoundary key="agent" label="Agent">

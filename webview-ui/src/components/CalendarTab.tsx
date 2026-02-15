@@ -9,6 +9,7 @@ import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
+import { ResizableLayout } from './ResizableLayout';
 import {
     Calendar as CalendarIcon,
     RefreshCw,
@@ -472,40 +473,46 @@ export const CalendarTab: React.FC = () => {
             {/* Calendar sidebar (calendar list) */}
             <CalendarSidebar />
 
-            {/* FullCalendar + optional detail pane */}
-            <div className="flex-1 flex overflow-hidden">
-                {/* Calendar view */}
-                <div className={`flex-1 overflow-hidden p-2 ${selectedEvent ? 'hidden sm:block' : ''}`}>
-                    <div className="h-full fc-vscode-theme">
-                        <FullCalendar
-                            ref={calendarRef}
-                            plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
-                            initialView={viewMode}
-                            headerToolbar={{
-                                left: 'prev,next today',
-                                center: 'title',
-                                right: 'dayGridMonth,timeGridWeek,listDay',
-                            }}
-                            events={fcEvents}
-                            datesSet={handleDatesSet}
-                            eventClick={handleEventClick}
-                            height="100%"
-                            nowIndicator
-                            dayMaxEvents={3}
-                            eventDisplay="block"
-                            views={{
-                                listDay: { buttonText: 'Agenda' },
-                            }}
-                        />
-                    </div>
-                </div>
-
-                {/* Event detail */}
-                {selectedEvent && (
-                    <div className="w-full sm:w-80 sm:min-w-[280px] border-l border-border bg-card overflow-hidden flex-shrink-0">
-                        <EventDetail event={selectedEvent} onClose={() => selectEvent(null)} />
-                    </div>
-                )}
+            {/* Resizable calendar + event detail pane */}
+            <div className="flex-1 overflow-hidden">
+                <ResizableLayout
+                    storageKey="calendar"
+                    hasSelection={selectedEvent !== null}
+                    backLabel="Back to calendar"
+                    onBack={() => selectEvent(null)}
+                    defaultListSize={65}
+                    listContent={
+                        <div className="h-full overflow-hidden p-2">
+                            <div className="h-full fc-vscode-theme">
+                                <FullCalendar
+                                    ref={calendarRef}
+                                    plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
+                                    initialView={viewMode}
+                                    headerToolbar={{
+                                        left: 'prev,next today',
+                                        center: 'title',
+                                        right: 'dayGridMonth,timeGridWeek,listDay',
+                                    }}
+                                    events={fcEvents}
+                                    datesSet={handleDatesSet}
+                                    eventClick={handleEventClick}
+                                    height="100%"
+                                    nowIndicator
+                                    dayMaxEvents={3}
+                                    eventDisplay="block"
+                                    views={{
+                                        listDay: { buttonText: 'Agenda' },
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    }
+                    detailContent={
+                        selectedEvent ? (
+                            <EventDetail event={selectedEvent} onClose={() => selectEvent(null)} />
+                        ) : <div />
+                    }
+                />
             </div>
         </div>
     );

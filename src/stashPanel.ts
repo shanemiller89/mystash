@@ -9,6 +9,7 @@ import { MattermostWebSocket, MmWsPostedData, MmWsReactionData, MmWsStatusChange
 import { ProjectService } from './projectService';
 import { GoogleDriveService } from './googleDriveService';
 import { GoogleCalendarService } from './calendarService';
+import { WikiService } from './wikiService';
 import { AiService } from './aiService';
 import { formatRelativeTime, getConfig } from './utils';
 
@@ -30,6 +31,7 @@ export class StashPanel {
     private readonly _projectService: ProjectService | undefined;
     private readonly _driveService: GoogleDriveService | undefined;
     private readonly _calendarService: GoogleCalendarService | undefined;
+    private readonly _wikiService: WikiService | undefined;
     private readonly _aiService: AiService;
     private readonly _extensionUri: vscode.Uri;
     private readonly _outputChannel: vscode.OutputChannel;
@@ -129,6 +131,7 @@ export class StashPanel {
         projectService?: ProjectService,
         driveService?: GoogleDriveService,
         calendarService?: GoogleCalendarService,
+        wikiService?: WikiService,
     ): StashPanel {
         const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -157,6 +160,7 @@ export class StashPanel {
             projectService,
             driveService,
             calendarService,
+            wikiService,
         );
         return StashPanel._instance;
     }
@@ -174,6 +178,7 @@ export class StashPanel {
         projectService?: ProjectService,
         driveService?: GoogleDriveService,
         calendarService?: GoogleCalendarService,
+        wikiService?: WikiService,
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -187,6 +192,7 @@ export class StashPanel {
         this._projectService = projectService;
         this._driveService = driveService;
         this._calendarService = calendarService;
+        this._wikiService = wikiService;
         this._aiService = new AiService(outputChannel);
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
@@ -380,6 +386,8 @@ export class StashPanel {
         // Google Calendar message properties
         timeMin?: string;
         timeMax?: string;
+        // Wiki message properties
+        filename?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -394,6 +402,7 @@ export class StashPanel {
                 await this._refreshMattermost();
                 await this._sendDriveAuthStatus();
                 await this._sendCalendarAuthStatus();
+                await this._refreshWiki();
                 // Fire-and-forget: pre-fetch user repos for the repo switcher
                 this._fetchUserRepos();
                 // Inform webview whether AI features are available and which provider
@@ -422,6 +431,7 @@ export class StashPanel {
                     this._refreshPRs(),
                     this._refreshIssues(),
                     this._refreshProjects(),
+                    this._refreshWiki(),
                 ]);
                 break;
 
@@ -2624,6 +2634,67 @@ export class StashPanel {
                 }
                 break;
             }
+
+            // ─── Wiki ─────────────────────────────────────────
+
+            case 'wiki.refresh':
+                await this._refreshWiki();
+                break;
+
+            case 'wiki.signIn':
+                await vscode.commands.executeCommand('superprompt-forge.issues.signIn');
+                await this._sendAuthStatus();
+                await this._refreshWiki();
+                break;
+
+            case 'wiki.getPage': {
+                if (msg.filename && this._wikiService) {
+                    try {
+                        const repoInfo = await this._getRepoInfo();
+                        if (!repoInfo) { break; }
+                        this._panel.webview.postMessage({ type: 'wikiPageLoading' });
+                        const page = await this._wikiService.getPageContent(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.filename as string,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'wikiPageContent',
+                            page: WikiService.toPageData(page),
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        this._panel.webview.postMessage({ type: 'wikiError', message: m });
+                    }
+                }
+                break;
+            }
+
+            case 'wiki.openInBrowser': {
+                const repoInfo = await this._getRepoInfo();
+                if (repoInfo) {
+                    const wikiUrl = this._wikiService
+                        ? this._wikiService.getWikiUrl(repoInfo.owner, repoInfo.repo)
+                        : `https://github.com/${repoInfo.owner}/${repoInfo.repo}/wiki`;
+                    await vscode.env.openExternal(vscode.Uri.parse(wikiUrl));
+                }
+                break;
+            }
+
+            case 'wiki.openPageInBrowser': {
+                if (msg.filename && this._wikiService) {
+                    const repoInfo = await this._getRepoInfo();
+                    if (repoInfo) {
+                        const pageUrl = this._wikiService.getPageUrl(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.filename as string,
+                        );
+                        await vscode.env.openExternal(vscode.Uri.parse(pageUrl));
+                    }
+                }
+                break;
+            }
         }
     }
 
@@ -2850,6 +2921,153 @@ export class StashPanel {
             }
         }
 
+        // ─── Google Drive ────────────────────────────────────
+        if (shouldInclude('drive') && this._driveService) {
+            try {
+                const isGoogleAuth = await this._driveService.isAuthenticated();
+                if (isGoogleAuth) {
+                    const driveLines: string[] = [];
+
+                    // Recent files
+                    try {
+                        const recent = await this._driveService.getRecentFiles(15);
+                        if (recent.files.length > 0) {
+                            driveLines.push('### Recent Files');
+                            for (const f of recent.files) {
+                                const modified = new Date(f.modifiedTime).toLocaleDateString();
+                                driveLines.push(`- "${f.name}" (${f.mimeType.split('.').pop()}, modified ${modified})`);
+                            }
+                        }
+                    } catch { /* ok */ }
+
+                    // Starred files
+                    try {
+                        const starred = await this._driveService.getStarredFiles(15);
+                        if (starred.files.length > 0) {
+                            driveLines.push('### Starred/Pinned Files');
+                            for (const f of starred.files) {
+                                driveLines.push(`- "${f.name}" (${f.mimeType.split('.').pop()})`);
+                            }
+                        }
+                    } catch { /* ok */ }
+
+                    if (driveLines.length > 0) {
+                        sections.push(`## Google Drive\n${driveLines.join('\n')}`);
+                    } else {
+                        sections.push('## Google Drive\nConnected but no recent or starred files.');
+                    }
+                } else {
+                    sections.push('## Google Drive\nNot signed in.');
+                }
+            } catch {
+                sections.push('## Google Drive\nUnable to fetch Drive data.');
+            }
+        }
+
+        // ─── Google Calendar ─────────────────────────────────
+        if (shouldInclude('calendar') && this._calendarService) {
+            try {
+                const isGoogleAuth = await this._calendarService.isAuthenticated();
+                if (isGoogleAuth) {
+                    const calLines: string[] = [];
+
+                    // Fetch upcoming events for the next 7 days
+                    const now = new Date();
+                    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                    const timeMin = now.toISOString();
+                    const timeMax = weekFromNow.toISOString();
+
+                    try {
+                        const calendars = await this._calendarService.listCalendars();
+                        calLines.push(`${calendars.length} calendar(s) connected`);
+
+                        let totalEvents = 0;
+                        for (const cal of calendars.slice(0, 5)) {
+                            try {
+                                const eventsResp = await this._calendarService.listEvents(
+                                    cal.id, timeMin, timeMax, 20,
+                                );
+                                const items = eventsResp.items ?? [];
+                                totalEvents += items.length;
+                                if (items.length > 0) {
+                                    calLines.push(`\n### ${cal.summary}`);
+                                    for (const ev of items) {
+                                        const start = ev.start.dateTime
+                                            ? new Date(ev.start.dateTime).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                                            : ev.start.date ?? '';
+                                        const allDay = !ev.start.dateTime && !!ev.start.date;
+                                        const timeStr = allDay ? `${start} (all day)` : start;
+                                        const summary = ev.summary ?? '(No title)';
+                                        const location = ev.location ? ` @ ${ev.location}` : '';
+                                        calLines.push(`- ${timeStr}: "${summary}"${location}`);
+                                    }
+                                }
+                            } catch { /* ok — skip individual calendar errors */ }
+                        }
+
+                        if (totalEvents === 0) {
+                            calLines.push('No upcoming events in the next 7 days.');
+                        }
+                    } catch {
+                        calLines.push('Unable to list calendars.');
+                    }
+
+                    sections.push(`## Google Calendar (next 7 days)\n${calLines.join('\n')}`);
+                } else {
+                    sections.push('## Google Calendar\nNot signed in.');
+                }
+            } catch {
+                sections.push('## Google Calendar\nUnable to fetch calendar data.');
+            }
+        }
+
+        // ─── Wiki ────────────────────────────────────────────
+        if (shouldInclude('wiki') && this._wikiService && this._authService) {
+            try {
+                const repoInfo = await this._getRepoInfo();
+                if (repoInfo) {
+                    const hasWiki = await this._wikiService.hasWiki(repoInfo.owner, repoInfo.repo);
+                    if (!hasWiki) {
+                        sections.push('## Wiki\nNo wiki found for this repository.');
+                    } else {
+                        const pages = await this._wikiService.listPages(repoInfo.owner, repoInfo.repo);
+                        if (pages.length === 0) {
+                            sections.push('## Wiki\nWiki exists but has no pages.');
+                        } else {
+                            const wikiLines: string[] = [];
+                            // Fetch content for Home page if it exists
+                            const homePage = pages.find((p) => p.title === 'Home');
+                            if (homePage) {
+                                try {
+                                    const home = await this._wikiService.getPageContent(
+                                        repoInfo.owner, repoInfo.repo, homePage.filename,
+                                    );
+                                    const preview = home.content.length > 1000
+                                        ? home.content.slice(0, 1000) + '…'
+                                        : home.content;
+                                    wikiLines.push(`### Home\n${preview}`);
+                                } catch { /* ok */ }
+                            }
+                            // List remaining pages
+                            const otherPages = pages.filter((p) => p.title !== 'Home');
+                            if (otherPages.length > 0) {
+                                wikiLines.push('\n### Other Pages');
+                                for (const p of otherPages.slice(0, 20)) {
+                                    wikiLines.push(`- ${p.title}`);
+                                }
+                                if (otherPages.length > 20) {
+                                    wikiLines.push(`…and ${otherPages.length - 20} more pages.`);
+                                }
+                            }
+                            sections.push(`## Wiki (${pages.length} pages)\n${wikiLines.join('\n')}`);
+                        }
+                    }
+                }
+            } catch {
+                sections.push('## Wiki\nUnable to fetch wiki data.');
+            }
+        }
+
         return sections.join('\n\n');
     }
 
@@ -2872,6 +3090,42 @@ export class StashPanel {
                 authenticated: false,
                 username: null,
             });
+        }
+    }
+
+    /** Refresh wiki pages for the current repo and send to webview. */
+    private async _refreshWiki(): Promise<void> {
+        if (!this._wikiService || !this._authService) {
+            return;
+        }
+        try {
+            const isAuth = await this._authService.isAuthenticated();
+            if (!isAuth) {
+                return;
+            }
+
+            const repoInfo = await this._getRepoInfo();
+            if (!repoInfo) {
+                return;
+            }
+
+            this._panel.webview.postMessage({ type: 'wikiLoading' });
+
+            const hasWiki = await this._wikiService.hasWiki(repoInfo.owner, repoInfo.repo);
+            if (!hasWiki) {
+                this._panel.webview.postMessage({ type: 'wikiNoWiki' });
+                return;
+            }
+
+            const pages = await this._wikiService.listPages(repoInfo.owner, repoInfo.repo);
+            this._panel.webview.postMessage({
+                type: 'wikiPages',
+                pages: pages.map(WikiService.toSummaryData),
+            });
+        } catch (e: unknown) {
+            const m = e instanceof Error ? e.message : 'Unknown error';
+            this._outputChannel.appendLine(`[Wiki] Error refreshing: ${m}`);
+            this._panel.webview.postMessage({ type: 'wikiError', message: m });
         }
     }
 

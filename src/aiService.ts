@@ -467,10 +467,16 @@ Analyze ALL the workspace data provided and produce a comprehensive sprint overv
 - Stash activity (work-in-progress indicators), branch patterns
 ## Team Communication
 - Mattermost highlights, unread threads, action items from chat
+## Calendar & Schedule
+- Upcoming meetings, deadlines, or time conflicts from Google Calendar
+## Documents & Files
+- Recently modified Google Drive docs, relevant shared files
+## Wiki
+- Key wiki pages, recent documentation updates
 ## Recommendations
 - Top 3 actions the team should take today
 
-Use markdown formatting. Be specific — reference PR numbers, issue titles, etc.`,
+Use markdown formatting. Be specific — reference PR numbers, issue titles, calendar events, etc.`,
 
         review: `You are a senior code reviewer analyzing the workspace for code review status.
 Produce a detailed code review report:
@@ -501,6 +507,14 @@ Produce a team activity summary:
 ## Communication
 - Mattermost channel activity, any mentions or urgent messages
 - Notes recently updated
+## Schedule & Calendar
+- Upcoming meetings and events from Google Calendar
+- Potential scheduling conflicts or busy periods
+## Documents
+- Recently modified Google Drive files
+- Starred/pinned documents
+## Wiki
+- Wiki page overview, documentation coverage
 ## Attention Needed
 - Items that may be blocked or stale
 - Anything that looks unusual or needs follow-up

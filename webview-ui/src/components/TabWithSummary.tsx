@@ -13,6 +13,9 @@ const TAB_LABELS: Record<string, string> = {
     notes: 'Notes',
     mattermost: 'Mattermost',
     projects: 'Projects',
+    drive: 'Google Drive',
+    calendar: 'Google Calendar',
+    wiki: 'Wiki',
 };
 
 // ─── Component ────────────────────────────────────────────────────
