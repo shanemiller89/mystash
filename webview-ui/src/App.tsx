@@ -30,11 +30,13 @@ import { ResizableLayout } from './components/ResizableLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAIStore } from './aiStore';
 import { useDriveStore, type DriveFileData, type SharedDriveData, type PinnedDocData } from './driveStore';
+import { useCalendarStore, type CalendarEventData, type CalendarListEntryData } from './calendarStore';
 import { FloatingChat } from './components/FloatingChat';
 import { AgentTab } from './components/AgentTab';
 import { SettingsTab } from './components/SettingsTab';
 import { TabWithSummary } from './components/TabWithSummary';
 import { DriveTab } from './components/DriveTab';
+import { CalendarTab } from './components/CalendarTab';
 
 /** Stash master-detail pane (extracted from old App root) */
 const StashesTab: React.FC = () => {
@@ -960,6 +962,27 @@ export const App: React.FC = () => {
                     }
                     break;
                 }
+
+                // ─── Google Calendar ──────────────────────────
+                case 'calendarAuth': {
+                    useCalendarStore.getState().setAuthenticated(
+                        msg.authenticated as boolean,
+                        msg.email as string | null,
+                    );
+                    break;
+                }
+                case 'calendarList': {
+                    useCalendarStore.getState().setCalendars(msg.calendars as CalendarListEntryData[]);
+                    break;
+                }
+                case 'calendarEvents': {
+                    useCalendarStore.getState().setEvents(msg.events as CalendarEventData[]);
+                    break;
+                }
+                case 'calendarError': {
+                    useCalendarStore.getState().setError(msg.error as string);
+                    break;
+                }
             }
         });
 
@@ -1005,6 +1028,10 @@ export const App: React.FC = () => {
                     ) : activeTab === 'drive' ? (
                         <ErrorBoundary key="drive" label="Google Drive">
                             <DriveTab />
+                        </ErrorBoundary>
+                    ) : activeTab === 'calendar' ? (
+                        <ErrorBoundary key="calendar" label="Google Calendar">
+                            <CalendarTab />
                         </ErrorBoundary>
                     ) : activeTab === 'agent' ? (
                         <ErrorBoundary key="agent" label="Agent">

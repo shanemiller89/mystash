@@ -13,9 +13,10 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 
-/** Scopes for Google Drive read/write + user profile */
+/** Scopes for Google Drive read/write + Calendar read-only + user profile */
 const SCOPES = [
     'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/calendar.readonly',
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/userinfo.profile',
 ];

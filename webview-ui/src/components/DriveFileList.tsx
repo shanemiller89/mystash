@@ -31,6 +31,8 @@ import {
     ExternalLink,
     Download,
     StarOff,
+    LogOut,
+    UserCircle,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -238,7 +240,29 @@ export const DriveFileList: React.FC = () => {
                 {/* Account + Actions */}
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs text-fg/50 truncate">{accountEmail}</span>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger
+                                render={
+                                    <button className="flex items-center gap-1.5 text-xs text-fg/50 hover:text-fg truncate rounded px-1 py-0.5 hover:bg-hover transition-colors">
+                                        <UserCircle size={14} />
+                                        <span className="truncate">{accountEmail}</span>
+                                    </button>
+                                }
+                            />
+                            <DropdownMenuContent align="start">
+                                <DropdownMenuItem onClick={() => postMessage('drive.signOut')}>
+                                    <LogOut size={14} />
+                                    Sign out
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                    postMessage('drive.signOut');
+                                    setTimeout(() => postMessage('drive.signIn'), 500);
+                                }}>
+                                    <UserCircle size={14} />
+                                    Switch account
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                     <div className="flex items-center gap-1">
                         <TooltipProvider>

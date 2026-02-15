@@ -221,6 +221,17 @@ export class ForgeOverviewProvider implements vscode.TreeDataProvider<ForgeStatu
             ));
         }
 
+        // ─── Google Calendar ─────────────────────────────────────
+        if (clientId) {
+            const calAuth = await this._driveService.isAuthenticated();
+            items.push(new ForgeStatusItem(
+                'calendar',
+                'Calendar',
+                calAuth ? 'Connected' : 'Sign in required',
+                new vscode.ThemeIcon('calendar'),
+            ));
+        }
+
         return items;
     }
 

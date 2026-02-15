@@ -416,3 +416,72 @@ body {
     border-radius: 3px;
     padding: 0 2px;
 }
+
+/* ─── FullCalendar VS Code Theme Overrides ─── */
+.fc-vscode-theme {
+    --fc-border-color: var(--vscode-editorWidget-border, var(--vscode-panel-border));
+    --fc-button-bg-color: var(--vscode-button-background);
+    --fc-button-border-color: var(--vscode-button-background);
+    --fc-button-text-color: var(--vscode-button-foreground);
+    --fc-button-hover-bg-color: var(--vscode-button-hoverBackground);
+    --fc-button-hover-border-color: var(--vscode-button-hoverBackground);
+    --fc-button-active-bg-color: var(--vscode-textLink-foreground);
+    --fc-button-active-border-color: var(--vscode-textLink-foreground);
+    --fc-today-bg-color: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.08));
+    --fc-page-bg-color: var(--vscode-editor-background);
+    --fc-neutral-bg-color: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    --fc-list-event-hover-bg-color: var(--vscode-list-hoverBackground);
+    --fc-highlight-color: var(--vscode-editor-selectionBackground, rgba(128, 128, 128, 0.15));
+    --fc-now-indicator-color: var(--vscode-textLink-foreground);
+    --fc-event-text-color: #fff;
+}
+
+.fc-vscode-theme .fc {
+    font-family: var(--vscode-font-family, sans-serif);
+    font-size: 12px;
+    color: var(--vscode-foreground);
+}
+
+.fc-vscode-theme .fc .fc-toolbar-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.fc-vscode-theme .fc .fc-button {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 3px;
+}
+
+.fc-vscode-theme .fc .fc-col-header-cell-cushion,
+.fc-vscode-theme .fc .fc-daygrid-day-number {
+    color: var(--vscode-foreground);
+    font-size: 11px;
+}
+
+.fc-vscode-theme .fc .fc-event {
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.fc-vscode-theme .fc .fc-list-event:hover td {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.fc-vscode-theme .fc .fc-list-day-cushion {
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    color: var(--vscode-foreground);
+    font-size: 12px;
+}
+
+.fc-vscode-theme .fc .fc-timegrid-slot-label-cushion {
+    font-size: 10px;
+    color: var(--vscode-foreground);
+    opacity: 0.6;
+}
+
+.fc-vscode-theme .fc .fc-scrollgrid {
+    border-color: var(--vscode-editorWidget-border, var(--vscode-panel-border));
+}
+

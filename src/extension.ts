@@ -26,6 +26,7 @@ import { MattermostProvider } from './mattermostProvider';
 import { MattermostChannelItem, MattermostSeparatorItem } from './mattermostItem';
 import { GoogleAuthProvider } from './googleAuthProvider';
 import { GoogleDriveService } from './googleDriveService';
+import { GoogleCalendarService } from './calendarService';
 import { GoogleDriveProvider } from './googleDriveProvider';
 import { DriveFileItem } from './googleDriveItem';
 import { ForgeOverviewProvider } from './forgeProvider';
@@ -196,6 +197,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     // GoogleDriveService — Google Drive REST API
     const driveService = new GoogleDriveService(googleAuthProvider, outputChannel, context.globalState);
+
+    // GoogleCalendarService — Google Calendar REST API (read-only)
+    const calendarService = new GoogleCalendarService(googleAuthProvider, outputChannel);
 
     // GoogleDriveProvider — tree data provider for Google Drive sidebar
     const driveProvider = new GoogleDriveProvider(driveService, outputChannel);
@@ -645,7 +649,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('superprompt-forge.openPanel', () => {
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService);
         }),
     );
 
@@ -877,7 +881,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the note in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService);
             StashPanel.currentPanel?.openNote(item.note.id);
         }),
     );
@@ -1076,7 +1080,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the PR in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService);
             StashPanel.currentPanel?.openPR(item.pr.number);
         }),
     );
@@ -1166,7 +1170,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the issue in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService);
             StashPanel.currentPanel?.openIssue(item.issue.number);
         }),
     );
@@ -1270,7 +1274,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the channel in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService);
             StashPanel.currentPanel?.openChannel(item.channel.id, item.channel.displayName);
         }),
     );
@@ -1322,7 +1326,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the project item in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService);
             StashPanel.currentPanel?.openProjectItem(item.projectItem.id);
         }),
     );

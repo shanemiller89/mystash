@@ -8,6 +8,7 @@ import { MattermostService, MattermostPostData, MattermostChannelData } from './
 import { MattermostWebSocket, MmWsPostedData, MmWsReactionData, MmWsStatusChangeData, MmWsTypingData } from './mattermostWebSocket';
 import { ProjectService } from './projectService';
 import { GoogleDriveService } from './googleDriveService';
+import { GoogleCalendarService } from './calendarService';
 import { AiService } from './aiService';
 import { formatRelativeTime, getConfig } from './utils';
 
@@ -28,6 +29,7 @@ export class StashPanel {
     private readonly _mattermostService: MattermostService | undefined;
     private readonly _projectService: ProjectService | undefined;
     private readonly _driveService: GoogleDriveService | undefined;
+    private readonly _calendarService: GoogleCalendarService | undefined;
     private readonly _aiService: AiService;
     private readonly _extensionUri: vscode.Uri;
     private readonly _outputChannel: vscode.OutputChannel;
@@ -126,6 +128,7 @@ export class StashPanel {
         mattermostService?: MattermostService,
         projectService?: ProjectService,
         driveService?: GoogleDriveService,
+        calendarService?: GoogleCalendarService,
     ): StashPanel {
         const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -153,6 +156,7 @@ export class StashPanel {
             mattermostService,
             projectService,
             driveService,
+            calendarService,
         );
         return StashPanel._instance;
     }
@@ -169,6 +173,7 @@ export class StashPanel {
         mattermostService?: MattermostService,
         projectService?: ProjectService,
         driveService?: GoogleDriveService,
+        calendarService?: GoogleCalendarService,
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -181,6 +186,7 @@ export class StashPanel {
         this._mattermostService = mattermostService;
         this._projectService = projectService;
         this._driveService = driveService;
+        this._calendarService = calendarService;
         this._aiService = new AiService(outputChannel);
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
@@ -371,6 +377,9 @@ export class StashPanel {
         name?: string;
         mimeType?: string;
         webViewLink?: string;
+        // Google Calendar message properties
+        timeMin?: string;
+        timeMax?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -384,6 +393,7 @@ export class StashPanel {
                 await this._refreshProjects();
                 await this._refreshMattermost();
                 await this._sendDriveAuthStatus();
+                await this._sendCalendarAuthStatus();
                 // Fire-and-forget: pre-fetch user repos for the repo switcher
                 this._fetchUserRepos();
                 // Inform webview whether AI features are available and which provider
@@ -2469,6 +2479,151 @@ export class StashPanel {
                 }
                 break;
             }
+
+            // ─── Google Calendar ──────────────────────────────────────
+
+            case 'calendar.signIn': {
+                if (this._calendarService) {
+                    // Check for OAuth credentials first
+                    const config = vscode.workspace.getConfiguration('superprompt-forge');
+                    let clientId = config.get<string>('google.clientId', '');
+                    let clientSecret = config.get<string>('google.clientSecret', '');
+
+                    if (!clientId || !clientSecret) {
+                        const idInput = await vscode.window.showInputBox({
+                            prompt: 'Enter your Google Cloud OAuth Client ID',
+                            placeHolder: 'xxxxxxxx.apps.googleusercontent.com',
+                            ignoreFocusOut: true,
+                        });
+                        if (!idInput) { break; }
+                        clientId = idInput;
+
+                        const secretInput = await vscode.window.showInputBox({
+                            prompt: 'Enter your Google Cloud OAuth Client Secret',
+                            password: true,
+                            ignoreFocusOut: true,
+                        });
+                        if (!secretInput) { break; }
+                        clientSecret = secretInput;
+
+                        await config.update('google.clientId', clientId, vscode.ConfigurationTarget.Global);
+                        await config.update('google.clientSecret', clientSecret, vscode.ConfigurationTarget.Global);
+                    }
+
+                    try {
+                        await this._calendarService.signIn();
+                        const isAuth = await this._calendarService.isAuthenticated();
+                        this._panel.webview.postMessage({
+                            type: 'calendarAuth',
+                            authenticated: isAuth,
+                        });
+                    } catch (e: unknown) {
+                        this._outputChannel.appendLine(`[Calendar] Sign-in error: ${e instanceof Error ? e.message : e}`);
+                        vscode.window.showErrorMessage(`Google sign-in failed: ${e instanceof Error ? e.message : e}`);
+                    }
+                }
+                break;
+            }
+
+            case 'calendar.signOut': {
+                if (this._calendarService) {
+                    await this._calendarService.signOut();
+                    this._panel.webview.postMessage({
+                        type: 'calendarAuth',
+                        authenticated: false,
+                    });
+                }
+                break;
+            }
+
+            case 'calendar.listCalendars': {
+                if (this._calendarService) {
+                    try {
+                        this._outputChannel.appendLine('[Calendar] Fetching calendar list...');
+                        const calendars = await this._calendarService.listCalendars();
+                        this._outputChannel.appendLine(`[Calendar] Found ${calendars.length} calendars`);
+                        this._panel.webview.postMessage({
+                            type: 'calendarList',
+                            calendars,
+                        });
+                    } catch (e: unknown) {
+                        const errorMsg = e instanceof Error ? e.message : String(e);
+                        this._outputChannel.appendLine(`[Calendar] List calendars error: ${errorMsg}`);
+                        this._panel.webview.postMessage({
+                            type: 'calendarError',
+                            error: `Failed to load calendars: ${errorMsg}`,
+                        });
+                    }
+                }
+                break;
+            }
+
+            case 'calendar.listEvents': {
+                if (this._calendarService) {
+                    try {
+                        const timeMin = msg.timeMin as string | undefined;
+                        const timeMax = msg.timeMax as string | undefined;
+
+                        this._outputChannel.appendLine(`[Calendar] Fetching events (${timeMin ?? 'default'} → ${timeMax ?? 'default'})`);
+
+                        // Fetch events from all calendars
+                        const calendars = await this._calendarService.listCalendars();
+                        const allEvents: unknown[] = [];
+                        let errorCount = 0;
+
+                        for (const cal of calendars) {
+                            try {
+                                const response = await this._calendarService.listEvents(
+                                    cal.id,
+                                    timeMin,
+                                    timeMax,
+                                );
+                                const calEvents = (response.items ?? []).map((event) => ({
+                                    ...event,
+                                    calendarId: cal.id,
+                                    calendarColor: cal.backgroundColor,
+                                }));
+                                allEvents.push(...calEvents);
+                                this._outputChannel.appendLine(`[Calendar]   ${cal.summary}: ${calEvents.length} events`);
+                            } catch (calErr: unknown) {
+                                errorCount++;
+                                this._outputChannel.appendLine(
+                                    `[Calendar]   Error fetching events for ${cal.summary}: ${calErr instanceof Error ? calErr.message : calErr}`,
+                                );
+                            }
+                        }
+
+                        this._outputChannel.appendLine(`[Calendar] Total: ${allEvents.length} events from ${calendars.length - errorCount}/${calendars.length} calendars`);
+
+                        this._panel.webview.postMessage({
+                            type: 'calendarEvents',
+                            events: allEvents,
+                        });
+
+                        if (errorCount > 0 && allEvents.length === 0) {
+                            this._panel.webview.postMessage({
+                                type: 'calendarError',
+                                error: `Failed to fetch events from ${errorCount} calendar(s). Check the output channel for details.`,
+                            });
+                        }
+                    } catch (e: unknown) {
+                        const errorMsg = e instanceof Error ? e.message : String(e);
+                        this._outputChannel.appendLine(`[Calendar] List events error: ${errorMsg}`);
+                        this._panel.webview.postMessage({
+                            type: 'calendarError',
+                            error: `Failed to load events: ${errorMsg}`,
+                        });
+                    }
+                }
+                break;
+            }
+
+            case 'calendar.openLink': {
+                if (msg.url) {
+                    await vscode.env.openExternal(vscode.Uri.parse(msg.url as string));
+                }
+                break;
+            }
         }
     }
 
@@ -2740,6 +2895,31 @@ export class StashPanel {
         } catch {
             this._panel.webview.postMessage({
                 type: 'driveAuth',
+                authenticated: false,
+                email: null,
+            });
+        }
+    }
+
+    private async _sendCalendarAuthStatus(): Promise<void> {
+        if (!this._calendarService) {
+            return;
+        }
+        try {
+            const isAuth = await this._calendarService.isAuthenticated();
+            let email: string | null = null;
+            if (isAuth) {
+                const session = await vscode.authentication.getSession('superprompt-forge-google', [], { createIfNone: false });
+                email = session?.account?.label ?? null;
+            }
+            this._panel.webview.postMessage({
+                type: 'calendarAuth',
+                authenticated: isAuth,
+                email,
+            });
+        } catch {
+            this._panel.webview.postMessage({
+                type: 'calendarAuth',
                 authenticated: false,
                 email: null,
             });

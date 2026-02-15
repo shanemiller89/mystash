@@ -133,7 +133,11 @@
                 "superprompt-forge.ai.provider": {
                     "type": "string",
                     "default": "auto",
-                    "enum": ["auto", "copilot", "gemini"],
+                    "enum": [
+                        "auto",
+                        "copilot",
+                        "gemini"
+                    ],
                     "enumDescriptions": [
                         "Auto — use Copilot when available, fall back to Gemini",
                         "Copilot — always use GitHub Copilot (requires Copilot extension)",
@@ -1330,6 +1334,11 @@
         "test": "vscode-test"
     },
     "devDependencies": {
+        "@fullcalendar/core": "^6.1.20",
+        "@fullcalendar/daygrid": "^6.1.20",
+        "@fullcalendar/list": "^6.1.20",
+        "@fullcalendar/react": "^6.1.20",
+        "@fullcalendar/timegrid": "^6.1.20",
         "@tailwindcss/vite": "^4.1.18",
         "@types/markdown-it": "^14.1.2",
         "@types/mocha": "^10.0.10",
