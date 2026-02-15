@@ -186,6 +186,12 @@
                 }
             }
         },
+        "authenticationProviders": [
+            {
+                "id": "corenexus-google",
+                "label": "Google (CoreNexus)"
+            }
+        ],
         "viewsContainers": {
             "activitybar": [
                 {
