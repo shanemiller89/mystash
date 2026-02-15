@@ -590,10 +590,14 @@ export class StashPanel {
                 if (msg.title && this._gistService) {
                     try {
                         this._panel.webview.postMessage({ type: 'notesLoading' });
+                        // Auto-link to current workspace
+                        const repoInfo = await this._getRepoInfo();
+                        const linkedRepo = repoInfo ? `${repoInfo.owner}/${repoInfo.repo}` : undefined;
                         const note = await this._gistService.createNote(
                             msg.title,
                             msg.content ?? '',
                             msg.isPublic ?? false,
+                            linkedRepo,
                         );
                         this._panel.webview.postMessage({
                             type: 'noteCreated',
@@ -734,6 +738,46 @@ export class StashPanel {
                         confirmed: choice === 'Discard',
                         targetNoteId: msg.targetNoteId,
                     });
+                }
+                break;
+
+            case 'notes.linkToRepo':
+                if (msg.noteId && this._gistService) {
+                    try {
+                        const repoInfo = await this._getRepoInfo();
+                        if (!repoInfo) {
+                            vscode.window.showErrorMessage('No repository detected for this workspace.');
+                            break;
+                        }
+                        const repoSlug = `${repoInfo.owner}/${repoInfo.repo}`;
+                        const linked = await this._gistService.linkToRepo(msg.noteId, repoSlug);
+                        this._panel.webview.postMessage({
+                            type: 'noteLinked',
+                            noteId: msg.noteId,
+                            linkedRepo: linked.linkedRepo,
+                        });
+                        vscode.window.showInformationMessage(`Note linked to ${repoSlug}`);
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to link note: ${m}`);
+                    }
+                }
+                break;
+
+            case 'notes.unlinkFromRepo':
+                if (msg.noteId && this._gistService) {
+                    try {
+                        const unlinked = await this._gistService.unlinkFromRepo(msg.noteId);
+                        this._panel.webview.postMessage({
+                            type: 'noteLinked',
+                            noteId: msg.noteId,
+                            linkedRepo: unlinked.linkedRepo,
+                        });
+                        vscode.window.showInformationMessage('Note unlinked from workspace');
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to unlink note: ${m}`);
+                    }
                 }
                 break;
 
@@ -3190,6 +3234,11 @@ export class StashPanel {
             if (!isAuth) {
                 return;
             }
+
+            // Send current repo context for workspace filtering
+            const repoInfo = await this._getRepoInfo();
+            const repoSlug = repoInfo ? `${repoInfo.owner}/${repoInfo.repo}` : null;
+            this._panel.webview.postMessage({ type: 'notesCurrentRepo', repo: repoSlug });
 
             this._panel.webview.postMessage({ type: 'notesLoading' });
             const notes = await this._gistService.listNotes();

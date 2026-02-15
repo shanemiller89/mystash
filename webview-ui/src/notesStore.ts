@@ -9,7 +9,10 @@ export interface GistNoteData {
     createdAt: string;
     updatedAt: string;
     htmlUrl: string;
+    linkedRepo: string | null;
 }
+
+export type NotesFilterMode = 'all' | 'workspace';
 
 interface NotesStore {
     notes: GistNoteData[];
@@ -23,6 +26,8 @@ interface NotesStore {
     authUsername: string | null;
     searchQuery: string;
     previewMode: boolean;
+    filterMode: NotesFilterMode;
+    currentRepo: string | null;
 
     // Actions
     setNotes: (notes: GistNoteData[]) => void;
@@ -36,6 +41,8 @@ interface NotesStore {
     setAuthenticated: (auth: boolean, username?: string | null) => void;
     setSearchQuery: (query: string) => void;
     setPreviewMode: (preview: boolean) => void;
+    setFilterMode: (mode: NotesFilterMode) => void;
+    setCurrentRepo: (repo: string | null) => void;
     /** Atomically set editor content/title without marking dirty (used when loading from extension) */
     loadNoteContent: (content: string, title?: string) => void;
     filteredNotes: () => GistNoteData[];
@@ -57,6 +64,8 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     authUsername: null,
     searchQuery: '',
     previewMode: true,
+    filterMode: 'workspace',
+    currentRepo: null,
 
     setNotes: (notes) => {
         const { selectedNoteId } = get();
@@ -108,6 +117,8 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
         set({ isAuthenticated: auth, authUsername: username ?? null }),
     setSearchQuery: (searchQuery) => set({ searchQuery }),
     setPreviewMode: (previewMode) => set({ previewMode }),
+    setFilterMode: (filterMode) => set({ filterMode }),
+    setCurrentRepo: (currentRepo) => set({ currentRepo }),
 
     loadNoteContent: (content, title) =>
         set({
@@ -118,12 +129,23 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
         }),
 
     filteredNotes: () => {
-        const { notes, searchQuery } = get();
-        if (!searchQuery.trim()) return notes;
-        const q = searchQuery.toLowerCase();
-        return notes.filter(
-            (n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q),
-        );
+        const { notes, searchQuery, filterMode, currentRepo } = get();
+        let filtered = notes;
+
+        // Apply workspace filter
+        if (filterMode === 'workspace' && currentRepo) {
+            filtered = filtered.filter((n) => n.linkedRepo === currentRepo);
+        }
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(
+                (n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q),
+            );
+        }
+
+        return filtered;
     },
 
     selectedNote: () => {

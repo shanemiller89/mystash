@@ -208,6 +208,14 @@
         "views": {
             "superprompt-forge-container": [
                 {
+                    "id": "forgeOpenView",
+                    "name": "Open",
+                    "icon": "$(open-preview)",
+                    "contextualTitle": "Superprompt Forge",
+                    "visibility": "visible",
+                    "initialSize": 1
+                },
+                {
                     "id": "forgeOverviewView",
                     "name": "Superprompt Forge",
                     "icon": "$(dashboard)",
@@ -265,6 +273,10 @@
             ]
         },
         "viewsWelcome": [
+            {
+                "view": "forgeOpenView",
+                "contents": "[$(open-preview) Open Superprompt Forge](command:superprompt-forge.openPanel)"
+            },
             {
                 "view": "superprompt-forge-view",
                 "contents": "No workspace folder open.\n[Open Folder](command:vscode.openFolder)",

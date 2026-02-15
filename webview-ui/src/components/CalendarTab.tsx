@@ -10,6 +10,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
 import { ResizableLayout } from './ResizableLayout';
+import { TabWithSummary } from './TabWithSummary';
 import {
     Calendar as CalendarIcon,
     RefreshCw,
@@ -392,6 +393,7 @@ export const CalendarTab: React.FC = () => {
     }
 
     return (
+        <TabWithSummary tabKey="calendar">
         <div className="h-full flex flex-col bg-bg text-fg text-[13px]">
             {/* Toolbar */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-shrink-0">
@@ -515,5 +517,6 @@ export const CalendarTab: React.FC = () => {
                 />
             </div>
         </div>
+        </TabWithSummary>
     );
 };

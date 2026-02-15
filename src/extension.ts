@@ -269,6 +269,15 @@ export function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(forgeOverviewTreeView);
 
+    // Register the "Open" button view — always empty so viewsWelcome renders
+    context.subscriptions.push(
+        vscode.window.registerTreeDataProvider('forgeOpenView', {
+            onDidChangeTreeData: new vscode.EventEmitter<void>().event,
+            getTreeItem: () => new vscode.TreeItem(''),
+            getChildren: () => [],
+        }),
+    );
+
     // Refresh overview when any feature updates
     context.subscriptions.push(
         authService.onDidChangeAuthentication(() => {

@@ -187,6 +187,16 @@ export const App: React.FC = () => {
                     }
                     break;
 
+                // ─── Notes workspace linking ───
+                case 'notesCurrentRepo':
+                    notesStore.setCurrentRepo((msg.repo as string) ?? null);
+                    break;
+                case 'noteLinked':
+                    notesStore.updateNoteInList(msg.noteId as string, {
+                        linkedRepo: (msg.linkedRepo as string) ?? null,
+                    });
+                    break;
+
                 // ─── PR messages ───
                 case 'prsData': {
                     const prStore = usePRStore.getState();

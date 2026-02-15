@@ -1,10 +1,11 @@
 import React, { useRef, useCallback, useState } from 'react';
-import { useNotesStore, type GistNoteData } from '../notesStore';
+import { useNotesStore, type GistNoteData, type NotesFilterMode } from '../notesStore';
 import { postMessage } from '../vscode';
-import { Lock, Globe, StickyNote, Plus, X, ShieldCheck } from 'lucide-react';
+import { Lock, Globe, StickyNote, Plus, X, ShieldCheck, FolderGit2, Library } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Skeleton } from './ui/skeleton';
+import { Badge } from './ui/badge';
 
 /** Skeleton card shown while notes are loading */
 const SkeletonCard: React.FC = () => (
@@ -26,6 +27,9 @@ export const NotesList: React.FC = () => {
     const selectedNoteId = useNotesStore((s) => s.selectedNoteId);
     const selectNote = useNotesStore((s) => s.selectNote);
     const isDirty = useNotesStore((s) => s.isDirty);
+    const filterMode = useNotesStore((s) => s.filterMode);
+    const setFilterMode = useNotesStore((s) => s.setFilterMode);
+    const currentRepo = useNotesStore((s) => s.currentRepo);
     const searchRef = useRef<HTMLInputElement>(null);
     const [creatingNote, setCreatingNote] = useState(false);
     const [newNoteTitle, setNewNoteTitle] = useState('');
@@ -108,6 +112,34 @@ export const NotesList: React.FC = () => {
                     >
                         <Plus size={12} /> New
                     </Button>
+                </div>
+
+                {/* Filter toggle: Workspace / All */}
+                <div className="flex items-center gap-1">
+                    <Button
+                        variant={filterMode === 'workspace' ? 'default' : 'ghost'}
+                        size="sm"
+                        className="h-auto px-2 py-0.5 text-[11px] gap-1"
+                        onClick={() => setFilterMode('workspace')}
+                        title={currentRepo ? `Notes linked to ${currentRepo}` : 'Workspace notes'}
+                    >
+                        <FolderGit2 size={11} />
+                        Workspace
+                    </Button>
+                    <Button
+                        variant={filterMode === 'all' ? 'default' : 'ghost'}
+                        size="sm"
+                        className="h-auto px-2 py-0.5 text-[11px] gap-1"
+                        onClick={() => setFilterMode('all')}
+                    >
+                        <Library size={11} />
+                        All Notes
+                    </Button>
+                    {currentRepo && filterMode === 'workspace' && (
+                        <span className="text-[10px] opacity-40 truncate ml-1" title={currentRepo}>
+                            {currentRepo}
+                        </span>
+                    )}
                 </div>
 
                 {/* Inline create form */}
@@ -209,6 +241,12 @@ export const NotesList: React.FC = () => {
                                         <div className="text-[11px] opacity-50 truncate mt-0.5">
                                             {snippet || 'Empty note'}
                                         </div>
+                                        {filterMode === 'all' && note.linkedRepo && (
+                                            <Badge variant="outline" className="mt-1 text-[9px] px-1 py-0 h-4 gap-0.5">
+                                                <FolderGit2 size={9} />
+                                                {note.linkedRepo}
+                                            </Badge>
+                                        )}
                                     </div>
                                     <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                                         <span className="text-[10px] opacity-40">{timeAgo}</span>
@@ -232,7 +270,10 @@ export const NotesList: React.FC = () => {
 
             {/* Footer */}
             <div className="px-3 py-1.5 border-t border-border text-[10px] opacity-40 flex-shrink-0">
-                {allNotes.length} note{allNotes.length !== 1 ? 's' : ''}
+                {notes.length} note{notes.length !== 1 ? 's' : ''}
+                {filterMode === 'workspace' && allNotes.length !== notes.length && (
+                    <span> · {allNotes.length} total</span>
+                )}
             </div>
         </div>
     );

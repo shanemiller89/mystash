@@ -3,6 +3,7 @@ import { useDriveStore } from '../driveStore';
 import { DriveFileList } from './DriveFileList';
 import { DriveFileDetail } from './DriveFileDetail';
 import { ResizableLayout } from './ResizableLayout';
+import { TabWithSummary } from './TabWithSummary';
 import { postMessage } from '../vscode';
 
 export const DriveTab: React.FC = () => {
@@ -49,13 +50,15 @@ export const DriveTab: React.FC = () => {
     const hasSelection = selectedFile !== null;
 
     return (
-        <ResizableLayout
-            storageKey="drive"
-            hasSelection={hasSelection}
-            backLabel="Back to files"
-            onBack={handleCloseDetail}
-            listContent={<DriveFileList />}
-            detailContent={<DriveFileDetail onClose={handleCloseDetail} />}
-        />
+        <TabWithSummary tabKey="drive">
+            <ResizableLayout
+                storageKey="drive"
+                hasSelection={hasSelection}
+                backLabel="Back to files"
+                onBack={handleCloseDetail}
+                listContent={<DriveFileList />}
+                detailContent={<DriveFileDetail onClose={handleCloseDetail} />}
+            />
+        </TabWithSummary>
     );
 };

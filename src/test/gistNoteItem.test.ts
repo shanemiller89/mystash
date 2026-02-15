@@ -18,6 +18,7 @@ function makeNote(overrides: Partial<GistNote> = {}): GistNote {
         updatedAt: new Date('2026-02-10T15:00:00Z'),
         htmlUrl: 'https://gist.github.com/gist-abc',
         description: '[Superprompt Forge] Test Note',
+        linkedRepo: null,
         ...overrides,
     };
 }

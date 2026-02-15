@@ -30,6 +30,8 @@ import {
     Link as LinkIcon,
     Table,
     WrapText,
+    FolderGit2,
+    Unlink,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -97,6 +99,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const setEditingTitle = useNotesStore((s) => s.setEditingTitle);
     const setPreviewMode = useNotesStore((s) => s.setPreviewMode);
     const setLoading = useNotesStore((s) => s.setLoading);
+    const currentRepo = useNotesStore((s) => s.currentRepo);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -468,6 +471,32 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                             </>
                         )}
                     </Button>
+
+                    {/* Link / Unlink workspace */}
+                    {note.linkedRepo ? (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto px-1 py-0.5 text-[11px] gap-1 opacity-50 hover:opacity-100"
+                            onClick={() => postMessage('notes.unlinkFromRepo', { noteId: note.id })}
+                            title={`Linked to ${note.linkedRepo} — click to unlink`}
+                        >
+                            <FolderGit2 size={12} className="text-accent" />
+                            <span className="max-w-[80px] truncate">{note.linkedRepo.split('/')[1]}</span>
+                            <Unlink size={10} />
+                        </Button>
+                    ) : currentRepo ? (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto px-1 py-0.5 text-[11px] gap-1 opacity-50 hover:opacity-100"
+                            onClick={() => postMessage('notes.linkToRepo', { noteId: note.id })}
+                            title={`Link this note to ${currentRepo}`}
+                        >
+                            <FolderGit2 size={12} />
+                            <span>Link</span>
+                        </Button>
+                    ) : null}
 
                     {/* Copy link */}
                     <Button

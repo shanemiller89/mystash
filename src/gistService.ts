@@ -12,6 +12,7 @@ export interface GistNote {
     updatedAt: Date;
     htmlUrl: string; // Gist URL for sharing
     description: string; // Gist description (contains "[Superprompt Forge]" marker)
+    linkedRepo: string | null; // "owner/repo" if linked to a workspace, null otherwise
 }
 
 /** Lightweight version sent to webview (dates as ISO strings) */
@@ -23,6 +24,7 @@ export interface GistNoteData {
     createdAt: string;
     updatedAt: string;
     htmlUrl: string;
+    linkedRepo: string | null;
 }
 
 // ─── Convention Constants (16c) ───────────────────────────────────
@@ -35,6 +37,26 @@ const MARKER_FILENAME = '.superprompt-forge-note';
 
 /** Marker file content — JSON metadata for forward-compatible versioning */
 const MARKER_CONTENT = JSON.stringify({ v: 1 });
+
+/** Build marker file content with optional workspace link */
+function buildMarkerContent(linkedRepo?: string | null): string {
+    const meta: { v: number; repo?: string } = { v: 1 };
+    if (linkedRepo) {
+        meta.repo = linkedRepo;
+    }
+    return JSON.stringify(meta);
+}
+
+/** Parse marker file content to extract linked repo */
+function parseMarkerContent(content?: string): string | null {
+    if (!content) { return null; }
+    try {
+        const meta = JSON.parse(content) as { v?: number; repo?: string };
+        return meta.repo ?? null;
+    } catch {
+        return null;
+    }
+}
 
 /** GitHub API base URL */
 const API_BASE = 'https://api.github.com';
@@ -190,7 +212,8 @@ export class GistService {
     /** Parse a raw GitHub Gist into our GistNote model. */
     private _parseGist(gist: GitHubGist): GistNote | undefined {
         // Must have the marker file
-        if (!gist.files[MARKER_FILENAME]) {
+        const markerFile = gist.files[MARKER_FILENAME];
+        if (!markerFile) {
             return undefined;
         }
 
@@ -207,6 +230,9 @@ export class GistService {
             (f) => f && f.filename !== MARKER_FILENAME && f.filename.endsWith('.md'),
         );
 
+        // Extract linked repo from marker file content
+        const linkedRepo = parseMarkerContent(markerFile.content);
+
         return {
             id: gist.id,
             title,
@@ -216,6 +242,7 @@ export class GistService {
             updatedAt: new Date(gist.updated_at),
             htmlUrl: gist.html_url,
             description,
+            linkedRepo,
         };
     }
 
@@ -274,14 +301,14 @@ export class GistService {
     }
 
     /** Create a new note gist. */
-    async createNote(title: string, content: string, isPublic = false): Promise<GistNote> {
+    async createNote(title: string, content: string, isPublic = false, linkedRepo?: string): Promise<GistNote> {
         const filename = this._titleToFilename(title);
         const { data } = await this._request<GitHubGist>('POST', '/gists', {
             description: `${MARKER_PREFIX}${title}`,
             public: isPublic,
             files: {
                 [filename]: { content: content || '# ' + title + '\n' },
-                [MARKER_FILENAME]: { content: MARKER_CONTENT },
+                [MARKER_FILENAME]: { content: buildMarkerContent(linkedRepo) },
             },
         });
 
@@ -301,7 +328,7 @@ export class GistService {
 
         const files: Record<string, { content: string } | null> = {
             [newFilename]: { content },
-            [MARKER_FILENAME]: { content: MARKER_CONTENT },
+            [MARKER_FILENAME]: { content: buildMarkerContent(current.linkedRepo) },
         };
 
         // If the title changed, delete the old file
@@ -342,8 +369,30 @@ export class GistService {
         // Delete the old gist
         await this.deleteNote(id);
 
-        // Re-create with opposite visibility
-        return this.createNote(current.title, current.content, newVisibility);
+        // Re-create with opposite visibility (preserve linked repo)
+        return this.createNote(current.title, current.content, newVisibility, current.linkedRepo ?? undefined);
+    }
+
+    /** Link a note to a workspace repository. */
+    async linkToRepo(id: string, repoSlug: string): Promise<GistNote> {
+        this._outputChannel.appendLine(`[GIST] Linking note ${id} to repo ${repoSlug}`);
+        await this._request('PATCH', `/gists/${id}`, {
+            files: {
+                [MARKER_FILENAME]: { content: buildMarkerContent(repoSlug) },
+            },
+        });
+        return this.getNote(id);
+    }
+
+    /** Unlink a note from its workspace repository. */
+    async unlinkFromRepo(id: string): Promise<GistNote> {
+        this._outputChannel.appendLine(`[GIST] Unlinking note ${id} from repo`);
+        await this._request('PATCH', `/gists/${id}`, {
+            files: {
+                [MARKER_FILENAME]: { content: buildMarkerContent(null) },
+            },
+        });
+        return this.getNote(id);
     }
 
     /** Convert a GistNote to the lightweight data shape sent to the webview. */
@@ -356,6 +405,7 @@ export class GistService {
             createdAt: note.createdAt.toISOString(),
             updatedAt: note.updatedAt.toISOString(),
             htmlUrl: note.htmlUrl,
+            linkedRepo: note.linkedRepo,
         };
     }
 }

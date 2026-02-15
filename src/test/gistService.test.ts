@@ -339,6 +339,7 @@ suite('GistService Unit Tests', () => {
                 updatedAt: new Date('2026-02-10T15:00:00Z'),
                 htmlUrl: 'https://gist.github.com/td1',
                 description: '[Superprompt Forge] Data Test',
+                linkedRepo: null,
             };
             const data = GistService.toData(note);
 
