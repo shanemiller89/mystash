@@ -732,6 +732,22 @@ export class PrService {
     }
 
     /**
+     * Request a Copilot code review on a pull request.
+     * Copilot is requested as a team reviewer, not a user reviewer.
+     */
+    async requestCopilotReview(
+        owner: string,
+        repo: string,
+        prNumber: number,
+    ): Promise<void> {
+        await this._request(
+            'POST',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`,
+            { team_reviewers: ['copilot'] },
+        );
+    }
+
+    /**
      * Remove a review request from a pull request.
      */
     async removeReviewRequest(
@@ -779,6 +795,23 @@ export class PrService {
             'POST',
             `/repos/${owner}/${repo}/pulls`,
             { title, body, head, base, draft },
+        );
+        return this._parsePR(data);
+    }
+
+    /**
+     * Update an existing pull request (title, body, etc.).
+     */
+    async updatePullRequest(
+        owner: string,
+        repo: string,
+        prNumber: number,
+        update: { title?: string; body?: string },
+    ): Promise<PullRequest> {
+        const { data } = await this._request<GitHubPR>(
+            'PATCH',
+            `/repos/${owner}/${repo}/pulls/${prNumber}`,
+            update,
         );
         return this._parsePR(data);
     }

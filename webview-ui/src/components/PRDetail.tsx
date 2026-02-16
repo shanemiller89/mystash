@@ -25,6 +25,10 @@ import {
     UserPlus,
     Loader2,
     Bot,
+    Pencil,
+    Save,
+    Sparkles,
+    Settings2,
 } from 'lucide-react';
 import { MarkdownBody } from './MarkdownBody';
 import { Button } from './ui/button';
@@ -34,6 +38,7 @@ import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Separator } from './ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleString();
@@ -710,7 +715,9 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
                     variant="outline"
                     size="sm"
                     className="h-5 gap-1 px-1.5 text-[10px] text-purple-400/70 hover:text-purple-400 border-purple-400/20 hover:border-purple-400/40"
-                    onClick={() => handleRequestReview('copilot')}
+                    onClick={() => {
+                        postMessage('prs.requestCopilotReview', { prNumber });
+                    }}
                     title="Request Copilot code review"
                     disabled={isRequestingReview}
                 >
@@ -771,9 +778,24 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
     const isCommentsLoading = usePRStore((s) => s.isCommentsLoading);
     const isCommentSaving = usePRStore((s) => s.isCommentSaving);
 
-    // Threaded selectors
-    const reviewThreads = usePRStore((s) => s.reviewThreads());
-    const issueComments = usePRStore((s) => s.issueComments());
+    // Body editing state
+    const isEditingBody = usePRStore((s) => s.isEditingBody);
+    const isBodySaving = usePRStore((s) => s.isBodySaving);
+    const setEditingBody = usePRStore((s) => s.setEditingBody);
+    const isGeneratingSummary = usePRStore((s) => s.isGeneratingSummary);
+    const generatedSummary = usePRStore((s) => s.generatedSummary);
+    const summaryError = usePRStore((s) => s.summaryError);
+    const prSummarySystemPrompt = usePRStore((s) => s.prSummarySystemPrompt);
+    const setPRSummarySystemPrompt = usePRStore((s) => s.setPRSummarySystemPrompt);
+    const [editBody, setEditBody] = useState('');
+    const [showPromptEditor, setShowPromptEditor] = useState(false);
+
+    // When AI generates a summary, populate the edit body
+    useEffect(() => {
+        if (generatedSummary && isEditingBody) {
+            setEditBody(generatedSummary);
+        }
+    }, [generatedSummary, isEditingBody]);
 
     const selectedPR = useMemo(() => {
         if (selectedPRNumber === null) return undefined;
@@ -808,6 +830,49 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
             }
         }
         return [...groupMap.values()];
+    }, [filteredComments]);
+
+    /** Review threads grouped from filtered review comments */
+    const reviewThreads = useMemo(() => {
+        const reviewComments = filteredComments.filter((c) => c.threadId);
+        const threadMap = new Map<string, ReviewThread>();
+
+        for (const comment of reviewComments) {
+            const tid = comment.threadId!;
+            const existing = threadMap.get(tid);
+            if (existing) {
+                existing.replies.push(comment);
+            } else {
+                threadMap.set(tid, {
+                    threadId: tid,
+                    rootComment: comment,
+                    replies: [],
+                    isResolved: comment.isResolved ?? false,
+                    resolvedBy: comment.resolvedBy ?? null,
+                    path: comment.path,
+                    line: comment.line,
+                });
+            }
+        }
+
+        for (const thread of threadMap.values()) {
+            thread.replies.sort(
+                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+            );
+        }
+
+        return [...threadMap.values()].sort((a, b) => {
+            if (a.isResolved !== b.isResolved) return a.isResolved ? 1 : -1;
+            return (
+                new Date(a.rootComment.createdAt).getTime() -
+                new Date(b.rootComment.createdAt).getTime()
+            );
+        });
+    }, [filteredComments]);
+
+    /** Issue-level (non-review) comments */
+    const issueComments = useMemo(() => {
+        return filteredComments.filter((c) => !c.threadId);
     }, [filteredComments]);
 
     const [newComment, setNewComment] = useState('');
@@ -966,15 +1031,133 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
 
             {/* Body + Comments scrollable area */}
             <div className="flex-1 overflow-y-auto">
-                {/* PR description */}
-                {pr.body && (
-                    <div className="px-3 py-3 border-b border-border">
-                        <div className="text-[10px] text-fg/40 uppercase tracking-wider mb-1.5 font-medium">
+                {/* PR description — editable */}
+                <div className="px-3 py-3 border-b border-border">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] text-fg/40 uppercase tracking-wider font-medium">
                             Description
-                        </div>
-                        <MarkdownBody content={pr.body} className="text-fg/80" />
+                        </span>
+                        <div className="flex-1" />
+                        {!isEditingBody ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 gap-1 text-[10px] text-fg/40 hover:text-fg"
+                                onClick={() => {
+                                    setEditBody(pr.body || '');
+                                    setEditingBody(true);
+                                }}
+                                title="Edit description"
+                            >
+                                <Pencil size={10} />
+                                Edit
+                            </Button>
+                        ) : (
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 gap-1 text-[10px] text-fg/40"
+                                    onClick={() => {
+                                        setEditingBody(false);
+                                        setEditBody('');
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    className="h-5 gap-1 text-[10px]"
+                                    disabled={isBodySaving}
+                                    onClick={() => {
+                                        postMessage('prs.updateBody', {
+                                            prNumber: pr.number,
+                                            body: editBody,
+                                        });
+                                        setEditingBody(false);
+                                    }}
+                                >
+                                    {isBodySaving ? (
+                                        <Loader2 size={10} className="animate-spin" />
+                                    ) : (
+                                        <Save size={10} />
+                                    )}
+                                    Save
+                                </Button>
+                            </div>
+                        )}
                     </div>
-                )}
+
+                    {isEditingBody ? (
+                        <div className="flex flex-col gap-2">
+                            <Textarea
+                                value={editBody}
+                                onChange={(e) => setEditBody(e.target.value)}
+                                placeholder="PR description (Markdown supported)"
+                                rows={10}
+                                className="text-[11px] font-mono"
+                            />
+
+                            {/* AI summary + system prompt */}
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 gap-1 text-[10px] text-purple-400/70 hover:text-purple-400 border-purple-400/20 hover:border-purple-400/40"
+                                    onClick={() => {
+                                        postMessage('prs.generateSummary', {
+                                            baseBranch: pr.baseBranch,
+                                            systemPrompt: prSummarySystemPrompt || undefined,
+                                        });
+                                    }}
+                                    disabled={isGeneratingSummary}
+                                    title="Generate description from diff using AI"
+                                >
+                                    {isGeneratingSummary ? (
+                                        <Loader2 size={10} className="animate-spin" />
+                                    ) : (
+                                        <Sparkles size={10} />
+                                    )}
+                                    {isGeneratingSummary ? 'Generating…' : 'AI Summary'}
+                                </Button>
+                                {summaryError && (
+                                    <span className="text-[10px] text-red-400 truncate">
+                                        {summaryError}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* System prompt editor */}
+                            <Collapsible open={showPromptEditor} onOpenChange={setShowPromptEditor}>
+                                <CollapsibleTrigger
+                                    className="flex items-center gap-1 text-[10px] text-fg/40 hover:text-fg/70 cursor-pointer"
+                                >
+                                    <Settings2 size={10} />
+                                    AI System Prompt
+                                    <ChevronDown
+                                        size={10}
+                                        className={`transition-transform ${showPromptEditor ? 'rotate-180' : ''}`}
+                                    />
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <div className="mt-1">
+                                        <Textarea
+                                            value={prSummarySystemPrompt}
+                                            onChange={(e) => setPRSummarySystemPrompt(e.target.value)}
+                                            placeholder="Leave empty to use the default system prompt."
+                                            rows={3}
+                                            className="text-[10px] text-fg/60"
+                                        />
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+                        </div>
+                    ) : pr.body ? (
+                        <MarkdownBody content={pr.body} className="text-fg/80" />
+                    ) : (
+                        <p className="text-[11px] text-fg/30 italic">No description provided</p>
+                    )}
+                </div>
 
                 {/* Comments section */}
                 <div className="px-3 py-3">

@@ -103,6 +103,10 @@ interface PRStore {
     createError: string | null;
     prSummarySystemPrompt: string;
 
+    // Body editing state
+    isEditingBody: boolean;
+    isBodySaving: boolean;
+
     // Actions
     setPRs: (prs: PullRequestData[]) => void;
     selectPR: (prNumber: number) => void;
@@ -140,6 +144,10 @@ interface PRStore {
     setSummaryError: (error: string | null) => void;
     setCreateError: (error: string | null) => void;
     setPRSummarySystemPrompt: (prompt: string) => void;
+
+    // Body editing actions
+    setEditingBody: (editing: boolean) => void;
+    setBodySaving: (saving: boolean) => void;
 
     // Comment selectors
     commentAuthors: () => string[];
@@ -185,6 +193,10 @@ export const usePRStore = create<PRStore>((set, get) => ({
     generatedSummary: null,
     summaryError: null,
     prSummarySystemPrompt: '',
+
+    // Body editing state
+    isEditingBody: false,
+    isBodySaving: false,
 
     setPRs: (prs) => {
         const { selectedPRNumber } = get();
@@ -294,6 +306,10 @@ export const usePRStore = create<PRStore>((set, get) => ({
     setSummaryError: (error) => set({ summaryError: error, isGeneratingSummary: false }),
     setCreateError: (error) => set({ createError: error, isCreatingPR: false }),
     setPRSummarySystemPrompt: (prompt) => set({ prSummarySystemPrompt: prompt }),
+
+    // Body editing actions
+    setEditingBody: (editing) => set({ isEditingBody: editing, generatedSummary: null, summaryError: null }),
+    setBodySaving: (saving) => set({ isBodySaving: saving }),
 
     filteredPRs: () => {
         const { prs, searchQuery } = get();

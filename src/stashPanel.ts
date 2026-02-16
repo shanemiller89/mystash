@@ -999,6 +999,38 @@ export class StashPanel {
                 }
                 break;
 
+            case 'prs.requestCopilotReview':
+                if (msg.prNumber !== undefined && this._prService) {
+                    try {
+                        const repoInfo = await this._getRepoInfo();
+                        if (!repoInfo) { break; }
+                        this._panel.webview.postMessage({ type: 'prRequestingReview' });
+                        await this._prService.requestCopilotReview(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.prNumber,
+                        );
+                        // Refresh the PR detail to pick up the new reviewer
+                        const updatedPR = await this._prService.getPullRequest(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.prNumber,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'prReviewRequested',
+                            reviewers: PrService.toData(updatedPR).requestedReviewers,
+                        });
+                        vscode.window.showInformationMessage(
+                            'Copilot code review requested',
+                        );
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to request Copilot review: ${m}`);
+                        this._panel.webview.postMessage({ type: 'prError', message: m });
+                    }
+                }
+                break;
+
             case 'prs.removeReviewRequest':
                 if (msg.prNumber !== undefined && msg.reviewer && this._prService) {
                     try {
@@ -1034,6 +1066,31 @@ export class StashPanel {
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
                     this._panel.webview.postMessage({ type: 'prError', message: m });
+                }
+                break;
+            }
+
+            case 'prs.updateBody': {
+                if (msg.prNumber && this._prService) {
+                    try {
+                        const repoInfo = await this._getRepoInfo();
+                        if (!repoInfo) { break; }
+                        this._panel.webview.postMessage({ type: 'prBodySaving' });
+                        const updated = await this._prService.updatePullRequest(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.prNumber,
+                            { body: msg.body ?? '' },
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'prBodySaved',
+                            prDetail: PrService.toData(updated),
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to update PR: ${m}`);
+                        this._panel.webview.postMessage({ type: 'prBodySaveError', error: m });
+                    }
                 }
                 break;
             }
@@ -1130,7 +1187,11 @@ A 1-2 sentence overview of the changes.
 Suggest how these changes should be tested.
 
 Keep it concise and actionable. Use markdown formatting.
-Do NOT include the diff itself in the output.`;
+Do NOT include the diff itself in the output.
+
+## Files Changed
+Include a markdown table at the end with columns: File, Change Context, Reason.
+List each changed file, a brief description of what changed in that file, and why the change was made.`;
 
                     const result = await this._aiService.summarize(
                         'pr-summary',
@@ -1139,7 +1200,7 @@ Do NOT include the diff itself in the output.`;
                     );
                     this._panel.webview.postMessage({
                         type: 'prSummaryResult',
-                        content: result,
+                        summary: result,
                     });
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'AI error';

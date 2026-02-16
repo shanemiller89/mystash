@@ -334,6 +334,26 @@ export const App: React.FC = () => {
                     break;
                 }
 
+                // ─── PR body editing messages ───
+                case 'prBodySaving': {
+                    const prStore = usePRStore.getState();
+                    prStore.setBodySaving(true);
+                    break;
+                }
+                case 'prBodySaved': {
+                    const prStore = usePRStore.getState();
+                    prStore.setBodySaving(false);
+                    if (msg.prDetail) {
+                        prStore.setPRDetail(msg.prDetail as PullRequestData);
+                    }
+                    break;
+                }
+                case 'prBodySaveError': {
+                    const prStore = usePRStore.getState();
+                    prStore.setBodySaving(false);
+                    break;
+                }
+
                 // ─── Deep-link: open a specific PR ───
                 case 'openPR':
                     appStore.setActiveTab('prs');
