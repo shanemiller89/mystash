@@ -71,7 +71,7 @@ const ChatWithThread: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 defaultSize={`${100 - threadDefaultSize}%`}
                 minSize="30%"
             >
-                <div className="h-full overflow-hidden">
+                <div className="h-full overflow-clip">
                     <ErrorBoundary label="Chat">
                         <MattermostChat onClose={onClose} />
                     </ErrorBoundary>
@@ -83,7 +83,7 @@ const ChatWithThread: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 defaultSize={`${threadDefaultSize}%`}
                 minSize="20%"
             >
-                <div className="h-full overflow-hidden">
+                <div className="h-full overflow-clip">
                     <ErrorBoundary label="Thread">
                         <MattermostThreadPanel />
                     </ErrorBoundary>
@@ -164,7 +164,7 @@ export const MattermostTab: React.FC = () => {
                         defaultSize={`${defaultListPercent}%`}
                         minSize="15%"
                     >
-                        <div className="h-full overflow-hidden">
+                        <div className="h-full overflow-clip">
                             <ErrorBoundary label="Channel List">
                                 <MattermostChannelList />
                             </ErrorBoundary>
@@ -176,7 +176,7 @@ export const MattermostTab: React.FC = () => {
                         defaultSize={`${100 - defaultListPercent}%`}
                         minSize="30%"
                     >
-                        <div className="h-full overflow-hidden">
+                        <div className="h-full overflow-clip">
                             {hasSelection ? (
                                 <ErrorBoundary label="Chat">
                                     <ChatWithThread onClose={handleCloseDetail} />

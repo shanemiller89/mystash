@@ -102,7 +102,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ postId, onClose }) => 
             className="absolute z-50 bottom-full mb-1 right-0 w-64 rounded-lg shadow-lg border
                 bg-[var(--vscode-editorWidget-background,var(--vscode-editor-background))]
                 border-[var(--vscode-editorWidget-border,var(--vscode-panel-border))]
-                overflow-hidden"
+                overflow-clip"
         >
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--vscode-panel-border)]">
@@ -286,7 +286,7 @@ export const ComposeEmojiPicker: React.FC<{
             className="absolute z-50 bottom-full mb-1 left-0 w-64 rounded-lg shadow-lg border
                 bg-[var(--vscode-editorWidget-background,var(--vscode-editor-background))]
                 border-[var(--vscode-editorWidget-border,var(--vscode-panel-border))]
-                overflow-hidden"
+                overflow-clip"
         >
             <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--vscode-panel-border)]">
                 <Smile size={14} className="text-fg/50 shrink-0" />

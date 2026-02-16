@@ -236,7 +236,7 @@ export const DriveFileList: React.FC = () => {
     return (
         <div className="h-full flex flex-col bg-bg text-fg text-[13px]">
             {/* Header */}
-            <div className="flex-shrink-0 p-2 space-y-2">
+            <div className="shrink-0 p-2 space-y-2">
                 {/* Account + Actions */}
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -343,7 +343,7 @@ export const DriveFileList: React.FC = () => {
                             key={key}
                             variant={viewMode === key && !showSearch ? 'secondary' : 'ghost'}
                             size="sm"
-                            className="text-[11px] h-6 px-2 gap-1 flex-shrink-0"
+                            className="text-[11px] h-6 px-2 gap-1 shrink-0"
                             onClick={() => {
                                 setShowSearch(false);
                                 setSearchQuery('');
@@ -361,7 +361,7 @@ export const DriveFileList: React.FC = () => {
                     <div className="flex items-center gap-0.5 text-xs text-fg/60 overflow-x-auto">
                         {breadcrumbs.map((crumb, i) => (
                             <React.Fragment key={crumb.id}>
-                                {i > 0 && <ChevronRight size={10} className="flex-shrink-0" />}
+                                {i > 0 && <ChevronRight size={10} className="shrink-0" />}
                                 <button
                                     className={`hover:text-fg px-1 py-0.5 rounded whitespace-nowrap ${
                                         i === breadcrumbs.length - 1 ? 'text-fg font-medium' : ''
@@ -482,7 +482,7 @@ export const DriveFileList: React.FC = () => {
 
             {/* Shared drive back button */}
             {viewMode === 'shared' && selectedSharedDriveId && !showSearch && (
-                <div className="flex-shrink-0 px-2 py-1">
+                <div className="shrink-0 px-2 py-1">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -554,7 +554,7 @@ const FileRow: React.FC<{
         >
             <FileIcon mimeType={file.mimeType} size={14} />
             <span className="truncate flex-1 min-w-0">{file.name}</span>
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
                 {file.shared && (
                     <Badge variant="outline" className="text-[10px] h-4 px-1">
                         Shared

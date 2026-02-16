@@ -57,7 +57,7 @@ const DetailWithThread: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 defaultSize={`${100 - threadDefaultSize}%`}
                 minSize="30%"
             >
-                <div className="h-full overflow-hidden">
+                <div className="h-full overflow-clip">
                     <ErrorBoundary label="PR Detail">
                         <PRDetail onClose={onClose} />
                     </ErrorBoundary>
@@ -69,7 +69,7 @@ const DetailWithThread: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 defaultSize={`${threadDefaultSize}%`}
                 minSize="20%"
             >
-                <div className="h-full overflow-hidden">
+                <div className="h-full overflow-clip">
                     <ErrorBoundary label="Thread">
                         <PRThreadPanel />
                     </ErrorBoundary>

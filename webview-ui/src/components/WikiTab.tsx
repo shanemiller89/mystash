@@ -39,7 +39,7 @@ const WikiPageItem: React.FC<{
             onClick={handleClick}
         >
             <div className="flex items-center gap-2">
-                <FileText size={14} className={`flex-shrink-0 ${
+                <FileText size={14} className={`shrink-0 ${
                     page.title === 'Home' ? 'text-accent' : 'text-fg/40'
                 }`} />
                 <span className={`text-[12px] font-medium truncate ${
@@ -136,7 +136,7 @@ const WikiList: React.FC = () => {
     return (
         <div className="h-full flex flex-col bg-bg text-fg text-[13px]">
             {/* Header */}
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-shrink-0">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
                 <BookOpen size={14} className="text-fg/60" />
                 <span className="text-[12px] font-semibold text-fg/80 flex-1">Wiki</span>
                 <Button
@@ -158,7 +158,7 @@ const WikiList: React.FC = () => {
             </div>
 
             {/* Search */}
-            <div className="px-3 py-2 border-b border-border flex-shrink-0">
+            <div className="px-3 py-2 border-b border-border shrink-0">
                 <div className="relative">
                     <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-fg/40" />
                     <Input
@@ -216,7 +216,7 @@ const WikiPageDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (isPageLoading) {
         return (
             <div className="h-full flex flex-col bg-bg text-fg">
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-shrink-0">
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
                     <Skeleton className="h-4 w-32" />
                 </div>
                 <div className="p-4 space-y-3">
@@ -242,7 +242,7 @@ const WikiPageDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     return (
         <div className="h-full flex flex-col bg-bg text-fg text-[13px]">
             {/* Header */}
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-shrink-0">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
                 <FileText size={14} className="text-accent" />
                 <span className="text-[12px] font-semibold flex-1 truncate">
                     {selectedPage.title}

@@ -32,7 +32,7 @@ import { DriveFileItem } from './googleDriveItem';
 import { ForgeOverviewProvider } from './forgeProvider';
 import { WikiService } from './wikiService';
 import { pickStash } from './uiUtils';
-import { getConfig } from './utils';
+import { extractErrorMessage, getConfig } from './utils';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Superprompt Forge extension is now active!');
@@ -603,8 +603,8 @@ export function activate(context: vscode.ExtensionContext) {
                 await gitService.dropStash(item.stashEntry.index);
                 vscode.window.showInformationMessage(`Dropped ${item.stashEntry.name}`);
                 stashProvider.refresh('post-command');
-            } catch (error: any) {
-                vscode.window.showErrorMessage(`Failed to drop stash: ${error.message}`);
+            } catch (e: unknown) {
+                vscode.window.showErrorMessage(`Failed to drop stash: ${extractErrorMessage(e)}`);
             }
         }),
     );
@@ -626,8 +626,8 @@ export function activate(context: vscode.ExtensionContext) {
                     language: 'diff',
                 });
                 await vscode.window.showTextDocument(document, { preview: true });
-            } catch (error: any) {
-                vscode.window.showErrorMessage(`Failed to show stash: ${error.message}`);
+            } catch (e: unknown) {
+                vscode.window.showErrorMessage(`Failed to show stash: ${extractErrorMessage(e)}`);
             }
         }),
     );
@@ -724,8 +724,8 @@ export function activate(context: vscode.ExtensionContext) {
                 await gitService.clearStashes();
                 vscode.window.showInformationMessage('All stashes cleared');
                 stashProvider.refresh('post-command');
-            } catch (error: any) {
-                vscode.window.showErrorMessage(`Failed to clear stashes: ${error.message}`);
+            } catch (e: unknown) {
+                vscode.window.showErrorMessage(`Failed to clear stashes: ${extractErrorMessage(e)}`);
             }
         }),
     );

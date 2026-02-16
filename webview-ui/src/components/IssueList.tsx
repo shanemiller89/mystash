@@ -124,7 +124,7 @@ export const IssueList: React.FC = () => {
     return (
         <div className="h-full flex flex-col">
             {/* Header: filter pills + search + refresh */}
-            <div className="flex-shrink-0 border-b border-border">
+            <div className="shrink-0 border-b border-border">
                 {/* Filter pills */}
                 <div className="flex items-center gap-1 px-3 py-2">
                     {stateFilters.map((f) => (
@@ -193,12 +193,12 @@ export const IssueList: React.FC = () => {
                                 onClick={() => handleSelectIssue(issue.number)}
                             >
                                 <div className="flex items-start gap-2">
-                                    <div className="mt-0.5 flex-shrink-0">
+                                    <div className="mt-0.5 shrink-0">
                                         <StateIcon state={issue.state} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-fg/40 text-[11px] flex-shrink-0">
+                                            <span className="text-fg/40 text-[11px] shrink-0">
                                                 #{issue.number}
                                             </span>
                                             <span className="text-[12px] font-medium truncate">
@@ -218,7 +218,7 @@ export const IssueList: React.FC = () => {
                                                 </>
                                             )}
                                             <span>·</span>
-                                            <span className="flex-shrink-0">
+                                            <span className="shrink-0">
                                                 {formatRelative(issue.updatedAt)}
                                             </span>
                                         </div>
@@ -241,7 +241,7 @@ export const IssueList: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex-shrink-0 flex items-center gap-1 text-[10px] text-fg/30">
+                                    <div className="shrink-0 flex items-center gap-1 text-[10px] text-fg/30">
                                         {issue.commentsCount > 0 && (
                                             <span title={`${issue.commentsCount} comments`}>
                                                 💬 {issue.commentsCount}

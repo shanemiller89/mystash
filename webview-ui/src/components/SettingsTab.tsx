@@ -68,7 +68,7 @@ const SettingRow: React.FC<{
                 <p className="text-[10.5px] text-fg/40 mt-0.5 leading-snug">{description}</p>
             )}
         </div>
-        <div className="flex-shrink-0">{children}</div>
+        <div className="shrink-0">{children}</div>
     </div>
 );
 

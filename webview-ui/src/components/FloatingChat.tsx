@@ -44,7 +44,7 @@ const ChatBubble: React.FC<{
     return (
         <div className={`group/bubble flex gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
             <div
-                className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
+                className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
                     isUser
                         ? 'bg-accent/20 text-accent'
                         : 'bg-[var(--vscode-badge-background)] text-[var(--vscode-badge-foreground)]'
@@ -308,7 +308,7 @@ export const FloatingChat: React.FC = () => {
     return (
         <div
             ref={panelRef}
-            className="absolute z-50 flex flex-col rounded-lg border border-border shadow-xl bg-[var(--vscode-sideBar-background)] overflow-hidden"
+            className="absolute z-50 flex flex-col rounded-lg border border-border shadow-xl bg-[var(--vscode-sideBar-background)] overflow-clip"
             style={{
                 left: geo.x,
                 top: geo.y,
@@ -318,11 +318,11 @@ export const FloatingChat: React.FC = () => {
         >
             {/* ── Title bar (draggable) ── */}
             <div
-                className="flex items-center gap-2 px-3 py-2 border-b border-border cursor-move select-none flex-shrink-0 bg-[var(--vscode-titleBar-activeBackground)]"
+                className="flex items-center gap-2 px-3 py-2 border-b border-border cursor-move select-none shrink-0 bg-[var(--vscode-titleBar-activeBackground)]"
                 onMouseDown={handleDragStart}
             >
-                <GripVertical size={12} className="text-fg/30 flex-shrink-0" />
-                <Bot size={12} className="text-accent flex-shrink-0" />
+                <GripVertical size={12} className="text-fg/30 shrink-0" />
+                <Bot size={12} className="text-accent shrink-0" />
                 <span className="text-[11px] font-semibold text-fg/70 flex-1">
                     AI Chat
                     {aiProvider === 'gemini' && (
@@ -406,7 +406,7 @@ export const FloatingChat: React.FC = () => {
                     </div>
 
                     {/* ── Input ── */}
-                    <div className="flex-shrink-0 border-t border-border p-2">
+                    <div className="shrink-0 border-t border-border p-2">
                         <InputGroup className="h-auto">
                             <InputGroupTextarea
                                 ref={inputRef}

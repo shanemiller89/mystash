@@ -84,7 +84,7 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
             <div ref={containerRef} className="h-full bg-bg text-fg text-[13px]">
                 {hasSelection ? (
                     <div className="h-full flex flex-col">
-                        <div className="px-3 py-1.5 border-b border-border flex-shrink-0">
+                        <div className="px-3 py-1.5 border-b border-border shrink-0">
                             <Button
                                 variant="link"
                                 size="sm"
@@ -94,7 +94,7 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
                                 ← {backLabel}
                             </Button>
                         </div>
-                        <div className="flex-1 overflow-hidden">
+                        <div className="flex-1 overflow-clip">
                             <ErrorBoundary label="Detail">
                                 {detailContent}
                             </ErrorBoundary>
@@ -122,7 +122,7 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
                     defaultSize={hasSelection ? `${defaultListPercent}%` : '100%'}
                     minSize="20%"
                 >
-                    <div className="h-full overflow-hidden">
+                    <div className="h-full overflow-clip">
                         <ErrorBoundary label="List">
                             {listContent}
                         </ErrorBoundary>
@@ -137,7 +137,7 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
                             defaultSize={`${100 - defaultListPercent}%`}
                             minSize="25%"
                         >
-                            <div className="h-full overflow-hidden">
+                            <div className="h-full overflow-clip">
                                 <ErrorBoundary label="Detail">
                                     {detailContent}
                                 </ErrorBoundary>

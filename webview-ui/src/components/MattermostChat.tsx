@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useMattermostStore, type MattermostPostData, type MattermostChannelData } from '../mattermostStore';
 import { postMessage } from '../vscode';
+import { formatChatTimestamp } from '@/lib/formatTime';
 import { EmojiPickerButton, ComposeEmojiPickerButton } from './EmojiPicker';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
 import { MarkdownBody } from './MarkdownBody';
@@ -60,22 +61,7 @@ import {
     RotateCcw,
 } from 'lucide-react';
 
-function formatTime(iso: string): string {
-    const date = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    const timeStr = date.toLocaleTimeString(undefined, {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-
-    if (diffDays === 0) { return timeStr; }
-    if (diffDays === 1) { return `Yesterday ${timeStr}`; }
-    if (diffDays < 7) { return `${date.toLocaleDateString(undefined, { weekday: 'short' })} ${timeStr}`; }
-    return `${date.toLocaleDateString()} ${timeStr}`;
-}
 
 /** Small coloured status dot for message avatars */
 function StatusDot({ userId }: { userId: string }) {
@@ -443,7 +429,7 @@ const MessageSearchPanel: React.FC<{
                                 <div key={post.id} className="flex gap-2 px-3 py-1.5 hover:bg-[var(--vscode-list-hoverBackground)] text-xs">
                                     <span className="font-semibold text-[var(--vscode-textLink-foreground)] shrink-0">{post.username}</span>
                                     <span className="text-fg/70 truncate flex-1">{post.message}</span>
-                                    <span className="text-fg/30 shrink-0">{formatTime(post.createAt)}</span>
+                                    <span className="text-fg/30 shrink-0">{formatChatTimestamp(post.createAt)}</span>
                                 </div>
                             ))}
                         </div>
@@ -548,7 +534,7 @@ const MessageBubble: React.FC<{
                     >
                         {post.username}
                     </span>
-                    <span className="text-xs text-fg/40">{formatTime(post.createAt)}</span>
+                    <span className="text-xs text-fg/40">{formatChatTimestamp(post.createAt)}</span>
                     {isPending && (
                         <span className="flex items-center gap-1 text-[10px] text-fg/40">
                             <Loader2 size={10} className="animate-spin" />

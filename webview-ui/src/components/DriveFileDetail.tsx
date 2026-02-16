@@ -123,7 +123,7 @@ export const DriveFileDetail: React.FC<{ onClose: () => void }> = ({ onClose }) 
     return (
         <div className="h-full flex flex-col bg-bg text-fg text-[13px]">
             {/* Header */}
-            <div className="flex-shrink-0 p-3 pb-2">
+            <div className="shrink-0 p-3 pb-2">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-3 min-w-0">
                         <FileIcon mimeType={file.mimeType} size={28} />
@@ -139,7 +139,7 @@ export const DriveFileDetail: React.FC<{ onClose: () => void }> = ({ onClose }) 
             </div>
 
             {/* Actions */}
-            <div className="flex-shrink-0 px-3 pb-2 flex flex-wrap gap-1.5">
+            <div className="shrink-0 px-3 pb-2 flex flex-wrap gap-1.5">
                 {file.webViewLink && (
                     <Button
                         variant="default"
@@ -209,7 +209,7 @@ export const DriveFileDetail: React.FC<{ onClose: () => void }> = ({ onClose }) 
                 <div className="p-3 space-y-3">
                     {/* Thumbnail/Preview */}
                     {file.thumbnailLink && (
-                        <div className="rounded-md overflow-hidden border border-border bg-card">
+                        <div className="rounded-md overflow-clip border border-border bg-card">
                             <img
                                 src={file.thumbnailLink}
                                 alt={file.name}
@@ -282,7 +282,7 @@ const MetadataRow: React.FC<{
 }> = ({ icon, label, value }) => (
     <div className="flex items-center gap-2">
         <span className="text-fg/40">{icon}</span>
-        <span className="text-fg/50 w-16 flex-shrink-0">{label}</span>
+        <span className="text-fg/50 w-16 shrink-0">{label}</span>
         <span className="text-fg/80 truncate">{value}</span>
     </div>
 );

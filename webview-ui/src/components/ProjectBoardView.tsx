@@ -88,13 +88,13 @@ const BoardCard: React.FC<BoardCardProps> = React.memo(({ item, isSelected, onCl
             }`}
         >
             <div className="flex items-start gap-1.5">
-                <div className="mt-0.5 flex-shrink-0">
+                <div className="mt-0.5 shrink-0">
                     <ItemTypeIcon type={item.type} state={item.content?.state} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1">
                         {item.content?.number && (
-                            <span className="text-fg/40 text-[10px] flex-shrink-0">
+                            <span className="text-fg/40 text-[10px] shrink-0">
                                 #{item.content.number}
                             </span>
                         )}
@@ -129,7 +129,7 @@ const BoardCard: React.FC<BoardCardProps> = React.memo(({ item, isSelected, onCl
                     {item.content?.author ?? ''}
                 </span>
                 {item.content?.assignees && item.content.assignees.length > 0 && (
-                    <div className="flex-shrink-0 flex -space-x-1">
+                    <div className="shrink-0 flex -space-x-1">
                         {item.content.assignees.slice(0, 3).map((a) => (
                             <img
                                 key={a.login}
@@ -161,13 +161,13 @@ const BoardColumnComponent: React.FC<BoardColumnProps> = React.memo(
         const colors = getColumnColorClasses(column.color);
 
         return (
-            <div className="flex-shrink-0 w-[260px] flex flex-col rounded-lg border border-border bg-[var(--vscode-sideBar-background)] overflow-hidden">
+            <div className="shrink-0 w-[260px] flex flex-col rounded-lg border border-border bg-[var(--vscode-sideBar-background)] overflow-clip">
                 {/* Column header */}
                 <div
                     className={`flex items-center gap-2 px-3 py-2 border-b border-border ${colors.bg}`}
                 >
                     <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        className="w-2 h-2 rounded-full shrink-0"
                         style={{ backgroundColor: colors.dot }}
                     />
                     <span className={`text-[11px] font-semibold truncate ${colors.text}`}>

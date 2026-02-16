@@ -29,7 +29,7 @@ function Slider({
         <SliderPrimitive.Track
           data-slot="slider-track"
           className={cn(
-            "relative grow overflow-hidden rounded-full bg-[var(--vscode-input-border,var(--vscode-button-secondaryBackground))]",
+            "relative grow overflow-clip rounded-full bg-[var(--vscode-input-border,var(--vscode-button-secondaryBackground))]",
             "data-horizontal:h-1.5 data-horizontal:w-full",
             "data-vertical:w-1.5 data-vertical:h-full"
           )}

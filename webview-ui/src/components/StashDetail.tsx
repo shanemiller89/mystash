@@ -86,17 +86,17 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     return (
         <div
-            className="flex flex-col h-full overflow-hidden"
+            className="flex flex-col h-full overflow-clip"
             onKeyDown={handleKeyDown}
             tabIndex={-1}
         >
             {/* Header */}
-            <div className="px-4 py-3 border-b border-border flex-shrink-0">
+            <div className="px-4 py-3 border-b border-border shrink-0">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                             <div
-                                className={`w-1.5 h-5 rounded-full flex-shrink-0 ${
+                                className={`w-1.5 h-5 rounded-full shrink-0 ${
                                     isWip ? 'bg-warning' : 'bg-accent'
                                 }`}
                             />
@@ -128,7 +128,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
             {/* Stats bar */}
             {stash.stats && (
-                <div className="px-4 py-2 border-b border-border flex items-center gap-4 text-[11px] flex-shrink-0">
+                <div className="px-4 py-2 border-b border-border flex items-center gap-4 text-[11px] shrink-0">
                     <span className="opacity-60">
                         {stash.stats.filesChanged} file{stash.stats.filesChanged !== 1 ? 's' : ''}{' '}
                         changed
@@ -143,7 +143,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             )}
 
             {/* Actions */}
-            <div className="px-4 py-2 border-b border-border flex items-center gap-1.5 flex-shrink-0">
+            <div className="px-4 py-2 border-b border-border flex items-center gap-1.5 shrink-0">
                 <ActionButton
                     label="Apply"
                     icon={<Check size={12} />}
@@ -167,7 +167,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
             {/* File list with expandable diffs */}
             <div className="flex-1 overflow-y-auto">
-                <div className="px-4 py-2 text-[11px] font-semibold opacity-50 uppercase tracking-wider flex-shrink-0">
+                <div className="px-4 py-2 text-[11px] font-semibold opacity-50 uppercase tracking-wider shrink-0">
                     Changed Files
                 </div>
                 {stash.files.map((file) => {
@@ -200,7 +200,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                     <ChevronRight size={12} />
                                 </span>
                                 <span
-                                    className={`w-4 text-center text-[10px] font-bold flex-shrink-0 ${cfg.color}`}
+                                    className={`w-4 text-center text-[10px] font-bold shrink-0 ${cfg.color}`}
                                     title={cfg.fullLabel}
                                 >
                                     {cfg.label}
@@ -263,7 +263,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-1.5 border-t border-border text-[10px] opacity-30 flex-shrink-0">
+            <div className="px-4 py-1.5 border-t border-border text-[10px] opacity-30 shrink-0">
                 {fullDate}
             </div>
         </div>

@@ -30,7 +30,7 @@ export const StashFiles: React.FC<{
                     }
                 >
                     <span
-                        className={`w-4 text-center text-[10px] font-bold flex-shrink-0 ${cfg.color}`}
+                        className={`w-4 text-center text-[10px] font-bold shrink-0 ${cfg.color}`}
                     >
                         {cfg.label}
                     </span>

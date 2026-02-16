@@ -134,7 +134,7 @@ const CalendarSidebar: React.FC = () => {
                                 onCheckedChange={() => toggleCalendar(cal.id)}
                             />
                             <span
-                                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
                                 style={{ backgroundColor: cal.backgroundColor ?? 'var(--color-accent)' }}
                             />
                             <span className="truncate">{cal.summary}</span>
@@ -167,7 +167,7 @@ const EventDetail: React.FC<{ event: CalendarEventData; onClose: () => void }> =
             {/* Header */}
             <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2 min-w-0">
-                    <span className="w-3 h-3 rounded-sm mt-1 flex-shrink-0" style={{ backgroundColor: color }} />
+                    <span className="w-3 h-3 rounded-sm mt-1 shrink-0" style={{ backgroundColor: color }} />
                     <div className="min-w-0">
                         <h2 className="text-base font-semibold leading-tight">{event.summary ?? '(No title)'}</h2>
                         {cal && <p className="text-xs text-fg/50 mt-0.5">{cal.summary}</p>}
@@ -180,14 +180,14 @@ const EventDetail: React.FC<{ event: CalendarEventData; onClose: () => void }> =
 
             {/* Time */}
             <div className="flex items-center gap-2 text-sm text-fg/70">
-                <Clock size={14} className="flex-shrink-0" />
+                <Clock size={14} className="shrink-0" />
                 <span>{formatEventDateRange(event)}</span>
             </div>
 
             {/* Location */}
             {event.location && (
                 <div className="flex items-start gap-2 text-sm text-fg/70">
-                    <MapPin size={14} className="flex-shrink-0 mt-0.5" />
+                    <MapPin size={14} className="shrink-0 mt-0.5" />
                     <span>{event.location}</span>
                 </div>
             )}
@@ -195,7 +195,7 @@ const EventDetail: React.FC<{ event: CalendarEventData; onClose: () => void }> =
             {/* Meeting link */}
             {meetingLink && (
                 <div className="flex items-center gap-2 text-sm">
-                    <Video size={14} className="flex-shrink-0 text-fg/70" />
+                    <Video size={14} className="shrink-0 text-fg/70" />
                     <a
                         href={meetingLink}
                         className="text-accent hover:underline truncate"
@@ -396,7 +396,7 @@ export const CalendarTab: React.FC = () => {
         <TabWithSummary tabKey="calendar">
         <div className="h-full flex flex-col bg-bg text-fg text-[13px]">
             {/* Toolbar */}
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-shrink-0">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
                 <CalendarIcon size={16} className="text-fg/60" />
                 <span className="font-medium text-sm">Calendar</span>
                 {accountEmail && (
@@ -451,7 +451,7 @@ export const CalendarTab: React.FC = () => {
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-xs flex-shrink-0 h-6"
+                            className="text-xs shrink-0 h-6"
                             onClick={() => {
                                 useCalendarStore.getState().setError(null);
                                 postMessage('calendar.signOut');
@@ -464,7 +464,7 @@ export const CalendarTab: React.FC = () => {
                     <Button
                         variant="ghost"
                         size="icon-xs"
-                        className="flex-shrink-0"
+                        className="shrink-0"
                         onClick={() => useCalendarStore.getState().setError(null)}
                     >
                         <X size={12} />
@@ -476,7 +476,7 @@ export const CalendarTab: React.FC = () => {
             <CalendarSidebar />
 
             {/* Resizable calendar + event detail pane */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-clip">
                 <ResizableLayout
                     storageKey="calendar"
                     hasSelection={selectedEvent !== null}
@@ -484,7 +484,7 @@ export const CalendarTab: React.FC = () => {
                     onBack={() => selectEvent(null)}
                     defaultListSize={65}
                     listContent={
-                        <div className="h-full overflow-hidden p-2">
+                        <div className="h-full overflow-clip p-2">
                             <div className="h-full fc-vscode-theme">
                                 <FullCalendar
                                     ref={calendarRef}

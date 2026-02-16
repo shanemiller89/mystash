@@ -41,18 +41,9 @@ import {
 } from 'lucide-react';
 import { EmojiPickerButton, ComposeEmojiPickerButton } from './EmojiPicker';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
+import { formatChatTimestamp } from '@/lib/formatTime';
 
-function formatTime(iso: string): string {
-    const date = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-    if (diffDays === 0) { return timeStr; }
-    if (diffDays === 1) { return `Yesterday ${timeStr}`; }
-    if (diffDays < 7) { return `${date.toLocaleDateString(undefined, { weekday: 'short' })} ${timeStr}`; }
-    return `${date.toLocaleDateString()} ${timeStr}`;
-}
+
 
 /** Small status dot for avatars */
 function StatusDot({ userId }: { userId: string }) {
@@ -233,7 +224,7 @@ const ThreadMessage: React.FC<{
                     <span className="text-xs font-semibold text-[var(--vscode-textLink-foreground)]">
                         {post.username}
                     </span>
-                    <span className="text-[10px] text-fg/40">{formatTime(post.createAt)}</span>
+                    <span className="text-[10px] text-fg/40">{formatChatTimestamp(post.createAt)}</span>
                     {isEdited && <span className="text-[10px] text-fg/30">(edited)</span>}
                     {post.isPinned && (
                         <span title="Pinned"><Pin size={9} className="text-yellow-500 shrink-0" /></span>

@@ -61,7 +61,7 @@ function AccordionContent({
     <AccordionPrimitive.Panel
       data-slot="accordion-content"
       className={cn(
-        "overflow-hidden text-sm text-[var(--vscode-foreground)] data-open:animate-accordion-down data-closed:animate-accordion-up",
+        "overflow-clip text-sm text-[var(--vscode-foreground)] data-open:animate-accordion-down data-closed:animate-accordion-up",
         className
       )}
       {...props}

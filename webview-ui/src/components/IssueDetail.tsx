@@ -41,7 +41,7 @@ const CommentCard: React.FC<{ comment: IssueCommentData }> = ({ comment }) => {
     }, [comment.body]);
 
     return (
-        <div className="border border-border rounded-md overflow-hidden">
+        <div className="border border-border rounded-md overflow-clip">
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-card border-b border-border">
                 <Button
@@ -165,9 +165,9 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
     return (
         <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="flex-shrink-0 border-b border-border px-4 py-3">
+            <div className="shrink-0 border-b border-border px-4 py-3">
                 <div className="flex items-start gap-2">
-                    <div className="mt-0.5 flex-shrink-0">
+                    <div className="mt-0.5 shrink-0">
                         {issue.state === 'open' ? (
                             <CircleDot size={16} className="text-green-400" />
                         ) : (
@@ -186,7 +186,7 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
                             <span>{formatRelative(issue.createdAt)}</span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                         <Button
                             variant="ghost"
                             size="icon-xs"
@@ -285,7 +285,7 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
                 {/* Issue body */}
                 {issue.body && (
-                    <div className="border border-border rounded-md overflow-hidden">
+                    <div className="border border-border rounded-md overflow-clip">
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-card border-b border-border">
                             {issue.authorAvatarUrl && (
                                 <img
@@ -320,7 +320,7 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
             </div>
 
             {/* Comment input */}
-            <div className="flex-shrink-0 border-t border-border p-3">
+            <div className="shrink-0 border-t border-border p-3">
                 <div className="flex gap-2">
                     <Textarea
                         className="flex-1 text-[11px]"

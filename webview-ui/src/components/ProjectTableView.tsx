@@ -273,7 +273,7 @@ export const ProjectTableView: React.FC = () => {
                                 {/* Title cell */}
                                 <td className="px-3 py-2 max-w-[300px]">
                                     <div className="flex items-center gap-1.5">
-                                        <div className="flex-shrink-0">
+                                        <div className="shrink-0">
                                             <ItemTypeIcon
                                                 type={item.type}
                                                 state={item.content?.state}
@@ -281,7 +281,7 @@ export const ProjectTableView: React.FC = () => {
                                             />
                                         </div>
                                         {item.content?.number && (
-                                            <span className="text-fg/40 text-[10px] flex-shrink-0">
+                                            <span className="text-fg/40 text-[10px] shrink-0">
                                                 #{item.content.number}
                                             </span>
                                         )}

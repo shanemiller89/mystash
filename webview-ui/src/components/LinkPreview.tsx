@@ -36,7 +36,7 @@ const LinkPreviewCard: React.FC<{ preview: MattermostLinkPreviewData }> = ({ pre
         <button
             type="button"
             onClick={handleClick}
-            className="block w-full max-w-md text-left border border-[var(--vscode-panel-border)] rounded-md overflow-hidden hover:bg-[var(--vscode-list-hoverBackground)] transition-colors cursor-pointer"
+            className="block w-full max-w-md text-left border border-[var(--vscode-panel-border)] rounded-md overflow-clip hover:bg-[var(--vscode-list-hoverBackground)] transition-colors cursor-pointer"
         >
             <div className="flex">
                 {/* Text content */}
@@ -64,7 +64,7 @@ const LinkPreviewCard: React.FC<{ preview: MattermostLinkPreviewData }> = ({ pre
 
                 {/* Thumbnail */}
                 {preview.imageUrl && (
-                    <div className="flex-shrink-0 w-20 h-20 bg-[var(--vscode-editor-background)]">
+                    <div className="shrink-0 w-20 h-20 bg-[var(--vscode-editor-background)]">
                         <img
                             src={preview.imageUrl}
                             alt=""

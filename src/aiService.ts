@@ -441,6 +441,9 @@ Keep answers focused and under 300 words unless the user asks for detail.${webSe
             projects: 'Projects',
             notes: 'Gist Notes',
             mattermost: 'Mattermost Chat',
+            drive: 'Google Drive',
+            calendar: 'Google Calendar',
+            wiki: 'Wiki',
         };
 
         const label = tabLabels[tabKey] ?? tabKey;

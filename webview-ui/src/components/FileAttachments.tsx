@@ -68,7 +68,7 @@ const ImageAttachment: React.FC<{
             <Button
                 variant="ghost"
                 onClick={() => setLightboxOpen(true)}
-                className="block rounded-md overflow-hidden border border-[var(--vscode-panel-border)] hover:border-[var(--vscode-focusBorder)] p-0 h-auto"
+                className="block rounded-md overflow-clip border border-[var(--vscode-panel-border)] hover:border-[var(--vscode-focusBorder)] p-0 h-auto"
                 title={`${file.name} (${formatFileSize(file.size)})`}
             >
                 <img

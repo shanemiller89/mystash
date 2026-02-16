@@ -377,12 +377,12 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
     return (
         <div
-            className="flex flex-col h-full overflow-hidden"
+            className="flex flex-col h-full overflow-clip"
             onKeyDown={handleKeyDown}
             tabIndex={-1}
         >
             {/* Header */}
-            <div className="px-3 py-2 border-b border-border flex-shrink-0 space-y-2">
+            <div className="px-3 py-2 border-b border-border shrink-0 space-y-2">
                 {/* Title row */}
                 <div className="flex items-center gap-2">
                     <Input
@@ -408,7 +408,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 {/* Toolbar row */}
                 <div className="flex items-center gap-2 text-[11px]">
                     {/* Edit / Preview toggle */}
-                    <div className="flex rounded border border-border overflow-hidden">
+                    <div className="flex rounded border border-border overflow-clip">
                         <Button
                             variant={!previewMode ? 'default' : 'ghost'}
                             size="sm"
@@ -539,7 +539,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
             {/* Formatting toolbar — edit mode only */}
             {!previewMode && (
-                <div className="px-3 py-1 border-b border-border flex-shrink-0 flex items-center gap-0.5 flex-wrap">
+                <div className="px-3 py-1 border-b border-border shrink-0 flex items-center gap-0.5 flex-wrap">
                     <Button
                         variant="ghost"
                         size="icon-xs"
@@ -718,7 +718,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             </div>
 
             {/* Footer */}
-            <div className="px-3 py-1 border-t border-border text-[10px] opacity-30 flex items-center gap-3 flex-shrink-0">
+            <div className="px-3 py-1 border-t border-border text-[10px] opacity-30 flex items-center gap-3 shrink-0">
                 <span>Last saved: {lastSavedTime}</span>
                 <span className="truncate flex-1 text-right">
                     <a

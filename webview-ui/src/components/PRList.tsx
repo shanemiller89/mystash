@@ -136,7 +136,7 @@ export const PRList: React.FC = () => {
     return (
         <div className="h-full flex flex-col">
             {/* Header: filter pills + search + refresh */}
-            <div className="flex-shrink-0 border-b border-border">
+            <div className="shrink-0 border-b border-border">
                 {/* Filter pills */}
                 <div className="flex items-center gap-1 px-3 py-2">
                     {stateFilters.map((f) => (
@@ -213,19 +213,19 @@ export const PRList: React.FC = () => {
                                 onClick={() => handleSelectPR(pr.number)}
                             >
                                 <div className="flex items-start gap-2">
-                                    <div className="mt-0.5 flex-shrink-0">
+                                    <div className="mt-0.5 shrink-0">
                                         <StateIcon state={pr.state} isDraft={pr.isDraft} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-fg/40 text-[11px] flex-shrink-0">
+                                            <span className="text-fg/40 text-[11px] shrink-0">
                                                 #{pr.number}
                                             </span>
                                             <span className="text-[12px] font-medium truncate">
                                                 {pr.title}
                                             </span>
                                             {pr.isDraft && (
-                                                <Badge variant="outline" className="text-[9px] px-1 py-0.5 bg-fg/10 text-fg/50 border-fg/10 flex-shrink-0">
+                                                <Badge variant="outline" className="text-[9px] px-1 py-0.5 bg-fg/10 text-fg/50 border-fg/10 shrink-0">
                                                     Draft
                                                 </Badge>
                                             )}
@@ -235,7 +235,7 @@ export const PRList: React.FC = () => {
                                                 {pr.branch} → {pr.baseBranch}
                                             </span>
                                             <span>·</span>
-                                            <span className="flex-shrink-0">
+                                            <span className="shrink-0">
                                                 {formatRelative(pr.updatedAt)}
                                             </span>
                                         </div>
@@ -258,7 +258,7 @@ export const PRList: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex-shrink-0 flex items-center gap-1 text-[10px] text-fg/30">
+                                    <div className="shrink-0 flex items-center gap-1 text-[10px] text-fg/30">
                                         {pr.commentsCount > 0 && (
                                             <span title={`${pr.commentsCount} comments`}>
                                                 💬 {pr.commentsCount}

@@ -22,7 +22,7 @@ function Progress({
             aria-valuemin={0}
             aria-valuemax={max}
             className={cn(
-                'relative h-2 w-full overflow-hidden rounded-full',
+                'relative h-2 w-full overflow-clip rounded-full',
                 'bg-[var(--vscode-progressBar-background,var(--vscode-button-secondaryBackground))]',
                 className,
             )}

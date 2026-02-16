@@ -33,7 +33,7 @@ export const TabBar: React.FC = () => {
     const visibleTabs = aiAvailable ? tabs : tabs.filter((t) => t.key !== 'agent');
 
     return (
-        <div className="flex border-b border-border bg-card flex-shrink-0 select-none">
+        <div className="flex border-b border-border bg-card shrink-0 select-none">
             {visibleTabs.map((tab) => {
                 const isActive = activeTab === tab.key;
                 return (

@@ -143,7 +143,7 @@ export const ProjectsTab: React.FC = () => {
         <TabWithSummary tabKey="projects">
             <div className="h-full flex flex-col">
                 {/* ── Shared header ─────────────────────────────────── */}
-            <div className="flex-shrink-0 border-b border-border">
+            <div className="shrink-0 border-b border-border">
                 {/* Project selector */}
                 {availableProjects.length > 1 && (
                     <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border">
@@ -296,12 +296,12 @@ interface ViewSwitcherProps {
 
 const ViewSwitcher: React.FC<ViewSwitcherProps> = ({ views, selectedViewId, onSelectView }) => {
     return (
-        <div className="flex-shrink-0 flex items-center gap-0.5 px-3 py-1.5 border-b border-border overflow-x-auto">
+        <div className="shrink-0 flex items-center gap-0.5 px-3 py-1.5 border-b border-border overflow-x-auto">
             {/* Simple view — first / default */}
             <Button
                 variant={selectedViewId === SIMPLE_VIEW_ID ? 'default' : 'ghost'}
                 size="sm"
-                className="h-auto px-2.5 py-1 text-[10px] gap-1 flex-shrink-0"
+                className="h-auto px-2.5 py-1 text-[10px] gap-1 shrink-0"
                 onClick={() => onSelectView(SIMPLE_VIEW_ID)}
             >
                 <List size={11} />
@@ -314,7 +314,7 @@ const ViewSwitcher: React.FC<ViewSwitcherProps> = ({ views, selectedViewId, onSe
                         key={view.id}
                         variant={isActive ? 'default' : 'ghost'}
                         size="sm"
-                        className="h-auto px-2.5 py-1 text-[10px] gap-1 flex-shrink-0"
+                        className="h-auto px-2.5 py-1 text-[10px] gap-1 shrink-0"
                         onClick={() => onSelectView(view.id)}
                     >
                         <ViewLayoutIcon layout={view.layout} />

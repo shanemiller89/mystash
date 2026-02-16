@@ -56,3 +56,14 @@ export function formatRelativeTime(date: Date): string {
 export function getConfig<T>(key: string, defaultValue: T): T {
     return vscode.workspace.getConfiguration('superprompt-forge').get<T>(key, defaultValue);
 }
+
+/**
+ * Safely extract a human-readable error message from an unknown thrown value.
+ * Canonical pattern: prefer `Error.message`, fall back to `String(e)`.
+ */
+export function extractErrorMessage(e: unknown): string {
+    if (e instanceof Error) {
+        return e.message;
+    }
+    return String(e);
+}

@@ -41,7 +41,7 @@ export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children
     return (
         <div className="flex h-full">
             {/* Main tab content */}
-            <div className="flex-1 min-w-0 overflow-hidden relative">
+            <div className="flex-1 min-w-0 overflow-clip relative">
                 {children}
                 {/* Floating toggle button — top-right of content area (only when AI available) */}
                 {aiAvailable && (
@@ -53,7 +53,7 @@ export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children
 
             {/* Right pane */}
             {isOpen && (
-                <div className="w-[280px] flex-shrink-0 overflow-hidden">
+                <div className="w-[280px] shrink-0 overflow-clip">
                     <ErrorBoundary label="AI Summary">
                         <SummaryPane tabKey={tabKey} label={displayLabel} />
                     </ErrorBoundary>

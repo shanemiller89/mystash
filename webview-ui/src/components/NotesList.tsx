@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useState, useMemo } from 'react';
 import { useNotesStore, type GistNoteData, type NotesFilterMode } from '../notesStore';
 import { postMessage } from '../vscode';
+import { formatRelativeTimeCompact } from '@/lib/formatTime';
 import { Lock, Globe, StickyNote, Plus, X, ShieldCheck, FolderGit2, Library, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -93,9 +94,9 @@ export const NotesList: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-clip">
             {/* Header with search + create */}
-            <div className="px-3 py-2 border-b border-border flex-shrink-0 space-y-2">
+            <div className="px-3 py-2 border-b border-border shrink-0 space-y-2">
                 <div className="flex items-center gap-2">
                     <Input
                         ref={searchRef}
@@ -108,7 +109,7 @@ export const NotesList: React.FC = () => {
                     />
                     <Button
                         size="sm"
-                        className="h-auto px-2.5 py-1 text-[11px] flex-shrink-0 gap-1"
+                        className="h-auto px-2.5 py-1 text-[11px] shrink-0 gap-1"
                         onClick={handleCreateNote}
                         title="Create new note"
                     >
@@ -246,7 +247,7 @@ export const NotesList: React.FC = () => {
                         const isSelected = selectedNoteId === note.id;
                         const snippet = note.content.replace(/\n/g, ' ').slice(0, 80);
                         const updatedDate = new Date(note.updatedAt);
-                        const timeAgo = formatRelativeTimeSimple(updatedDate);
+                        const timeAgo = formatRelativeTimeCompact(updatedDate);
 
                         return (
                             <div
@@ -275,7 +276,7 @@ export const NotesList: React.FC = () => {
                                             </Badge>
                                         )}
                                     </div>
-                                    <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                                    <div className="flex flex-col items-end gap-0.5 shrink-0">
                                         <span className="text-[10px] opacity-40">{timeAgo}</span>
                                         <span
                                             className="text-[10px]"
@@ -296,7 +297,7 @@ export const NotesList: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-3 py-1.5 border-t border-border text-[10px] opacity-40 flex-shrink-0">
+            <div className="px-3 py-1.5 border-t border-border text-[10px] opacity-40 shrink-0">
                 {notes.length} note{notes.length !== 1 ? 's' : ''}
                 {filterMode === 'workspace' && allNotes.length !== notes.length && (
                     <span> · {allNotes.length} total</span>
@@ -307,15 +308,4 @@ export const NotesList: React.FC = () => {
 };
 
 /** Simple relative time formatter for the webview (avoids importing the full utils) */
-function formatRelativeTimeSimple(date: Date): string {
-    const diffMs = Date.now() - date.getTime();
-    const diffMin = Math.floor(diffMs / 60_000);
-    const diffHour = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHour / 24);
 
-    if (diffMin < 1) return 'just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    if (diffHour < 24) return `${diffHour}h ago`;
-    if (diffDay < 7) return `${diffDay}d ago`;
-    return date.toLocaleDateString();
-}

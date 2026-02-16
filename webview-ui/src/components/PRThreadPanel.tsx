@@ -64,7 +64,7 @@ const ThreadMessage: React.FC<{ comment: PRCommentData }> = ({ comment }) => (
                 <img
                     src={comment.authorAvatarUrl}
                     alt={comment.author}
-                    className="w-5 h-5 rounded-full flex-shrink-0"
+                    className="w-5 h-5 rounded-full shrink-0"
                 />
             )}
             <span className="text-[11px] font-medium">{comment.author}</span>
@@ -137,8 +137,8 @@ export const PRThreadPanel: React.FC = () => {
     return (
         <div className="h-full flex flex-col border-l border-border">
             {/* Header */}
-            <div className="flex-shrink-0 border-b border-border px-3 py-2 flex items-center gap-2">
-                <MessageSquare size={12} className="text-fg/40 flex-shrink-0" />
+            <div className="shrink-0 border-b border-border px-3 py-2 flex items-center gap-2">
+                <MessageSquare size={12} className="text-fg/40 shrink-0" />
                 <span className="text-[11px] font-medium truncate">
                     Thread
                 </span>
@@ -191,7 +191,7 @@ export const PRThreadPanel: React.FC = () => {
 
             {/* Diff hunk from root comment */}
             {rootComment.diffHunk && (
-                <div className="border-b border-border px-2 py-1.5 max-h-40 overflow-y-auto flex-shrink-0">
+                <div className="border-b border-border px-2 py-1.5 max-h-40 overflow-y-auto shrink-0">
                     <DiffHunk hunk={rootComment.diffHunk} />
                 </div>
             )}
@@ -219,7 +219,7 @@ export const PRThreadPanel: React.FC = () => {
             </div>
 
             {/* Reply composer */}
-            <div className="flex-shrink-0 border-t border-border p-3">
+            <div className="shrink-0 border-t border-border p-3">
                 <div className="flex gap-2">
                     <Textarea
                         ref={replyRef}

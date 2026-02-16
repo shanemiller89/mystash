@@ -170,7 +170,7 @@ const CommentCard: React.FC<{ comment: PRCommentData; prNumber: number }> = ({ c
     }, [comment]);
 
     return (
-        <div className={`border rounded overflow-hidden ${comment.isResolved ? 'border-green-400/30 bg-green-400/[0.03]' : 'border-border'}`}>
+        <div className={`border rounded overflow-clip ${comment.isResolved ? 'border-green-400/30 bg-green-400/[0.03]' : 'border-border'}`}>
             {/* Review comment file context */}
             {comment.isReviewComment && comment.path && (
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--vscode-textCodeBlock-background,rgba(127,127,127,0.08))] border-b border-border text-[10px] text-fg/50">
@@ -426,7 +426,7 @@ const UserGroup: React.FC<{
     const [collapsed, setCollapsed] = useState(false);
 
     return (
-        <div className="border border-border rounded overflow-hidden">
+        <div className="border border-border rounded overflow-clip">
             <Button
                 variant="ghost"
                 className="w-full justify-start gap-2 rounded-none px-3 py-1.5 h-auto"
@@ -470,7 +470,7 @@ const ThreadCard: React.FC<{ thread: ReviewThread; prNumber: number }> = ({ thre
 
     return (
         <div
-            className={`border rounded overflow-hidden cursor-pointer hover:border-accent/40 transition-colors ${
+            className={`border rounded overflow-clip cursor-pointer hover:border-accent/40 transition-colors ${
                 isResolved ? 'border-green-400/30 bg-green-400/[0.03]' : 'border-border'
             }`}
             onClick={() => openThread(thread.threadId)}
@@ -953,7 +953,7 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
     return (
         <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="flex-shrink-0 border-b border-border p-3">
+            <div className="shrink-0 border-b border-border p-3">
                 <div className="flex items-start gap-2">
                     <StateIcon state={pr.state} isDraft={pr.isDraft} />
                     <div className="flex-1 min-w-0">
@@ -981,7 +981,7 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                             )}
                         </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                         <Button
                             variant="ghost"
                             size="icon-xs"
@@ -1255,7 +1255,7 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
             </div>
 
             {/* New comment input */}
-            <div className="flex-shrink-0 border-t border-border p-3">
+            <div className="shrink-0 border-t border-border p-3">
                 <div className="flex gap-2">
                     <Textarea
                         value={newComment}

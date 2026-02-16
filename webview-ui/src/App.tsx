@@ -1133,8 +1133,8 @@ export const App: React.FC = () => {
             <ErrorBoundary label="TabBar">
                 <TabBar />
             </ErrorBoundary>
-            <div className="flex-1 overflow-hidden relative">
-                <div className="h-full overflow-hidden">
+            <div className="flex-1 overflow-clip relative">
+                <div className="h-full overflow-clip">
                     {activeTab === 'stashes' ? (
                         <ErrorBoundary key="stashes" label="Stashes">
                             <StashesTab />

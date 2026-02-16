@@ -342,10 +342,10 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({ onClose }) => {
     return (
         <div className="h-full flex flex-col overflow-y-auto">
             {/* Header */}
-            <div className="flex-shrink-0 p-4 border-b border-border">
+            <div className="shrink-0 p-4 border-b border-border">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 min-w-0">
-                        <div className="mt-0.5 flex-shrink-0">
+                        <div className="mt-0.5 shrink-0">
                             <ItemTypeIcon type={item.type} state={item.content?.state} />
                         </div>
                         <div className="min-w-0">
@@ -392,7 +392,7 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({ onClose }) => {
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                         <Button
                             variant="ghost"
                             size="icon-xs"
@@ -460,7 +460,7 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({ onClose }) => {
 
             {/* Project Fields */}
             {(editableFields.length > 0 || readOnlyFields.length > 0) && (
-                <div className="flex-shrink-0 border-b border-border">
+                <div className="shrink-0 border-b border-border">
                     <div className="px-4 py-3">
                         <h3 className="text-[11px] font-semibold text-fg/60 uppercase tracking-wide mb-2">
                             Project Fields
@@ -471,7 +471,7 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({ onClose }) => {
                                     key={fv.fieldId}
                                     className="flex items-center justify-between gap-2"
                                 >
-                                    <span className="text-[11px] text-fg/50 flex-shrink-0">
+                                    <span className="text-[11px] text-fg/50 shrink-0">
                                         {fv.fieldName}
                                     </span>
                                     <FieldValueEditor
@@ -521,7 +521,7 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({ onClose }) => {
                                         key={fv.fieldId}
                                         className="flex items-center justify-between gap-2"
                                     >
-                                        <span className="text-[11px] text-fg/50 flex-shrink-0">
+                                        <span className="text-[11px] text-fg/50 shrink-0">
                                             {fv.fieldName}
                                         </span>
                                         <span className="text-[11px]">{display}</span>

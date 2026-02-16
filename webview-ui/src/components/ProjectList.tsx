@@ -157,7 +157,7 @@ export const ProjectList: React.FC = () => {
                         onClick={() => handleSelectItem(item.id)}
                     >
                         <div className="flex items-start gap-2">
-                            <div className="mt-0.5 flex-shrink-0">
+                            <div className="mt-0.5 shrink-0">
                                 <ItemTypeIcon
                                     type={item.type}
                                     state={item.content?.state}
@@ -166,7 +166,7 @@ export const ProjectList: React.FC = () => {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                     {item.content?.number && (
-                                        <span className="text-fg/40 text-[11px] flex-shrink-0">
+                                        <span className="text-fg/40 text-[11px] shrink-0">
                                             #{item.content.number}
                                         </span>
                                     )}
@@ -183,13 +183,13 @@ export const ProjectList: React.FC = () => {
                                     {statusFv?.singleSelectOptionName && (
                                         <>
                                             <span>·</span>
-                                            <span className="flex-shrink-0">
+                                            <span className="shrink-0">
                                                 {statusFv.singleSelectOptionName}
                                             </span>
                                         </>
                                     )}
                                     <span>·</span>
-                                    <span className="flex-shrink-0">
+                                    <span className="shrink-0">
                                         {formatRelative(item.updatedAt)}
                                     </span>
                                 </div>
@@ -215,7 +215,7 @@ export const ProjectList: React.FC = () => {
                             </div>
                             {item.content?.assignees &&
                                 item.content.assignees.length > 0 && (
-                                    <div className="flex-shrink-0 flex -space-x-1">
+                                    <div className="shrink-0 flex -space-x-1">
                                         {item.content.assignees.slice(0, 3).map((a) => (
                                             <img
                                                 key={a.login}

@@ -126,7 +126,7 @@ export const CreatePRForm: React.FC<CreatePRFormProps> = ({ onBack }) => {
     return (
         <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="flex-shrink-0 border-b border-border p-3">
+            <div className="shrink-0 border-b border-border p-3">
                 <div className="flex items-center gap-2">
                     <Button
                         variant="ghost"
@@ -370,7 +370,7 @@ export const CreatePRForm: React.FC<CreatePRFormProps> = ({ onBack }) => {
             </div>
 
             {/* Footer: submit */}
-            <div className="flex-shrink-0 border-t border-border p-3">
+            <div className="shrink-0 border-t border-border p-3">
                 <Button
                     className="w-full gap-2"
                     onClick={handleCreate}

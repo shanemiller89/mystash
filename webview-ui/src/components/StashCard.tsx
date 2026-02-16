@@ -67,7 +67,7 @@ export const StashCard: React.FC<{
             >
                 {/* Color indicator */}
                 <div
-                    className={`w-1 rounded-full flex-shrink-0 self-stretch ${
+                    className={`w-1 rounded-full shrink-0 self-stretch ${
                         isWip ? 'bg-warning' : 'bg-accent'
                     }`}
                 />
@@ -90,7 +90,7 @@ export const StashCard: React.FC<{
                 </div>
 
                 {/* Actions — visible on hover */}
-                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                     <ActionButton
                         label="Apply"
                         icon={<Check size={12} />}

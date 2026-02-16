@@ -25,7 +25,7 @@ export const TabSummaryButton: React.FC<TabSummaryProps> = React.memo(({ tabKey 
         <Button
             variant="ghost"
             size="icon-xs"
-            className={`flex-shrink-0 ${isOpen ? 'text-accent' : 'text-fg/40 hover:text-fg/70'}`}
+            className={`shrink-0 ${isOpen ? 'text-accent' : 'text-fg/40 hover:text-fg/70'}`}
             onClick={handleToggle}
             title={isOpen ? 'Close AI Summary' : 'AI Summary'}
         >
