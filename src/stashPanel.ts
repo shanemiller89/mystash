@@ -368,6 +368,7 @@ export class StashPanel {
         stateReason?: string;
         // Mattermost message properties
         channelId?: string;
+        channelName?: string;
         teamId?: string;
         page?: number;
         // Mattermost thread/reaction/DM properties
@@ -2193,6 +2194,63 @@ List each changed file, a brief description of what changed in that file, and wh
                 // Send a typing indicator via WebSocket (not REST)
                 if (this._mmWebSocket?.isConnected && msg.channelId) {
                     this._mmWebSocket.sendTyping(msg.channelId, msg.rootId);
+                }
+                break;
+            }
+
+            // ─── Mattermost Channel Export ──────────────────────────
+
+            case 'mattermost.exportChannel': {
+                if (!this._mattermostService || !msg.channelId) { break; }
+                try {
+                    const channelId = msg.channelId as string;
+                    const channelName = (msg.channelName as string) || 'channel';
+
+                    // Show progress while fetching all messages
+                    await vscode.window.withProgress(
+                        {
+                            location: vscode.ProgressLocation.Notification,
+                            title: `Exporting messages from #${channelName}…`,
+                            cancellable: false,
+                        },
+                        async (progress) => {
+                            progress.report({ message: 'Fetching messages…' });
+
+                            const entries = await this._mattermostService!.exportChannelMessages(
+                                channelId,
+                                (fetched) => {
+                                    progress.report({ message: `${fetched} messages fetched…` });
+                                },
+                            );
+
+                            if (entries.length === 0) {
+                                vscode.window.showInformationMessage('No messages to export.');
+                                return;
+                            }
+
+                            progress.report({ message: 'Saving file…' });
+
+                            // Prompt user for save location
+                            const baseDir = require('path').join(require('os').homedir(), 'Downloads');
+                            const fileName = `${channelName}-export-${new Date().toISOString().slice(0, 10)}.json`;
+                            const uri = await vscode.window.showSaveDialog({
+                                defaultUri: vscode.Uri.file(`${baseDir}/${fileName}`),
+                                filters: { 'JSON Files': ['json'] },
+                                title: 'Export Mattermost Messages',
+                            });
+
+                            if (uri) {
+                                const json = JSON.stringify(entries, null, 2);
+                                await vscode.workspace.fs.writeFile(uri, Buffer.from(json, 'utf-8'));
+                                vscode.window.showInformationMessage(
+                                    `Exported ${entries.length} messages to ${uri.fsPath}`,
+                                );
+                            }
+                        },
+                    );
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    vscode.window.showErrorMessage(`Export failed: ${m}`);
                 }
                 break;
             }

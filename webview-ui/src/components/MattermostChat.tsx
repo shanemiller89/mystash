@@ -29,6 +29,7 @@ import {
     Send,
     ArrowLeft,
     RefreshCw,
+    Download,
     ChevronUp,
     ChevronDown,
     ChevronRight,
@@ -1033,6 +1034,17 @@ export const MattermostChat: React.FC<{
                     title="Channel info"
                 >
                     <Info size={14} />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => postMessage('mattermost.exportChannel', {
+                        channelId: selectedChannelId,
+                        channelName: selectedChannelName,
+                    })}
+                    title="Export all messages as JSON"
+                >
+                    <Download size={14} />
                 </Button>
                 <Button
                     variant="ghost"

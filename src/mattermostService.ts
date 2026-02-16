@@ -196,6 +196,16 @@ export interface MattermostChannelUnreadData {
     mentionCount: number;
 }
 
+/** Single entry in the exported channel JSON blob */
+export interface MattermostExportEntry {
+    message: string;
+    user: string;
+    timestamp: string; // ISO 8601
+    emojis: string[];  // reaction emoji names
+    links: string[];   // URLs extracted from message text
+    threadRootId?: string; // present if this is a threaded reply
+}
+
 // ─── GitHub-style API types → Mattermost raw API shapes ──────────
 
 interface MmApiTeam {
@@ -1304,6 +1314,88 @@ export class MattermostService {
         const me = await this.getMe();
         await this._request('POST', `/channels/members/${me.id}/view`, {
             channel_id: channelId,
+        });
+    }
+
+    // ─── Channel Export ─────────────────────────────────────────
+
+    /**
+     * Export ALL messages in a channel (including threaded replies) as a flat
+     * array of `MattermostExportEntry` objects.  Handles pagination internally,
+     * resolves usernames, reactions, and extracts links from message text.
+     */
+    async exportChannelMessages(
+        channelId: string,
+        onProgress?: (fetched: number) => void,
+    ): Promise<MattermostExportEntry[]> {
+        // 1. Fetch ALL posts in the channel via pagination
+        const allPosts: MattermostPost[] = [];
+        const perPage = 200; // max allowed by MM API
+        let page = 0;
+        while (true) {
+            const batch = await this.getChannelPosts(channelId, page, perPage);
+            allPosts.push(...batch);
+            onProgress?.(allPosts.length);
+            if (batch.length < perPage) { break; }
+            page++;
+        }
+
+        // 2. Collect root IDs that have threads and fetch full threads
+        //    (getChannelPosts only returns top-level + direct replies in the
+        //    page window; threaded replies might be missing.)
+        const rootIds = new Set<string>();
+        for (const p of allPosts) {
+            if (p.rootId) { rootIds.add(p.rootId); }
+        }
+        const existingIds = new Set(allPosts.map((p) => p.id));
+        for (const rootId of rootIds) {
+            try {
+                const thread = await this.getPostThread(rootId);
+                for (const tp of thread) {
+                    if (!existingIds.has(tp.id)) {
+                        allPosts.push(tp);
+                        existingIds.add(tp.id);
+                    }
+                }
+            } catch { /* ignore thread fetch errors */ }
+        }
+        onProgress?.(allPosts.length);
+
+        // 3. Resolve usernames
+        const usernames = await this.resolveUsernames(allPosts);
+
+        // 4. Bulk-fetch reactions
+        const postIds = allPosts.map((p) => p.id);
+        let reactionsMap = new Map<string, MattermostReaction[]>();
+        // Batch in groups of 200 to avoid oversized requests
+        for (let i = 0; i < postIds.length; i += 200) {
+            const chunk = postIds.slice(i, i + 200);
+            try {
+                const batch = await this.getBulkReactions(chunk);
+                for (const [pid, rxns] of batch) {
+                    reactionsMap.set(pid, rxns);
+                }
+            } catch { /* ignore */ }
+        }
+
+        // 5. Build export entries sorted chronologically (oldest first)
+        const urlRegex = /https?:\/\/[^\s<>"'`)\]]+/gi;
+
+        const sorted = [...allPosts].sort((a, b) => a.createAt - b.createAt);
+
+        return sorted.map((p): MattermostExportEntry => {
+            const reactions = reactionsMap.get(p.id) ?? [];
+            const emojis = reactions.map((r) => r.emojiName);
+            const links = (p.message.match(urlRegex) ?? []) as string[];
+
+            return {
+                message: p.message,
+                user: usernames.get(p.userId) ?? p.userId,
+                timestamp: new Date(p.createAt).toISOString(),
+                emojis,
+                links,
+                ...(p.rootId ? { threadRootId: p.rootId } : {}),
+            };
         });
     }
 
