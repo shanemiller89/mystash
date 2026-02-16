@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { GitService, ExecFn, StashEntry, GitResult } from '../gitService';
+import { GitService, type ExecFn, StashEntry, GitResult } from '../gitService';
 
 /**
  * Unit tests for GitService — uses injectable ExecFn to mock git CLI output.

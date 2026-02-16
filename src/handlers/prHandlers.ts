@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { AiService } from '../aiService';
 import { PrService } from '../prService';
 import { extractErrorMessage } from '../utils';
-import type { HandlerContext, MessageHandler } from './types';
+import type { MessageHandler } from './types';
 
 /** Handle all `prs.*` messages from the webview. */
 export const handlePrMessage: MessageHandler = async (ctx, msg) => {

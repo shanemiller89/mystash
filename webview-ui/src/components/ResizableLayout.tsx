@@ -26,7 +26,7 @@ interface ResizableLayoutProps {
 function getPersistedSize(key: string): number | null {
     try {
         const raw = localStorage.getItem(`resizable-${key}`);
-        if (raw) return JSON.parse(raw) as number;
+        if (raw) {return JSON.parse(raw) as number;}
     } catch { /* ignore */ }
     return null;
 }
@@ -58,7 +58,7 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
 
     useEffect(() => {
         const el = containerRef.current;
-        if (!el) return;
+        if (!el) {return;}
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 setIsNarrow(entry.contentRect.width < NARROW_BREAKPOINT);

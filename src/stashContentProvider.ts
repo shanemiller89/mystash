@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GitService } from './gitService';
+import { type GitService } from './gitService';
 
 /**
  * URI scheme: superprompt-forge:/stash@{index}/filepath?ref=stash|parent

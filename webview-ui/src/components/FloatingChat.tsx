@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react';
-import { useAIStore, type AIModelInfo } from '../aiStore';
+import { useAIStore } from '../aiStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import {

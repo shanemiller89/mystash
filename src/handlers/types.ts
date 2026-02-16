@@ -1,16 +1,16 @@
-import * as vscode from 'vscode';
-import { GitService } from '../gitService';
-import { AuthService } from '../authService';
-import { GistService } from '../gistService';
-import { PrService } from '../prService';
-import { IssueService } from '../issueService';
-import { MattermostService } from '../mattermostService';
-import { MattermostWebSocket } from '../mattermostWebSocket';
-import { ProjectService } from '../projectService';
-import { GoogleDriveService } from '../googleDriveService';
-import { GoogleCalendarService } from '../calendarService';
-import { WikiService } from '../wikiService';
-import { AiService } from '../aiService';
+import type * as vscode from 'vscode';
+import { type GitService } from '../gitService';
+import { type AuthService } from '../authService';
+import { type GistService } from '../gistService';
+import { type PrService } from '../prService';
+import { type IssueService } from '../issueService';
+import { type MattermostService } from '../mattermostService';
+import { type MattermostWebSocket } from '../mattermostWebSocket';
+import { type ProjectService } from '../projectService';
+import { type GoogleDriveService } from '../googleDriveService';
+import { type GoogleCalendarService } from '../calendarService';
+import { type WikiService } from '../wikiService';
+import { type AiService } from '../aiService';
 
 // ─── Handler Context ─────────────────────────────────────────────
 // Everything a domain handler needs to do its job.  Passed by the
@@ -81,6 +81,7 @@ export interface HandlerContext {
 // Each domain module exports a single function matching this signature.
 // Returns `true` if the message was handled, `false` otherwise.
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type WebviewMessage = { type: string } & Record<string, any>;
 
 export type MessageHandler = (

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MattermostTeam, MattermostChannel } from './mattermostService';
+import { type MattermostTeam, type MattermostChannel } from './mattermostService';
 
 /**
  * Tree item representing a Mattermost team (expandable parent with channels as children).

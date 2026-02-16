@@ -1,19 +1,19 @@
 import * as vscode from 'vscode';
-import { GitService, StashEntry, StashFileEntry } from './gitService';
-import { AuthService } from './authService';
+import { type GitService, type StashEntry, type StashFileEntry } from './gitService';
+import { type AuthService } from './authService';
 import { GistService } from './gistService';
 import { PrService } from './prService';
 import { IssueService } from './issueService';
-import { MattermostService, MattermostPostData, MattermostChannelData } from './mattermostService';
-import { MattermostWebSocket, MmWsPostedData, MmWsReactionData, MmWsStatusChangeData, MmWsTypingData } from './mattermostWebSocket';
+import { MattermostService, type MattermostPostData, type MattermostChannelData, type MattermostFileInfoData, type MattermostChannel } from './mattermostService';
+import { MattermostWebSocket, type MmWsPostedData, type MmWsReactionData, type MmWsStatusChangeData, type MmWsTypingData } from './mattermostWebSocket';
 import { ProjectService } from './projectService';
-import { GoogleDriveService } from './googleDriveService';
-import { GoogleCalendarService } from './calendarService';
+import { type GoogleDriveService } from './googleDriveService';
+import { type GoogleCalendarService } from './calendarService';
 import { WikiService } from './wikiService';
 import { AiService } from './aiService';
-import { formatRelativeTime, getConfig, extractErrorMessage } from './utils';
-import { PanelServices, ensureGoogleCredentials } from './panelContext';
-import { handlerRegistry, HandlerContext } from './handlers';
+import { formatRelativeTime, extractErrorMessage } from './utils';
+import { type PanelServices } from './panelContext';
+import { handlerRegistry, type HandlerContext } from './handlers';
 
 /**
  * Manages the Superprompt Forge webview panel — a rich, interactive stash explorer
@@ -303,6 +303,7 @@ export class StashPanel {
         return result;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private async _handleMessage(msg: { type: string } & Record<string, any>): Promise<void> {
         // ─── 'ready' stays inline — it mutates panel-level state ──────
         if (msg.type === 'ready') {
@@ -1228,7 +1229,7 @@ export class StashPanel {
 
     /** Resolve DM display names and other-user IDs for a list of DM/group channels. */
     private async _resolveDmChannelPayloads(
-        dmChannels: import('./mattermostService').MattermostChannel[],
+        dmChannels: MattermostChannel[],
         myUserId: string,
     ): Promise<MattermostChannelData[]> {
         if (!this._mattermostService) { return []; }
@@ -1317,7 +1318,7 @@ export class StashPanel {
                     await this._mattermostService.resolveUsername(rawPost.user_id);
 
                 // Resolve file attachments if present
-                let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
+                let files: MattermostFileInfoData[] | undefined;
                 if (rawPost.file_ids && rawPost.file_ids.length > 0) {
                     try {
                         files = await this._mattermostService.resolveFileInfos(rawPost.file_ids);
@@ -1393,7 +1394,7 @@ export class StashPanel {
                 const username = await this._mattermostService.resolveUsername(rawPost.user_id);
 
                 // Resolve file attachments if present
-                let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
+                let files: MattermostFileInfoData[] | undefined;
                 if (rawPost.file_ids && rawPost.file_ids.length > 0) {
                     try {
                         files = await this._mattermostService.resolveFileInfos(rawPost.file_ids);

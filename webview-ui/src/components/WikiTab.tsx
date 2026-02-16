@@ -15,7 +15,6 @@ import {
     ExternalLink,
     FileText,
     AlertCircle,
-    ChevronLeft,
 } from 'lucide-react';
 
 // ─── Wiki Page List ───────────────────────────────────────────────
@@ -65,6 +64,7 @@ const WikiList: React.FC = () => {
     const authRequired = useWikiStore((s) => s.authRequired);
     const filteredPages = useWikiStore((s) => s.filteredPages);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- extra deps trigger recompute of Zustand derived selector
     const filtered = useMemo(() => filteredPages(), [filteredPages, pages, searchQuery]);
 
     const handleRefresh = useCallback(() => {
@@ -202,7 +202,7 @@ const WikiList: React.FC = () => {
 
 // ─── Wiki Page Detail ─────────────────────────────────────────────
 
-const WikiPageDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const WikiPageDetail: React.FC<{ onClose: () => void }> = ({ onClose: _onClose }) => {
     const selectedPage = useWikiStore((s) => s.selectedPage);
     const isPageLoading = useWikiStore((s) => s.isPageLoading);
     const selectedFilename = useWikiStore((s) => s.selectedFilename);

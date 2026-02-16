@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useAIStore, type AIModelInfo } from '../aiStore';
+import { useAIStore } from '../aiStore';
 import { useMattermostStore } from '../mattermostStore';
 import { useSettingsStore, type SettingsData } from '../settingsStore';
 import { postMessage } from '../vscode';
@@ -349,7 +349,7 @@ export const SettingsTab: React.FC = () => {
                         title="Model Assignments"
                     >
                         <p className="text-[10.5px] text-fg/40 leading-snug mb-2">
-                            Override which model is used for each AI feature. Leave on "Default" to use the provider's default model.
+                            Override which model is used for each AI feature. Leave on &quot;Default&quot; to use the provider&apos;s default model.
                             {aiProvider === 'gemini' && ' Changes are saved to VS Code settings automatically.'}
                         </p>
                         {availableModels.length === 0 ? (

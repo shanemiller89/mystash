@@ -65,16 +65,6 @@ function getEventColor(event: CalendarEventData, calendars: CalendarListEntryDat
     return 'var(--color-accent)';
 }
 
-function formatEventTime(dt: { dateTime?: string; date?: string }): string {
-    if (dt.dateTime) {
-        return new Date(dt.dateTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    }
-    if (dt.date) {
-        return 'All day';
-    }
-    return '';
-}
-
 function formatEventDateRange(event: CalendarEventData): string {
     const startDate = event.start.dateTime ? new Date(event.start.dateTime) : event.start.date ? new Date(event.start.date + 'T00:00:00') : null;
     const endDate = event.end.dateTime ? new Date(event.end.dateTime) : event.end.date ? new Date(event.end.date + 'T00:00:00') : null;

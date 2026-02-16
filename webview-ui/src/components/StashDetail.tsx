@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { useStashStore, type StashData, type StashFileData } from '../store';
+import { useStashStore, type StashFileData } from '../store';
 import { postMessage } from '../vscode';
 import { DiffView } from './DiffView';
 import { Button } from './ui/button';
@@ -28,6 +28,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const selectedStashFn = useStashStore((s) => s.selectedStash);
     const stashes = useStashStore((s) => s.stashes);
     const selectedStashIndex = useStashStore((s) => s.selectedStashIndex);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- extra deps trigger recompute of Zustand derived selector
     const stash = useMemo(() => selectedStashFn(), [selectedStashFn, stashes, selectedStashIndex]);
     const fileDiffs = useStashStore((s) => s.fileDiffs);
     const fileDiffLoading = useStashStore((s) => s.fileDiffLoading);
@@ -37,7 +38,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     const handleToggleFile = useCallback(
         (file: StashFileData) => {
-            if (!stash) return;
+            if (!stash) {return;}
             const key = `${stash.index}:${file.path}`;
             toggleDetailFile(key);
 
@@ -52,7 +53,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     const handleOpenNativeDiff = useCallback(
         (file: StashFileData) => {
-            if (!stash) return;
+            if (!stash) {return;}
             postMessage('showFile', { index: stash.index, filePath: file.path });
         },
         [stash],

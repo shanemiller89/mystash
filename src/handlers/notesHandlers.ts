@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { GistService } from '../gistService';
 import { extractErrorMessage } from '../utils';
-import type { HandlerContext, MessageHandler } from './types';
+import type { MessageHandler } from './types';
 
 /** Handle all `notes.*` messages from the webview. */
 export const handleNotesMessage: MessageHandler = async (ctx, msg) => {

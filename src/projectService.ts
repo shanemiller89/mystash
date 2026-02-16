@@ -1,5 +1,5 @@
-import * as vscode from 'vscode';
-import { AuthService } from './authService';
+import type * as vscode from 'vscode';
+import { type AuthService } from './authService';
 
 // ─── Data Models ──────────────────────────────────────────────────
 
@@ -448,9 +448,6 @@ export class ProjectService {
             return this._parseProject(data.user.projectV2);
         } catch {
             // Fall back to organization query
-            const orgQuery = query
-                .replace('user(login: $owner)', 'organization(login: $owner)')
-                .replace('user:', 'organization:');
             const orgQueryFinal = `
                 query($owner: String!, $number: Int!) {
                     organization(login: $owner) {

@@ -1,9 +1,9 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { execFile } from 'child_process';
-import { AuthService } from './authService';
+import { type AuthService } from './authService';
 
 // ─── Data Models ──────────────────────────────────────────────────
 
@@ -60,14 +60,6 @@ interface GitHubTreeResponse {
     truncated: boolean;
 }
 
-interface GitHubBlobResponse {
-    sha: string;
-    node_id: string;
-    size: number;
-    url: string;
-    content: string;
-    encoding: 'base64' | 'utf-8';
-}
 
 interface GitHubContentResponse {
     name: string;
@@ -84,7 +76,7 @@ interface GitHubContentResponse {
 // ─── Constants ────────────────────────────────────────────────────
 
 const API_BASE = 'https://api.github.com';
-const RAW_BASE = 'https://raw.githubusercontent.com/wiki';
+const _RAW_BASE = 'https://raw.githubusercontent.com/wiki';
 
 /** File extensions that are valid wiki page formats */
 const WIKI_EXTENSIONS = new Set(['.md', '.markdown', '.mediawiki', '.textile', '.rdoc', '.org', '.creole', '.pod', '.asciidoc', '.rst']);
@@ -472,7 +464,6 @@ export class WikiService {
         }
 
         const content = fs.readFileSync(filePath, 'utf-8');
-        const stats = fs.statSync(filePath);
 
         // Try to get the blob SHA from git
         let sha = '';

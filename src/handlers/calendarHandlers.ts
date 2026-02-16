@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { extractErrorMessage } from '../utils';
 import { ensureGoogleCredentials } from '../panelContext';
 import type { CalendarEvent } from '../calendarService';
-import type { HandlerContext, MessageHandler } from './types';
+import type { MessageHandler } from './types';
 
 /** Handle all `calendar.*` messages from the webview. */
 export const handleCalendarMessage: MessageHandler = async (ctx, msg) => {

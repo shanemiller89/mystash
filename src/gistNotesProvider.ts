@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { GistService, GistNote } from './gistService';
-import { AuthService } from './authService';
+import { type GistService, type GistNote } from './gistService';
+import { type AuthService } from './authService';
 import { GistNoteItem } from './gistNoteItem';
 
 /**

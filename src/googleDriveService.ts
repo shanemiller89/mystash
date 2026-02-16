@@ -67,7 +67,7 @@ const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const FILE_FIELDS = 'id,name,mimeType,size,modifiedTime,createdTime,iconLink,thumbnailLink,webViewLink,webContentLink,parents,shared,starred,trashed,owners,capabilities';
 const LIST_FIELDS = `nextPageToken,files(${FILE_FIELDS})`;
 
-const FOLDER_MIME = 'application/vnd.google-apps.folder';
+const _FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 /** GlobalState key for pinned workspace docs */
 const PINNED_DOCS_KEY = 'superprompt-forge.drive.pinnedDocs';

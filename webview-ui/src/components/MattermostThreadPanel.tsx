@@ -28,7 +28,6 @@ import {
     Copy,
     Check,
     Loader2,
-    ChevronUp,
     Pencil,
     Trash2,
     Pin,

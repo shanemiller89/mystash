@@ -13,7 +13,6 @@ import {
     XCircle,
     Search,
     RefreshCw,
-    ExternalLink,
     Plus,
 } from 'lucide-react';
 
@@ -36,12 +35,12 @@ function formatRelative(iso: string): string {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1) {return 'just now';}
+    if (diffMins < 60) {return `${diffMins}m ago`;}
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) {return `${diffHours}h ago`;}
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 30) return `${diffDays}d ago`;
+    if (diffDays < 30) {return `${diffDays}d ago`;}
     return date.toLocaleDateString();
 }
 
@@ -87,7 +86,7 @@ export const PRList: React.FC = () => {
 
     const prs = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
-        if (!q) return allPRs;
+        if (!q) {return allPRs;}
         return allPRs.filter(
             (pr) =>
                 pr.title.toLowerCase().includes(q) ||
@@ -129,7 +128,7 @@ export const PRList: React.FC = () => {
     const onPRSelect = useCallback(
         (index: number) => {
             const pr = prs[index];
-            if (pr) handleSelectPR(pr.number);
+            if (pr) {handleSelectPR(pr.number);}
         },
         [prs, handleSelectPR],
     );

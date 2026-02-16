@@ -367,7 +367,6 @@ export const AgentTab: React.FC = () => {
 
     // Current system prompt (custom override or default)
     const currentSystemPrompt = agentSystemPrompts[agentTemplate] ?? '';
-    const effectiveSystemPrompt = currentSystemPrompt.trim() || defaultSystemPrompts[agentTemplate] || '';
     const isSystemPromptCustomized = !!currentSystemPrompt.trim();
 
     // Auto-scroll as streaming content arrives
@@ -402,7 +401,7 @@ export const AgentTab: React.FC = () => {
 
     // Determine the label for the summary pane based on the open tab key
     const summaryPaneLabel = useMemo(() => {
-        if (!summaryPaneTabKey) return '';
+        if (!summaryPaneTabKey) {return '';}
         return SUMMARY_TABS.find((t) => t.key === summaryPaneTabKey)?.label ?? summaryPaneTabKey;
     }, [summaryPaneTabKey]);
 
@@ -414,7 +413,7 @@ export const AgentTab: React.FC = () => {
         resizeRef.current = { startX: e.clientX, startW: agentPaneWidth };
 
         const handleResizeMove = (ev: MouseEvent) => {
-            if (!resizeRef.current) return;
+            if (!resizeRef.current) {return;}
             const delta = resizeRef.current.startX - ev.clientX;
             const newWidth = Math.max(240, Math.min(800, resizeRef.current.startW + delta));
             setAgentPaneWidth(newWidth);

@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { GistNoteItem } from '../gistNoteItem';
-import { GistNote } from '../gistService';
+import { type GistNote } from '../gistService';
 
 /**
  * Unit tests for GistNoteItem tree item model.

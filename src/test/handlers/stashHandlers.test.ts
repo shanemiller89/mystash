@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { GitService, ExecFn } from '../../gitService';
+import { GitService, type ExecFn } from '../../gitService';
 import { handleStashMessage } from '../../handlers/stashHandlers';
 import type { HandlerContext, WebviewMessage } from '../../handlers/types';
 

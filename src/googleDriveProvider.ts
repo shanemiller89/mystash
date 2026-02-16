@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GoogleDriveService } from './googleDriveService';
+import { type GoogleDriveService } from './googleDriveService';
 import { DriveFileItem, SharedDriveItem, DriveSectionItem } from './googleDriveItem';
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder';

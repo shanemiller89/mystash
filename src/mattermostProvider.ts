@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MattermostService, MattermostTeam, MattermostChannel } from './mattermostService';
+import { type MattermostService, type MattermostTeam, type MattermostChannel } from './mattermostService';
 import { MattermostTeamItem, MattermostChannelItem, MattermostSeparatorItem } from './mattermostItem';
 
 type MattermostTreeItem = MattermostTeamItem | MattermostChannelItem | MattermostSeparatorItem;

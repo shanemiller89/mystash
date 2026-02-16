@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
-import { GitService } from './gitService';
-import { AuthService } from './authService';
-import { GistService } from './gistService';
-import { PrService } from './prService';
-import { IssueService } from './issueService';
-import { MattermostService } from './mattermostService';
-import { ProjectService } from './projectService';
-import { GoogleDriveService } from './googleDriveService';
-import { GoogleCalendarService } from './calendarService';
-import { WikiService } from './wikiService';
+import { type GitService } from './gitService';
+import { type AuthService } from './authService';
+import { type GistService } from './gistService';
+import { type PrService } from './prService';
+import { type IssueService } from './issueService';
+import { type MattermostService } from './mattermostService';
+import { type ProjectService } from './projectService';
+import { type GoogleDriveService } from './googleDriveService';
+import { type GoogleCalendarService } from './calendarService';
+import { type WikiService } from './wikiService';
 
 // ─── PanelServices ────────────────────────────────────────────────
 

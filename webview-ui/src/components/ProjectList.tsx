@@ -94,7 +94,7 @@ export const ProjectList: React.FC = () => {
     const onProjectItemSelect = useCallback(
         (index: number) => {
             const item = filteredItems[index];
-            if (item) handleSelectItem(item.id);
+            if (item) {handleSelectItem(item.id);}
         },
         [filteredItems, handleSelectItem],
     );

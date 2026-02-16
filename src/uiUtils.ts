@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GitService, StashEntry } from './gitService';
+import { type GitService, type StashEntry } from './gitService';
 
 /**
  * Shows a QuickPick for stash selection. Returns the selected StashEntry,

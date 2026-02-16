@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { PrService, PullRequest, PRState } from './prService';
-import { GitService } from './gitService';
-import { AuthService } from './authService';
+import { type PrService, type PullRequest, type PRState } from './prService';
+import { type GitService } from './gitService';
+import { type AuthService } from './authService';
 import { PrItem } from './prItem';
 
 /**

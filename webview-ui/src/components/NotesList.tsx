@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useMemo } from 'react';
-import { useNotesStore, type GistNoteData, type NotesFilterMode } from '../notesStore';
+import { useNotesStore, type GistNoteData } from '../notesStore';
 import { postMessage } from '../vscode';
 import { formatRelativeTimeCompact } from '@/lib/formatTime';
 import { Lock, Globe, StickyNote, Plus, X, ShieldCheck, FolderGit2, Library, AlertCircle, RefreshCw } from 'lucide-react';
@@ -29,6 +29,7 @@ export const NotesList: React.FC = () => {
     const filteredNotesFn = useNotesStore((s) => s.filteredNotes);
     const filterMode = useNotesStore((s) => s.filterMode);
     const currentRepo = useNotesStore((s) => s.currentRepo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- extra deps trigger recompute of Zustand derived selector
     const notes = useMemo(() => filteredNotesFn(), [filteredNotesFn, allNotes, searchQuery, filterMode, currentRepo]);
     const selectedNoteId = useNotesStore((s) => s.selectedNoteId);
     const selectNote = useNotesStore((s) => s.selectNote);
@@ -77,7 +78,7 @@ export const NotesList: React.FC = () => {
     const onNoteSelect = useCallback(
         (index: number) => {
             const note = notes[index];
-            if (note) handleSelectNote(note);
+            if (note) {handleSelectNote(note);}
         },
         [notes, handleSelectNote],
     );
@@ -168,8 +169,8 @@ export const NotesList: React.FC = () => {
                                 value={newNoteTitle}
                                 onChange={(e) => setNewNoteTitle(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSubmitCreate();
-                                    if (e.key === 'Escape') setCreatingNote(false);
+                                    if (e.key === 'Enter') {handleSubmitCreate();}
+                                    if (e.key === 'Escape') {setCreatingNote(false);}
                                 }}
                                 className="flex-1 text-[12px]"
                             />

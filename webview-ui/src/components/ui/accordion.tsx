@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { cn } from "@/lib/utils"
-import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
-import { ChevronDownIcon } from "lucide-react"
+import { cn } from "@/lib/utils";
+import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
+import { ChevronDownIcon } from "lucide-react";
 
 function Accordion({
   className,
@@ -14,7 +14,7 @@ function Accordion({
       className={cn("w-full", className)}
       {...props}
     />
-  )
+  );
 }
 
 function AccordionItem({
@@ -27,7 +27,7 @@ function AccordionItem({
       className={cn("border-b border-[var(--vscode-editorWidget-border)]", className)}
       {...props}
     />
-  )
+  );
 }
 
 function AccordionTrigger({
@@ -49,7 +49,7 @@ function AccordionTrigger({
         <ChevronDownIcon className="text-[var(--vscode-descriptionForeground)] shrink-0 translate-y-0.5 transition-transform duration-200 group-aria-expanded/accordion-trigger:rotate-180" />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
-  )
+  );
 }
 
 function AccordionContent({
@@ -68,7 +68,7 @@ function AccordionContent({
     >
       <div className="pb-4 pt-0">{children}</div>
     </AccordionPrimitive.Panel>
-  )
+  );
 }
 
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };

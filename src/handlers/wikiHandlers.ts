@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { WikiService } from '../wikiService';
 import { extractErrorMessage } from '../utils';
-import type { HandlerContext, WebviewMessage, MessageHandler } from './types';
+import type { MessageHandler } from './types';
 
 /** Handle all `wiki.*` messages from the webview. */
 export const handleWikiMessage: MessageHandler = async (ctx, msg) => {

@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import { ForgeStatusItem } from './forgeItem';
-import { GitService } from './gitService';
-import { AuthService } from './authService';
-import { GistNotesProvider } from './gistNotesProvider';
-import { PrProvider } from './prProvider';
-import { IssueProvider } from './issueProvider';
-import { ProjectProvider } from './projectProvider';
-import { MattermostService } from './mattermostService';
-import { GoogleDriveService } from './googleDriveService';
+import { type GitService } from './gitService';
+import { type AuthService } from './authService';
+import { type GistNotesProvider } from './gistNotesProvider';
+import { type PrProvider } from './prProvider';
+import { type IssueProvider } from './issueProvider';
+import { type ProjectProvider } from './projectProvider';
+import { type MattermostService } from './mattermostService';
+import { type GoogleDriveService } from './googleDriveService';
 
 /**
  * TreeDataProvider for the top-level "Superprompt Forge" overview view.

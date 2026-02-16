@@ -23,12 +23,12 @@ function formatRelative(iso: string): string {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1) {return 'just now';}
+    if (diffMins < 60) {return `${diffMins}m ago`;}
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) {return `${diffHours}h ago`;}
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 30) return `${diffDays}d ago`;
+    if (diffDays < 30) {return `${diffDays}d ago`;}
     return date.toLocaleDateString();
 }
 
@@ -85,6 +85,7 @@ export const PRThreadPanel: React.FC = () => {
     const activeThreadFn = usePRStore((s) => s.activeThread);
     const activeThreadId = usePRStore((s) => s.activeThreadId);
     const comments = usePRStore((s) => s.comments);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- extra deps trigger recompute of Zustand derived selector
     const activeThread = useMemo(() => activeThreadFn(), [activeThreadFn, activeThreadId, comments]);
     const closeThread = usePRStore((s) => s.closeThread);
     const selectedPRNumber = usePRStore((s) => s.selectedPRNumber);
@@ -94,7 +95,7 @@ export const PRThreadPanel: React.FC = () => {
     const replyRef = useRef<HTMLTextAreaElement>(null);
 
     const handleSubmitReply = useCallback(() => {
-        if (!replyText.trim() || !activeThread || selectedPRNumber === null) return;
+        if (!replyText.trim() || !activeThread || selectedPRNumber === null) {return;}
         postMessage('prs.replyToComment', {
             prNumber: selectedPRNumber,
             commentId: activeThread.rootComment.id,
@@ -117,7 +118,7 @@ export const PRThreadPanel: React.FC = () => {
     );
 
     const handleToggleResolved = useCallback(() => {
-        if (!activeThread) return;
+        if (!activeThread) {return;}
         if (activeThread.isResolved) {
             postMessage('prs.unresolveThread', { threadId: activeThread.threadId });
         } else {

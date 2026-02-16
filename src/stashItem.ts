@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { StashEntry, FileStatus } from './gitService';
+import { type StashEntry, type FileStatus } from './gitService';
 import { formatRelativeTime, getConfig } from './utils';
 
 export class StashItem extends vscode.TreeItem {

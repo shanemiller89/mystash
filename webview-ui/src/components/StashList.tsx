@@ -106,6 +106,7 @@ export const StashList: React.FC = () => {
     const showCreateForm = useStashStore((s) => s.showCreateForm);
     const setShowCreateForm = useStashStore((s) => s.setShowCreateForm);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- extra deps trigger recompute of Zustand derived selector
     const stashes = useMemo(() => filteredStashesFn(), [filteredStashesFn, allStashes, searchQuery]);
 
     // Roving tabindex keyboard navigation (§7a)
@@ -127,7 +128,7 @@ export const StashList: React.FC = () => {
         }
     }, [searchQuery, setSearchQuery]);
 
-    const { focusedIndex, listRef, containerProps, getItemProps, handleSearchKeyDown: rovingSearchKeyDown } =
+    const { focusedIndex, listRef, containerProps, getItemProps: _getItemProps, handleSearchKeyDown: rovingSearchKeyDown } =
         useRovingTabIndex({
             itemCount: stashes.length,
             onSelect: onStashSelect,

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useMattermostStore, type MattermostEmojiData } from '../mattermostStore';
+import { useMattermostStore } from '../mattermostStore';
 import { postMessage } from '../vscode';
 import { emojiFromShortcode } from '../emojiMap';
 import { X, Search, Smile } from 'lucide-react';

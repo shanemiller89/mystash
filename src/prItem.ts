@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { PullRequest, PRState } from './prService';
+import { type PullRequest, type PRState } from './prService';
 import { formatRelativeTime } from './utils';
 
 /**

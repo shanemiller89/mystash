@@ -337,7 +337,7 @@ const UserProfilePopover: React.FC<{
                         </div>
                         <div className="text-xs text-fg/50">@{profile?.user.username ?? '…'}</div>
                         {profile?.user.nickname && (
-                            <div className="text-xs text-fg/40">"{profile.user.nickname}"</div>
+                            <div className="text-xs text-fg/40">&quot;{profile.user.nickname}&quot;</div>
                         )}
                     </div>
                 </div>
@@ -370,7 +370,7 @@ const MessageSearchPanel: React.FC<{
     onClose: () => void;
     currentUsername: string | null;
     currentUserId: string | null;
-}> = ({ onClose, currentUsername, currentUserId }) => {
+}> = ({ onClose, currentUsername: _currentUsername, currentUserId: _currentUserId }) => {
     const selectedTeamId = useMattermostStore((s) => s.selectedTeamId);
     const searchResults = useMattermostStore((s) => s.searchResults);
     const isSearching = useMattermostStore((s) => s.isSearchingMessages);
@@ -719,7 +719,6 @@ export const MattermostChat: React.FC<{
     const openThread = useMattermostStore((s) => s.openThread);
     const replyToPostId = useMattermostStore((s) => s.replyToPostId);
     const replyToUsername = useMattermostStore((s) => s.replyToUsername);
-    const setReplyTo = useMattermostStore((s) => s.setReplyTo);
     const clearReplyTo = useMattermostStore((s) => s.clearReplyTo);
     const showChannelInfo = useMattermostStore((s) => s.showChannelInfo);
     const setShowChannelInfo = useMattermostStore((s) => s.setShowChannelInfo);
@@ -825,6 +824,7 @@ export const MattermostChat: React.FC<{
             setLastReadPostId(selectedChannelId, newestPostId);
         }, 2000);
         return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only on channel switch, not on every new post
     }, [selectedChannelId]); // Only on channel switch, not on every new post
 
     // Auto mark channel as read + fetch flagged posts on channel enter
@@ -952,7 +952,7 @@ export const MattermostChat: React.FC<{
             const maxHeight = 6 * 20; // ~6 rows at ~20px line-height
             ta.style.height = `${Math.min(ta.scrollHeight, maxHeight)}px`;
         },
-        [sendTypingIndicator],
+        [sendTypingIndicator, emojiHandleChange],
     );
 
     const handleLoadMore = useCallback(() => {

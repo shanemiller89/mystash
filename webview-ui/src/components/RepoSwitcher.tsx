@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
-import { useAppStore, type RepoInfo, type RepoGroup } from '../appStore';
+import { useAppStore } from '../appStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';

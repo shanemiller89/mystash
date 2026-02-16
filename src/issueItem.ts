@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Issue, IssueState } from './issueService';
+import { type Issue, type IssueState } from './issueService';
 import { formatRelativeTime } from './utils';
 
 /**

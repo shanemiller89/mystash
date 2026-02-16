@@ -8,7 +8,7 @@ interface DiffLine {
 }
 
 function parseDiff(raw: string): DiffLine[] {
-    if (!raw.trim()) return [];
+    if (!raw.trim()) {return [];}
 
     const lines = raw.split('\n');
     const result: DiffLine[] = [];

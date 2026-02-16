@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { AuthService } from './authService';
+import { type AuthService } from './authService';
 
 // ─── Data Models ──────────────────────────────────────────────────
 

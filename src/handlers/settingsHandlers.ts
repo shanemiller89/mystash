@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { AiService } from '../aiService';
-import type { HandlerContext, MessageHandler } from './types';
+import type { MessageHandler } from './types';
 
 /** Handle `settings.*` and `openExternal` messages from the webview. */
 export const handleSettingsMessage: MessageHandler = async (ctx, msg) => {

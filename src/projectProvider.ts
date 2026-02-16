@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { ProjectService, Project, ProjectItem, ProjectField } from './projectService';
-import { GitService } from './gitService';
-import { AuthService } from './authService';
+import { type ProjectService, type Project, type ProjectItem, type ProjectField } from './projectService';
+import { type GitService } from './gitService';
+import { type AuthService } from './authService';
 import { ProjectItemTreeItem } from './projectItem';
 
 /**

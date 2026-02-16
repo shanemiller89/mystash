@@ -116,7 +116,7 @@ export const MattermostTab: React.FC = () => {
 
     useEffect(() => {
         const el = containerRef.current;
-        if (!el) return;
+        if (!el) {return;}
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 setIsNarrow(entry.contentRect.width < NARROW_BREAKPOINT);

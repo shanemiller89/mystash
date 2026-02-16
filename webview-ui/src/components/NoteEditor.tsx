@@ -92,6 +92,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const selectedNoteFn = useNotesStore((s) => s.selectedNote);
     const allNotes = useNotesStore((s) => s.notes);
     const selectedNoteId = useNotesStore((s) => s.selectedNoteId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- allNotes & selectedNoteId trigger recompute of derived selector
     const note = useMemo(() => selectedNoteFn(), [selectedNoteFn, allNotes, selectedNoteId]);
     const editingContent = useNotesStore((s) => s.editingContent);
     const editingTitle = useNotesStore((s) => s.editingTitle);
@@ -131,7 +132,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     // ─── Autosave Logic ───────────────────────────────────────────
 
     const triggerSave = useCallback(() => {
-        if (!note || !isDirty) return;
+        if (!note || !isDirty) {return;}
         postMessage('notes.save', {
             noteId: note.id,
             title: editingTitle,
@@ -176,9 +177,10 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             resetAutosave();
         }
         return () => {
-            if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            if (autosaveTimerRef.current) {clearTimeout(autosaveTimerRef.current);}
+            if (countdownIntervalRef.current) {clearInterval(countdownIntervalRef.current);}
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset on content/title change, not isDirty itself
     }, [editingContent, editingTitle]);
 
     // ─── Formatting Toolbar Helpers ───────────────────────────────
@@ -187,7 +189,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const insertFormatting = useCallback(
         (before: string, after: string = '', placeholder: string = '') => {
             const textarea = textareaRef.current;
-            if (!textarea) return;
+            if (!textarea) {return;}
 
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
@@ -218,7 +220,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const insertLinePrefix = useCallback(
         (prefix: string) => {
             const textarea = textareaRef.current;
-            if (!textarea) return;
+            if (!textarea) {return;}
 
             const start = textarea.selectionStart;
             // Find the start of the current line
@@ -238,7 +240,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     /** Insert a table template */
     const insertTable = useCallback(() => {
         const textarea = textareaRef.current;
-        if (!textarea) return;
+        if (!textarea) {return;}
 
         const start = textarea.selectionStart;
         const table = '\n| Header | Header |\n| ------ | ------ |\n| Cell   | Cell   |\n';
@@ -260,7 +262,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             if (e.key === 'Tab') {
                 e.preventDefault();
                 const textarea = textareaRef.current;
-                if (!textarea) return;
+                if (!textarea) {return;}
 
                 const start = textarea.selectionStart;
                 const end = textarea.selectionEnd;
@@ -293,8 +295,8 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     // ─── Manual Save ──────────────────────────────────────────────
 
     const handleSave = useCallback(() => {
-        if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        if (autosaveTimerRef.current) {clearTimeout(autosaveTimerRef.current);}
+        if (countdownIntervalRef.current) {clearInterval(countdownIntervalRef.current);}
         setAutosaveCountdown(null);
         triggerSave();
     }, [triggerSave]);
@@ -302,7 +304,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     // ─── Rendered Markdown ────────────────────────────────────────
 
     const renderedHtml = useMemo(() => {
-        if (!previewMode) return '';
+        if (!previewMode) {return '';}
         return md.render(editingContent);
     }, [previewMode, editingContent]);
 
@@ -311,15 +313,15 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const previewContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!previewMode || !previewContainerRef.current) return;
+        if (!previewMode || !previewContainerRef.current) {return;}
 
         const blocks = previewContainerRef.current.querySelectorAll('.mermaid-block');
-        if (blocks.length === 0) return;
+        if (blocks.length === 0) {return;}
 
         blocks.forEach(async (block) => {
             const id = block.getAttribute('data-mermaid-id');
             const code = block.textContent || '';
-            if (!id || !code.trim()) return;
+            if (!id || !code.trim()) {return;}
 
             try {
                 const { svg } = await mermaid.render(id, code.trim());

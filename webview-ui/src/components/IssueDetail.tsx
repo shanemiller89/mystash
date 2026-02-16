@@ -5,7 +5,7 @@ import { MarkdownBody } from './MarkdownBody';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
+
 import {
     CircleDot,
     CheckCircle2,
@@ -23,12 +23,12 @@ function formatRelative(iso: string): string {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1) {return 'just now';}
+    if (diffMins < 60) {return `${diffMins}m ago`;}
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) {return `${diffHours}h ago`;}
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 30) return `${diffDays}d ago`;
+    if (diffDays < 30) {return `${diffDays}d ago`;}
     return date.toLocaleDateString();
 }
 
@@ -104,8 +104,8 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
 
     // Stable derived state — avoid Zustand function-call selectors
     const issue = useMemo(() => {
-        if (selectedIssueDetail) return selectedIssueDetail;
-        if (selectedIssueNumber === null) return undefined;
+        if (selectedIssueDetail) {return selectedIssueDetail;}
+        if (selectedIssueNumber === null) {return undefined;}
         return allIssues.find((i) => i.number === selectedIssueNumber);
     }, [selectedIssueDetail, selectedIssueNumber, allIssues]);
 
@@ -116,7 +116,7 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
     }, [issue]);
 
     const handleSubmitComment = useCallback(() => {
-        if (!commentBody.trim() || !issue) return;
+        if (!commentBody.trim() || !issue) {return;}
         postMessage('issues.createComment', {
             issueNumber: issue.number,
             body: commentBody.trim(),
@@ -125,12 +125,12 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({ onClose }) => {
     }, [commentBody, issue]);
 
     const handleCloseIssue = useCallback(() => {
-        if (!issue) return;
+        if (!issue) {return;}
         postMessage('issues.close', { issueNumber: issue.number });
     }, [issue]);
 
     const handleReopenIssue = useCallback(() => {
-        if (!issue) return;
+        if (!issue) {return;}
         postMessage('issues.reopen', { issueNumber: issue.number });
     }, [issue]);
 

@@ -108,7 +108,6 @@ export const DriveFileList: React.FC = () => {
     const breadcrumbs = useDriveStore((s) => s.breadcrumbs);
     const navigateToFolder = useDriveStore((s) => s.navigateToFolder);
     const navigateBack = useDriveStore((s) => s.navigateBack);
-    const navigateToRoot = useDriveStore((s) => s.navigateToRoot);
     const currentFolderId = useDriveStore((s) => s.currentFolderId);
     const searchQuery = useDriveStore((s) => s.searchQuery);
     const setSearchQuery = useDriveStore((s) => s.setSearchQuery);
@@ -221,18 +220,21 @@ export const DriveFileList: React.FC = () => {
     );
 
     // Determine which files to show based on view mode
-    const displayFiles =
-        showSearch && searchQuery.trim()
-            ? searchResults
-            : viewMode === 'browser'
-              ? files
-              : viewMode === 'starred'
-                ? starredFiles
-                : viewMode === 'recent'
-                  ? recentFiles
-                  : viewMode === 'shared'
-                    ? sharedDriveFiles
-                    : [];
+    const displayFiles = useMemo(
+        () =>
+            showSearch && searchQuery.trim()
+                ? searchResults
+                : viewMode === 'browser'
+                  ? files
+                  : viewMode === 'starred'
+                    ? starredFiles
+                    : viewMode === 'recent'
+                      ? recentFiles
+                      : viewMode === 'shared'
+                        ? sharedDriveFiles
+                        : [],
+        [showSearch, searchQuery, searchResults, viewMode, files, starredFiles, recentFiles, sharedDriveFiles],
+    );
 
     const showingLoading = isLoading || isSearching;
 
@@ -240,9 +242,9 @@ export const DriveFileList: React.FC = () => {
     const onFileSelect = useCallback(
         (index: number) => {
             const file = displayFiles[index];
-            if (!file) return;
-            if (file.mimeType === FOLDER_MIME) handleFolderClick(file);
-            else handleFileClick(file);
+            if (!file) {return;}
+            if (file.mimeType === FOLDER_MIME) {handleFolderClick(file);}
+            else {handleFileClick(file);}
         },
         [displayFiles, handleFolderClick, handleFileClick],
     );

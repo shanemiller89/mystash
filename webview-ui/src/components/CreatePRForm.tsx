@@ -91,7 +91,7 @@ export const CreatePRForm: React.FC<CreatePRFormProps> = ({ onBack }) => {
     }, []);
 
     const handleGenerateSummary = useCallback(() => {
-        if (!baseBranch) return;
+        if (!baseBranch) {return;}
         postMessage('prs.generateSummary', {
             baseBranch,
             systemPrompt: prSummarySystemPrompt || undefined,
@@ -99,7 +99,7 @@ export const CreatePRForm: React.FC<CreatePRFormProps> = ({ onBack }) => {
     }, [baseBranch, prSummarySystemPrompt]);
 
     const handleCreate = useCallback(() => {
-        if (!title.trim() || !headBranch || !baseBranch) return;
+        if (!title.trim() || !headBranch || !baseBranch) {return;}
         postMessage('prs.createPR', {
             title: title.trim(),
             body: body.trim(),

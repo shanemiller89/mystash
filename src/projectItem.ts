@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ProjectItem, ProjectField } from './projectService';
+import { type ProjectItem, type ProjectField, type ProjectFieldValue } from './projectService';
 import { formatRelativeTime } from './utils';
 
 /**
@@ -153,7 +153,7 @@ function itemTypeIcon(item: ProjectItem): vscode.ThemeIcon {
 }
 
 /** Format a field value for display. */
-function fieldValueDisplay(fv: import('./projectService').ProjectFieldValue): string | undefined {
+function fieldValueDisplay(fv: ProjectFieldValue): string | undefined {
     switch (fv.fieldType) {
         case 'TEXT':
             return fv.text;

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GitService } from './gitService';
+import { type GitService } from './gitService';
 import { StashItem, StashFileItem } from './stashItem';
 import { StashPanel } from './stashPanel';
 import { getConfig } from './utils';

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MattermostService } from '../mattermostService';
+import { MattermostService, type MattermostFileInfoData } from '../mattermostService';
 import { extractErrorMessage } from '../utils';
 import type { HandlerContext, MessageHandler } from './types';
 
@@ -117,7 +117,7 @@ export const handleMattermostMessage: MessageHandler = async (ctx, msg) => {
 
                 // Resolve file attachments inline before sending posts
                 const payload = await Promise.all(posts.map(async (p) => {
-                    let files: import('../mattermostService').MattermostFileInfoData[] | undefined;
+                    let files: MattermostFileInfoData[] | undefined;
                     if (p.fileIds.length > 0) {
                         try {
                             files = await ctx.mattermostService!.resolveFileInfos(p.fileIds);
@@ -178,7 +178,7 @@ export const handleMattermostMessage: MessageHandler = async (ctx, msg) => {
             try {
                 const post = await ctx.mattermostService.createPost(msg.channelId, msg.message, msg.rootId, msg.fileIds);
                 const username = await ctx.mattermostService.resolveUsername(post.userId);
-                let files: import('../mattermostService').MattermostFileInfoData[] | undefined;
+                let files: MattermostFileInfoData[] | undefined;
                 if (post.fileIds.length > 0) {
                     try {
                         files = await ctx.mattermostService!.resolveFileInfos(post.fileIds);
@@ -226,7 +226,7 @@ export const handleMattermostMessage: MessageHandler = async (ctx, msg) => {
                 const posts = await ctx.mattermostService.getPostThread(msg.postId);
                 const usernames = await ctx.mattermostService.resolveUsernames(posts);
                 const payload = await Promise.all(posts.map(async (p) => {
-                    let files: import('../mattermostService').MattermostFileInfoData[] | undefined;
+                    let files: MattermostFileInfoData[] | undefined;
                     if (p.fileIds.length > 0) {
                         try {
                             files = await ctx.mattermostService!.resolveFileInfos(p.fileIds);
@@ -252,7 +252,7 @@ export const handleMattermostMessage: MessageHandler = async (ctx, msg) => {
                 ctx.postMessage({ type: 'mattermostSendingPost' });
                 const post = await ctx.mattermostService.createPost(msg.channelId, msg.message, msg.rootId, msg.fileIds);
                 const username = await ctx.mattermostService.resolveUsername(post.userId);
-                let files: import('../mattermostService').MattermostFileInfoData[] | undefined;
+                let files: MattermostFileInfoData[] | undefined;
                 if (post.fileIds.length > 0) {
                     try {
                         files = await ctx.mattermostService!.resolveFileInfos(post.fileIds);
@@ -499,7 +499,7 @@ export const handleMattermostMessage: MessageHandler = async (ctx, msg) => {
                 const posts = await ctx.mattermostService.searchPosts(msg.teamId, msg.terms);
                 const usernames = await ctx.mattermostService.resolveUsernames(posts);
                 const payload = await Promise.all(posts.map(async (p) => {
-                    let files: import('../mattermostService').MattermostFileInfoData[] | undefined;
+                    let files: MattermostFileInfoData[] | undefined;
                     if (p.fileIds.length > 0) {
                         try {
                             files = await ctx.mattermostService!.resolveFileInfos(p.fileIds);

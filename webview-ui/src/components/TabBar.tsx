@@ -137,12 +137,31 @@ const GroupTab: React.FC<{
                 {isActive ? activeSub.label : group.label}
                 <ChevronDown size={10} className="opacity-50" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" sideOffset={0}>
+            <DropdownMenuContent
+                align="start"
+                sideOffset={0}
+                onClickCapture={(e: React.MouseEvent) => {
+                    console.log('[TabBar] onClickCapture fired, target:', (e.target as HTMLElement).tagName, (e.target as HTMLElement).className?.slice(0, 40));
+                    const target = (e.target as HTMLElement).closest?.('[data-tab-key]');
+                    console.log('[TabBar] closest data-tab-key element:', target, target?.getAttribute('data-tab-key'));
+                    if (target) {
+                        const key = target.getAttribute('data-tab-key') as TabKey | null;
+                        if (key) {
+                            console.log('[TabBar] calling onSelect with key:', key);
+                            onSelect(key);
+                        }
+                    }
+                }}
+            >
                 {group.children.map((child) => (
                     <DropdownMenuItem
                         key={child.key}
+                        data-tab-key={child.key}
                         className={child.key === activeTab ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]' : ''}
-                        onSelect={() => onSelect(child.key)}
+                        onClick={() => {
+                            console.log('[TabBar] DropdownMenuItem onClick fired for key:', child.key);
+                            onSelect(child.key);
+                        }}
                     >
                         <child.Icon size={14} />
                         {child.label}
@@ -188,13 +207,26 @@ const OverflowMenu: React.FC<{
             >
                 <MoreHorizontal size={14} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" sideOffset={0}>
+            <DropdownMenuContent
+                align="start"
+                sideOffset={0}
+                onClickCapture={(e: React.MouseEvent) => {
+                    const target = (e.target as HTMLElement).closest?.('[data-tab-key]');
+                    if (target) {
+                        const key = target.getAttribute('data-tab-key') as TabKey | null;
+                        if (key) {
+                            onSelect(key);
+                        }
+                    }
+                }}
+            >
                 {groups.flatMap((group) =>
                     group.children.map((child) => (
                         <DropdownMenuItem
                             key={child.key}
+                            data-tab-key={child.key}
                             className={child.key === activeTab ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]' : ''}
-                            onSelect={() => onSelect(child.key)}
+                            onClick={() => onSelect(child.key)}
                         >
                             <child.Icon size={14} />
                             {child.label}
@@ -259,7 +291,10 @@ export const TabBar: React.FC = () => {
     }, [isNarrow, visibleGroups]);
 
     const handleSelectTab = useCallback(
-        (key: TabKey) => setActiveTab(key),
+        (key: TabKey) => {
+            console.log('[TabBar] handleSelectTab called with:', key);
+            setActiveTab(key);
+        },
         [setActiveTab]
     );
 

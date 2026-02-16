@@ -125,7 +125,7 @@ function trimMessages(msgs: AIChatMessage[]): AIChatMessage[] {
         : msgs;
 }
 
-export const useAIStore = create<AIStore>((set, get) => ({
+export const useAIStore = create<AIStore>((set, _get) => ({
     aiAvailable: false,
     aiProvider: 'none' as const,
     chatPanelOpen: false,

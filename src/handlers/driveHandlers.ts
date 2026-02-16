@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { extractErrorMessage } from '../utils';
 import { ensureGoogleCredentials } from '../panelContext';
-import type { HandlerContext, MessageHandler } from './types';
+import type { MessageHandler } from './types';
 
 /** Handle all `drive.*` messages from the webview. */
 export const handleDriveMessage: MessageHandler = async (ctx, msg) => {

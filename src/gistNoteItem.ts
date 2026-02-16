@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GistNote } from './gistService';
+import { type GistNote } from './gistService';
 import { formatRelativeTime } from './utils';
 
 /**

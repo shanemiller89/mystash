@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { AiService } from '../aiService';
+import { AiService, type AiModelPurpose } from '../aiService';
 import { extractErrorMessage } from '../utils';
-import type { HandlerContext, MessageHandler } from './types';
+import type { MessageHandler } from './types';
 
 // ─── Cancellation tracking (§6a-c) ─────────────────────────────
 // Per-tab summary tokens, single chat token, single agent token.
@@ -46,7 +46,7 @@ export const handleAiMessage: MessageHandler = async (ctx, msg) => {
             const modelId = msg.modelId as string | undefined;
             if (purpose) {
                 ctx.aiService.setModel(
-                    purpose as import('../aiService').AiModelPurpose,
+                    purpose as AiModelPurpose,
                     modelId ?? '',
                 );
                 // Send back updated assignments

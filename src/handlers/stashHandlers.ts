@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
-import { AiService } from '../aiService';
 import { extractErrorMessage, getConfig } from '../utils';
-import type { HandlerContext, MessageHandler } from './types';
+import type { MessageHandler } from './types';
 
 /**
  * Handle core / stash messages from the webview:

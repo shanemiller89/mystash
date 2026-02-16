@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { StashItem, StashFileItem } from '../stashItem';
-import { StashEntry, FileStatus } from '../gitService';
+import { type StashEntry, FileStatus } from '../gitService';
 
 /**
  * Unit tests for StashItem and StashFileItem tree item models.

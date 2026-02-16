@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { ProjectService } from '../projectService';
 import { extractErrorMessage } from '../utils';
-import type { HandlerContext, MessageHandler } from './types';
+import type { MessageHandler } from './types';
 
 /** Handle all `projects.*` messages from the webview. */
 export const handleProjectMessage: MessageHandler = async (ctx, msg) => {

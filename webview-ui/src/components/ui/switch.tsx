@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { cn } from "@/lib/utils"
-import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
+import { cn } from "@/lib/utils";
+import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 
 function Switch({
   className,
@@ -28,7 +28,7 @@ function Switch({
         )}
       />
     </SwitchPrimitive.Root>
-  )
+  );
 }
 
-export { Switch }
+export { Switch };

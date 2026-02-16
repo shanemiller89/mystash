@@ -36,7 +36,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+
 import { Separator } from './ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
@@ -49,17 +49,17 @@ function formatRelative(iso: string): string {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1) {return 'just now';}
+    if (diffMins < 60) {return `${diffMins}m ago`;}
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) {return `${diffHours}h ago`;}
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 30) return `${diffDays}d ago`;
+    if (diffDays < 30) {return `${diffDays}d ago`;}
     return date.toLocaleDateString();
 }
 
 function StateIcon({ state, isDraft }: { state: string; isDraft: boolean }) {
-    if (isDraft) return <GitPullRequest size={16} className="text-fg/40" />;
+    if (isDraft) {return <GitPullRequest size={16} className="text-fg/40" />;}
     switch (state) {
         case 'open':
             return <GitPullRequest size={16} className="text-green-400" />;
@@ -133,7 +133,7 @@ const CommentCard: React.FC<{ comment: PRCommentData; prNumber: number }> = ({ c
     }, []);
 
     const handleSubmitReply = useCallback(() => {
-        if (!replyText.trim()) return;
+        if (!replyText.trim()) {return;}
         postMessage('prs.replyToComment', {
             prNumber,
             commentId: comment.id,
@@ -161,7 +161,7 @@ const CommentCard: React.FC<{ comment: PRCommentData; prNumber: number }> = ({ c
     );
 
     const handleToggleResolved = useCallback(() => {
-        if (!comment.threadId) return;
+        if (!comment.threadId) {return;}
         if (comment.isResolved) {
             postMessage('prs.unresolveThread', { threadId: comment.threadId });
         } else {
@@ -318,7 +318,7 @@ const UserFilterDropdown: React.FC = () => {
 
     // Close on click outside
     useEffect(() => {
-        if (!open) return;
+        if (!open) {return;}
         const handler = (e: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
                 setOpen(false);
@@ -336,7 +336,7 @@ const UserFilterDropdown: React.FC = () => {
         }
     };
 
-    if (authors.length === 0) return null;
+    if (authors.length === 0) {return null;}
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -451,9 +451,9 @@ const UserGroup: React.FC<{
 };
 
 /** Collapsed review thread card — click to open in thread panel */
-const ThreadCard: React.FC<{ thread: ReviewThread; prNumber: number }> = ({ thread, prNumber }) => {
+const ThreadCard: React.FC<{ thread: ReviewThread; prNumber: number }> = ({ thread, prNumber: _prNumber }) => {
     const openThread = usePRStore((s) => s.openThread);
-    const { rootComment, replies, isResolved, resolvedBy, path, line } = thread;
+    const { rootComment, replies, isResolved, resolvedBy: _resolvedBy, path, line } = thread;
     const replyCount = replies.length;
 
     const handleToggleResolved = useCallback(
@@ -477,7 +477,7 @@ const ThreadCard: React.FC<{ thread: ReviewThread; prNumber: number }> = ({ thre
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') openThread(thread.threadId);
+                if (e.key === 'Enter' || e.key === ' ') {openThread(thread.threadId);}
             }}
         >
             {/* File context bar */}
@@ -580,7 +580,7 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
 
     // Close on click outside
     useEffect(() => {
-        if (!open) return;
+        if (!open) {return;}
         const handler = (e: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
                 setOpen(false);
@@ -798,7 +798,7 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
     }, [generatedSummary, isEditingBody]);
 
     const selectedPR = useMemo(() => {
-        if (selectedPRNumber === null) return undefined;
+        if (selectedPRNumber === null) {return undefined;}
         return prs.find((pr) => pr.number === selectedPRNumber);
     }, [prs, selectedPRNumber]);
 
@@ -862,7 +862,7 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
         }
 
         return [...threadMap.values()].sort((a, b) => {
-            if (a.isResolved !== b.isResolved) return a.isResolved ? 1 : -1;
+            if (a.isResolved !== b.isResolved) {return a.isResolved ? 1 : -1;}
             return (
                 new Date(a.rootComment.createdAt).getTime() -
                 new Date(b.rootComment.createdAt).getTime()
@@ -887,7 +887,7 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
     }, [pr]);
 
     const handleCopyAll = useCallback(() => {
-        if (filteredComments.length === 0) return;
+        if (filteredComments.length === 0) {return;}
 
         const title = pr ? `# PR #${pr.number}: ${pr.title}` : '# PR Comments';
         const commentBlocks = filteredComments.map((c) => {
@@ -927,7 +927,7 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
     }, [filteredComments, pr]);
 
     const handleSubmitComment = useCallback(() => {
-        if (!pr || !newComment.trim()) return;
+        if (!pr || !newComment.trim()) {return;}
         postMessage('prs.createComment', { prNumber: pr.number, body: newComment.trim() });
         setNewComment('');
     }, [pr, newComment]);

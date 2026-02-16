@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { GistService, GistNote, FetchFn } from '../gistService';
+import { GistService, type GistNote, type FetchFn } from '../gistService';
 import type { AuthService } from '../authService';
 import type * as vscode from 'vscode';
 

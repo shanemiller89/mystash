@@ -93,21 +93,6 @@ function UnreadBadge({ count, mentions }: { count: number; mentions: number }) {
     );
 }
 
-function formatLastPost(iso: string): string {
-    if (!iso) { return ''; }
-    const date = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) { return 'just now'; }
-    if (diffMins < 60) { return `${diffMins}m ago`; }
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) { return `${diffHours}h ago`; }
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 30) { return `${diffDays}d ago`; }
-    return date.toLocaleDateString();
-}
-
 /** Collapsible section header */
 function SectionHeader({
     title,
@@ -266,10 +251,10 @@ export const MattermostChannelList: React.FC = () => {
     // Flatten all visible (open-section) channels for keyboard navigation (§7e)
     const visibleChannels = useMemo(() => {
         const list: MattermostChannelData[] = [];
-        if (favoritesOpen) list.push(...favoriteChannels);
-        if (publicOpen) list.push(...publicChannels);
-        if (privateOpen) list.push(...privateChannels);
-        if (dmsOpen) list.push(...dmChannels);
+        if (favoritesOpen) {list.push(...favoriteChannels);}
+        if (publicOpen) {list.push(...publicChannels);}
+        if (privateOpen) {list.push(...privateChannels);}
+        if (dmsOpen) {list.push(...dmChannels);}
         return list;
     }, [favoritesOpen, publicOpen, privateOpen, dmsOpen, favoriteChannels, publicChannels, privateChannels, dmChannels]);
 
@@ -295,7 +280,7 @@ export const MattermostChannelList: React.FC = () => {
     const onChannelSelect = useCallback(
         (index: number) => {
             const ch = visibleChannels[index];
-            if (ch) handleChannelSelect(ch);
+            if (ch) {handleChannelSelect(ch);}
         },
         [visibleChannels, handleChannelSelect],
     );
@@ -427,7 +412,7 @@ export const MattermostChannelList: React.FC = () => {
             {/* Team selector + status */}
             <div className="flex items-center gap-2 p-3 border-b border-[var(--vscode-panel-border)]">
                 {teams.length > 1 ? (
-                    <Select value={selectedTeamId ?? ''} onValueChange={(v) => { if (v) handleTeamSelect(v); }}>
+                    <Select value={selectedTeamId ?? ''} onValueChange={(v) => { if (v) {handleTeamSelect(v);} }}>
                         <SelectTrigger className="flex-1 h-8 text-sm">
                             <SelectValue placeholder="Select team" />
                         </SelectTrigger>
@@ -515,11 +500,11 @@ export const MattermostChannelList: React.FC = () => {
                         // Compute flat offsets matching visibleChannels ordering
                         let offset = 0;
                         const favOffset = offset;
-                        if (favoritesOpen) offset += favoriteChannels.length;
+                        if (favoritesOpen) {offset += favoriteChannels.length;}
                         const pubOffset = offset;
-                        if (publicOpen) offset += publicChannels.length;
+                        if (publicOpen) {offset += publicChannels.length;}
                         const privOffset = offset;
-                        if (privateOpen) offset += privateChannels.length;
+                        if (privateOpen) {offset += privateChannels.length;}
                         const dmOffset = offset;
 
                         return (

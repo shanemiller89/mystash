@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { IssueService, Issue, IssueState } from './issueService';
-import { GitService } from './gitService';
-import { AuthService } from './authService';
+import { type IssueService, type Issue, type IssueState } from './issueService';
+import { type GitService } from './gitService';
+import { type AuthService } from './authService';
 import { IssueItem } from './issueItem';
 
 /**

@@ -5,35 +5,35 @@ import {
     StashFileDecorationProvider,
     StashDragAndDropController,
 } from './stashProvider';
-import { StashItem, StashFileItem } from './stashItem';
+import { StashItem, type StashFileItem } from './stashItem';
 import { StashContentProvider } from './stashContentProvider';
 import { StashPanel } from './stashPanel';
 import { AuthService } from './authService';
 import { GistService } from './gistService';
 import { GistNotesProvider } from './gistNotesProvider';
-import { GistNoteItem } from './gistNoteItem';
+import { type GistNoteItem } from './gistNoteItem';
 import { PrService } from './prService';
 import { PrProvider } from './prProvider';
-import { PrItem } from './prItem';
+import { type PrItem } from './prItem';
 import { IssueService } from './issueService';
 import { IssueProvider } from './issueProvider';
-import { IssueItem } from './issueItem';
+import { type IssueItem } from './issueItem';
 import { ProjectService } from './projectService';
 import { ProjectProvider } from './projectProvider';
-import { ProjectItemTreeItem } from './projectItem';
+import { type ProjectItemTreeItem } from './projectItem';
 import { MattermostService } from './mattermostService';
 import { MattermostProvider } from './mattermostProvider';
-import { MattermostChannelItem, MattermostSeparatorItem } from './mattermostItem';
+import { type MattermostChannelItem } from './mattermostItem';
 import { GoogleAuthProvider } from './googleAuthProvider';
 import { GoogleDriveService } from './googleDriveService';
 import { GoogleCalendarService } from './calendarService';
 import { GoogleDriveProvider } from './googleDriveProvider';
-import { DriveFileItem } from './googleDriveItem';
+import { type DriveFileItem } from './googleDriveItem';
 import { ForgeOverviewProvider } from './forgeProvider';
 import { WikiService } from './wikiService';
 import { pickStash } from './uiUtils';
 import { extractErrorMessage, getConfig } from './utils';
-import { PanelServices, ensureGoogleCredentials } from './panelContext';
+import { type PanelServices, ensureGoogleCredentials } from './panelContext';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Superprompt Forge extension is now active!');
