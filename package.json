@@ -110,6 +110,11 @@
                     "default": "",
                     "description": "Mattermost server URL (e.g. https://mattermost.example.com). Required for Mattermost integration."
                 },
+                "superprompt-forge.mattermost.exportDirectory": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Default directory for Mattermost channel exports. Leave empty to use ~/Downloads."
+                },
                 "superprompt-forge.google.clientId": {
                     "type": "string",
                     "default": "",

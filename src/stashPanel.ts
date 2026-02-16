@@ -2231,7 +2231,11 @@ List each changed file, a brief description of what changed in that file, and wh
                             progress.report({ message: 'Saving file…' });
 
                             // Prompt user for save location
-                            const baseDir = require('path').join(require('os').homedir(), 'Downloads');
+                            const configDir = vscode.workspace
+                                .getConfiguration('superprompt-forge.mattermost')
+                                .get<string>('exportDirectory', '')
+                                .trim();
+                            const baseDir = configDir || require('path').join(require('os').homedir(), 'Downloads');
                             const fileName = `${channelName}-export-${new Date().toISOString().slice(0, 10)}.json`;
                             const uri = await vscode.window.showSaveDialog({
                                 defaultUri: vscode.Uri.file(`${baseDir}/${fileName}`),
