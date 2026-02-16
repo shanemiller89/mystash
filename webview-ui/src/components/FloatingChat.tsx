@@ -24,6 +24,7 @@ import {
     Check,
     Globe,
 } from 'lucide-react';
+import { useDraggable } from '../hooks/useDraggable';
 
 // ─── Chat Bubble ──────────────────────────────────────────────────
 
@@ -88,34 +89,9 @@ const ChatBubble: React.FC<{
 });
 ChatBubble.displayName = 'ChatBubble';
 
-// ─── Persisted position/size ──────────────────────────────────────
-
-interface PanelGeometry {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
-
-const DEFAULT_GEOMETRY: PanelGeometry = { x: -1, y: -1, width: 380, height: 480 };
-
-function getPersistedGeometry(): PanelGeometry {
-    try {
-        const raw = localStorage.getItem('superprompt-forge-chat-geometry');
-        if (raw) {
-            return JSON.parse(raw) as PanelGeometry;
-        }
-    } catch { /* ignore */ }
-    return { ...DEFAULT_GEOMETRY };
-}
-
-function persistGeometry(geo: PanelGeometry): void {
-    try {
-        localStorage.setItem('superprompt-forge-chat-geometry', JSON.stringify(geo));
-    } catch { /* ignore */ }
-}
-
 // ─── Floating Chat Panel ──────────────────────────────────────────
+
+const DEFAULT_GEO = { x: -1, y: -1, width: 380, height: 480 };
 
 export const FloatingChat: React.FC = () => {
     const chatMessages = useAIStore((s) => s.chatMessages);
@@ -142,11 +118,11 @@ export const FloatingChat: React.FC = () => {
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Position & size state
-    const [geo, setGeo] = useState<PanelGeometry>(() => {
-        const saved = getPersistedGeometry();
-        // If no saved position, we'll center it in componentDidMount
-        return saved;
+    // ─── Draggable / Resizable via hook ───────────────────────
+    const { geo, setGeo, dragHandleProps, resizeHandleProps } = useDraggable({
+        initial: DEFAULT_GEO,
+        minSize: { width: 280, height: 200 },
+        storageKey: 'superprompt-forge-chat-geometry',
     });
 
     // Center on first render if no saved position
@@ -157,9 +133,7 @@ export const FloatingChat: React.FC = () => {
                 const pr = parent.getBoundingClientRect();
                 const x = Math.max(10, pr.width - geo.width - 20);
                 const y = Math.max(10, pr.height - geo.height - 20);
-                const newGeo = { ...geo, x, y };
-                setGeo(newGeo);
-                persistGeometry(newGeo);
+                setGeo((prev) => ({ ...prev, x, y }));
             }
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -170,87 +144,6 @@ export const FloatingChat: React.FC = () => {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [chatMessages]);
-
-    // ─── Drag logic ───────────────────────────────────────────
-    const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
-
-    const handleDragStart = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        dragRef.current = {
-            startX: e.clientX,
-            startY: e.clientY,
-            originX: geo.x,
-            originY: geo.y,
-        };
-
-        const handleDragMove = (ev: MouseEvent) => {
-            if (!dragRef.current) { return; }
-            const dx = ev.clientX - dragRef.current.startX;
-            const dy = ev.clientY - dragRef.current.startY;
-            const newGeo = {
-                ...geo,
-                x: Math.max(0, dragRef.current.originX + dx),
-                y: Math.max(0, dragRef.current.originY + dy),
-            };
-            setGeo(newGeo);
-        };
-
-        const handleDragEnd = () => {
-            if (dragRef.current) {
-                setGeo((cur) => {
-                    persistGeometry(cur);
-                    return cur;
-                });
-                dragRef.current = null;
-            }
-            document.removeEventListener('mousemove', handleDragMove);
-            document.removeEventListener('mouseup', handleDragEnd);
-        };
-
-        document.addEventListener('mousemove', handleDragMove);
-        document.addEventListener('mouseup', handleDragEnd);
-    }, [geo]);
-
-    // ─── Resize logic ─────────────────────────────────────────
-    const resizeRef = useRef<{ startX: number; startY: number; originW: number; originH: number } | null>(null);
-
-    const handleResizeStart = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        resizeRef.current = {
-            startX: e.clientX,
-            startY: e.clientY,
-            originW: geo.width,
-            originH: geo.height,
-        };
-
-        const handleResizeMove = (ev: MouseEvent) => {
-            if (!resizeRef.current) { return; }
-            const dw = ev.clientX - resizeRef.current.startX;
-            const dh = ev.clientY - resizeRef.current.startY;
-            const newGeo = {
-                ...geo,
-                width: Math.max(280, resizeRef.current.originW + dw),
-                height: Math.max(200, resizeRef.current.originH + dh),
-            };
-            setGeo(newGeo);
-        };
-
-        const handleResizeEnd = () => {
-            if (resizeRef.current) {
-                setGeo((cur) => {
-                    persistGeometry(cur);
-                    return cur;
-                });
-                resizeRef.current = null;
-            }
-            document.removeEventListener('mousemove', handleResizeMove);
-            document.removeEventListener('mouseup', handleResizeEnd);
-        };
-
-        document.addEventListener('mousemove', handleResizeMove);
-        document.addEventListener('mouseup', handleResizeEnd);
-    }, [geo]);
 
     // Reset textarea height when input is cleared (e.g. after send)
     useEffect(() => {
@@ -319,7 +212,7 @@ export const FloatingChat: React.FC = () => {
             {/* ── Title bar (draggable) ── */}
             <div
                 className="flex items-center gap-2 px-3 py-2 border-b border-border cursor-move select-none shrink-0 bg-[var(--vscode-titleBar-activeBackground)]"
-                onMouseDown={handleDragStart}
+                {...dragHandleProps}
             >
                 <GripVertical size={12} className="text-fg/30 shrink-0" />
                 <Bot size={12} className="text-accent shrink-0" />
@@ -499,7 +392,7 @@ export const FloatingChat: React.FC = () => {
                     {/* ── Resize handle (bottom-right corner) ── */}
                     <div
                         className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
-                        onMouseDown={handleResizeStart}
+                        {...resizeHandleProps}
                     >
                         <svg
                             width="16"

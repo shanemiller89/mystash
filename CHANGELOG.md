@@ -4,6 +4,56 @@ All notable changes to the "superprompt-forge" extension will be documented in t
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.3.0] — 2026-02-16
+
+### Added
+
+- **GitHub PRs tab** — browse open/closed/merged PRs, detail view with comments, reviewers, labels, assignees, timeline, and review-requested filter.
+- **GitHub Issues tab** — list/detail view with state badges, comments, labels, milestones, and assignee filters.
+- **GitHub Projects tab** — board and table views for GitHub Projects v2, with item detail, column grouping, and status filters.
+- **GitHub Wiki tab** — browse and view repo wiki pages with Markdown rendering.
+- **Mattermost tab** — channel/DM list with team selector, chat view with compose, thread replies, emoji reactions, file attachments, and WebSocket real-time updates.
+- **Google Drive tab** — browse, preview, and search Drive files with folder navigation.
+- **Google Calendar tab** — upcoming events view with date range, all-day events, and calendar filtering.
+- **AI Agent tab** — Gemini-powered contextual AI assistant with chat history, streaming responses, tab-scoped context gathering, and cancellation support.
+- **Floating AI Chat** — persistent floating chat panel with drag-to-move and drag-to-resize, available across all tabs.
+- **Tab Summary pane** — AI-generated summary sidebar for each tab, with resizable split panel and per-tab persistence.
+- **Repo Switcher** — switch active GitHub repo from the webview, with user repo search and auto-detect fallback.
+- **Settings tab** — in-webview settings panel with keyboard shortcut reference.
+- **Emoji picker** — full emoji picker and autocomplete for Mattermost compose.
+- **Link previews** — inline link preview cards in Mattermost messages.
+- **Mermaid diagrams** — rendered Mermaid blocks in Markdown content.
+
+### Changed
+
+- **Architecture: Handler decomposition** — extracted all webview message handling from `StashPanel` into domain-specific handler modules (`stashHandlers`, `prHandlers`, `issueHandlers`, `notesHandlers`, `mattermostHandlers`, `projectHandlers`, `driveHandlers`, `calendarHandlers`, `wikiHandlers`, `agentHandlers`) with a shared `HandlerContext` interface.
+- **Architecture: `App.tsx` decomposition** — split monolithic App component into per-tab components (`PRsTab`, `IssuesTab`, `NotesTab`, `MattermostTab`, `DriveTab`, `CalendarTab`, `ProjectsTab`, `AgentTab`), each with its own `TabWithSummary` wrapper.
+- **Tab bar: Grouped tabs with overflow** — tabs organized into 5 groups (Chat, Notes, GitHub, Google, Agent) with dropdown menus for multi-tab groups and ResizeObserver-based overflow into a "More…" menu at narrow widths.
+- **Resizable summary pane** — replaced fixed-width summary sidebar with `react-resizable-panels`, persisted per-tab via localStorage.
+- **`useDraggable` hook** — extracted reusable drag+resize logic from `FloatingChat` into `webview-ui/src/hooks/useDraggable.ts`.
+- **Keyboard navigation** — `useRovingTabIndex` hook wired to all 7 list views (stashes, PRs, issues, notes, channels, projects, drive files) for Arrow/Home/End/Enter/Escape navigation.
+- **AI cancellation** — `CancellationTokenSource` tracking in `AiService` with UI cancel button support.
+- **Context parallelization** — `Promise.allSettled` in `_gatherContext` for concurrent context collection across tabs.
+- **Performance** — deduplication guards in all stores, `useCallback`/`useMemo` audit, stable Zustand selectors, virtualized list preparation.
+- **Error states** — user-friendly error boundaries, empty state illustrations, auth gates for all GitHub/Google-dependent tabs.
+- **TypeScript strictness** — eliminated `any` types, added discriminated unions for webview messages, strict null checks throughout.
+- **Tailwind consolidation** — replaced arbitrary pixel values with Tailwind spacing scale tokens.
+- **Sidebar defaults** — Mattermost and Google Drive tree views default to collapsed visibility.
+
+### Fixed
+
+- **ESLint curly warnings** — auto-fixed 31 missing-brace warnings across the codebase.
+- **PR comment threading** — correctly nest reply comments under parent reviews.
+- **Stash conflict detection** — improved stderr parsing for merge conflict scenarios.
+- **Mattermost export** — channel history export to Markdown with proper formatting.
+
+### Testing
+
+- **Handler unit tests** — new `stashHandlers.test.ts` with mocked `HandlerContext`, testing message routing, git operations, and postMessage responses.
+- **113+ tests passing** — full suite verified after all refactors.
+
+---
+
 ## [0.2.0] — 2026-02-12
 
 ### Changed

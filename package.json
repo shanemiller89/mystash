@@ -266,14 +266,14 @@
                     "name": "Mattermost",
                     "icon": "$(comment-discussion)",
                     "contextualTitle": "Superprompt Forge",
-                    "visibility": "visible"
+                    "visibility": "collapsed"
                 },
                 {
                     "id": "googleDriveView",
                     "name": "Google Drive",
                     "icon": "$(cloud)",
                     "contextualTitle": "Superprompt Forge",
-                    "visibility": "visible"
+                    "visibility": "collapsed"
                 }
             ]
         },
