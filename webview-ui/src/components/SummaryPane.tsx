@@ -16,6 +16,7 @@ import {
     Check,
     RotateCcw,
 } from 'lucide-react';
+import { CopyMarkdownButton } from './CopyMarkdownButton';
 
 // ─── Default system prompt (mirrors aiService.ts) ─────────────────
 
@@ -106,6 +107,9 @@ export const SummaryPane: React.FC<SummaryPaneProps> = React.memo(({ tabKey, lab
                     >
                         <Pencil size={11} />
                     </Button>
+                    {hasContent && (
+                        <CopyMarkdownButton content={summary?.content ?? ''} iconSize={11} />
+                    )}
                     <Button
                         variant="ghost"
                         size="icon-xs"

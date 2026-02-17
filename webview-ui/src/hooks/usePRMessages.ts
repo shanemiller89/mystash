@@ -102,6 +102,7 @@ export function handlePRMessage(msg: Msg): boolean {
             return true;
         case 'prSummaryResult':
             s.setGeneratedSummary(msg.summary as string);
+            s.setPRSummaryPaneOpen(true);
             return true;
         case 'prSummaryError':
             s.setSummaryError(msg.error as string);
@@ -130,6 +131,17 @@ export function handlePRMessage(msg: Msg): boolean {
             return true;
         case 'prFilesError':
             s.setFilesError(msg.message as string);
+            return true;
+
+        // ─── File change AI summary ───
+        case 'prFilesSummaryLoading':
+            s.setFilesSummaryLoading(true);
+            return true;
+        case 'prFilesSummaryResult':
+            s.setFilesSummary(msg.summary as string);
+            return true;
+        case 'prFilesSummaryError':
+            s.setFilesSummaryError(msg.error as string);
             return true;
 
         // ─── PR reviews (review statuses) ───

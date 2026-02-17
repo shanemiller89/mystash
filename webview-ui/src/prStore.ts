@@ -164,6 +164,19 @@ interface PRStore {
     mergeError: string | null;
     detailTab: PRDetailTab;
 
+    // File change AI summary state
+    filesSummary: string | null;
+    isFilesSummaryLoading: boolean;
+    filesSummaryError: string | null;
+
+    // PR summary pane state
+    prSummaryPaneOpen: boolean;
+    prSummaryPaneWidth: number;
+
+    // Files summary pane state
+    filesSummaryPaneOpen: boolean;
+    filesSummaryPaneWidth: number;
+
     // Actions
     setPRs: (prs: PullRequestData[]) => void;
     selectPR: (prNumber: number) => void;
@@ -223,6 +236,19 @@ interface PRStore {
     setMerging: (merging: boolean) => void;
     setMergeError: (error: string | null) => void;
     setDetailTab: (tab: PRDetailTab) => void;
+
+    // File change AI summary actions
+    setFilesSummaryLoading: (loading: boolean) => void;
+    setFilesSummary: (summary: string | null) => void;
+    setFilesSummaryError: (error: string | null) => void;
+
+    // PR summary pane actions
+    setPRSummaryPaneOpen: (open: boolean) => void;
+    setPRSummaryPaneWidth: (width: number) => void;
+
+    // Files summary pane actions
+    setFilesSummaryPaneOpen: (open: boolean) => void;
+    setFilesSummaryPaneWidth: (width: number) => void;
 
     // Comment selectors
     commentAuthors: () => string[];
@@ -288,6 +314,19 @@ export const usePRStore = create<PRStore>((set, get) => ({
     mergeError: null,
     detailTab: 'conversation',
 
+    // File change AI summary state
+    filesSummary: null,
+    isFilesSummaryLoading: false,
+    filesSummaryError: null,
+
+    // PR summary pane state
+    prSummaryPaneOpen: false,
+    prSummaryPaneWidth: 350,
+
+    // Files summary pane state
+    filesSummaryPaneOpen: false,
+    filesSummaryPaneWidth: 380,
+
     setPRs: (prs) => {
         const { selectedPRNumber } = get();
         const stillExists =
@@ -336,6 +375,11 @@ export const usePRStore = create<PRStore>((set, get) => ({
             isMerging: false,
             mergeError: null,
             detailTab: 'conversation',
+            filesSummary: null,
+            isFilesSummaryLoading: false,
+            filesSummaryError: null,
+            prSummaryPaneOpen: false,
+            filesSummaryPaneOpen: false,
         }),
 
     setPRDetail: (pr) => set({ selectedPRDetail: pr }),
@@ -439,6 +483,19 @@ export const usePRStore = create<PRStore>((set, get) => ({
     setMerging: (merging) => set({ isMerging: merging }),
     setMergeError: (error) => set({ mergeError: error, isMerging: false }),
     setDetailTab: (tab) => set({ detailTab: tab }),
+
+    // File change AI summary actions — auto-open pane on result
+    setFilesSummaryLoading: (loading) => set({ isFilesSummaryLoading: loading, filesSummaryError: null }),
+    setFilesSummary: (summary) => set({ filesSummary: summary, isFilesSummaryLoading: false, filesSummaryError: null, filesSummaryPaneOpen: !!summary }),
+    setFilesSummaryError: (error) => set({ filesSummaryError: error, isFilesSummaryLoading: false }),
+
+    // PR summary pane actions
+    setPRSummaryPaneOpen: (open) => set({ prSummaryPaneOpen: open }),
+    setPRSummaryPaneWidth: (width) => set({ prSummaryPaneWidth: width }),
+
+    // Files summary pane actions
+    setFilesSummaryPaneOpen: (open) => set({ filesSummaryPaneOpen: open }),
+    setFilesSummaryPaneWidth: (width) => set({ filesSummaryPaneWidth: width }),
 
     filteredPRs: () => {
         const { prs, searchQuery } = get();

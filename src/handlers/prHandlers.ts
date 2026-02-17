@@ -408,6 +408,88 @@ List each changed file, a brief description of what changed in that file, and wh
             return true;
         }
 
+        // ─── File Change AI Summary ───
+        case 'prs.generateFilesSummary': {
+            if (!AiService.isAvailable()) {
+                ctx.postMessage({ type: 'prFilesSummaryError', error: 'AI features require GitHub Copilot or Gemini' });
+                return true;
+            }
+            const filesSummaryPrNumber = msg.prNumber as number | undefined;
+            if (filesSummaryPrNumber === undefined || !ctx.prService) { return true; }
+
+            try {
+                ctx.postMessage({ type: 'prFilesSummaryLoading' });
+
+                const repoInfo = await ctx.getRepoInfo();
+                if (!repoInfo) {
+                    ctx.postMessage({ type: 'prFilesSummaryError', error: 'Could not determine repository' });
+                    return true;
+                }
+
+                const files = await ctx.prService.getPullRequestFiles(
+                    repoInfo.owner, repoInfo.repo, filesSummaryPrNumber,
+                );
+
+                if (files.length === 0) {
+                    ctx.postMessage({ type: 'prFilesSummaryError', error: 'No changed files found' });
+                    return true;
+                }
+
+                // Build context from file patches
+                const fileContextParts = files.map((f) => {
+                    const stats = `+${f.additions}/-${f.deletions}`;
+                    const patch = f.patch
+                        ? (f.patch.length > 3000
+                            ? f.patch.slice(0, 3000) + '\n... (patch truncated)'
+                            : f.patch)
+                        : '(binary file or no diff available)';
+                    return `### ${f.filename} [${f.status}] (${stats})\n\`\`\`diff\n${patch}\n\`\`\``;
+                });
+
+                const contextData = [
+                    `## Pull Request #${filesSummaryPrNumber} — ${files.length} files changed`,
+                    '',
+                    ...fileContextParts,
+                ].join('\n\n');
+
+                const systemPrompt = `You are a senior software engineer reviewing a pull request.
+Analyze each changed file and produce a clear, structured summary explaining:
+1. **What** changed in each file
+2. **Why** the change was likely made (infer purpose from the diff context)
+
+Format the output as a markdown list grouped by file:
+
+For each file, use this format:
+### \`filename\`
+- **What changed**: Brief description of the modifications
+- **Why**: Inferred reason for the change
+
+After all files, add:
+### Overall Summary
+A 2-3 sentence high-level summary of what this PR accomplishes.
+
+Be concise but specific. Reference actual function names, variables, or patterns you see in the diffs.
+Do NOT reproduce the diffs themselves. Focus on meaning and intent.`;
+
+                const result = await ctx.aiService.summarize(
+                    'pr-files-summary',
+                    contextData,
+                    systemPrompt,
+                );
+                ctx.postMessage({
+                    type: 'prFilesSummaryResult',
+                    summary: result,
+                });
+            } catch (e: unknown) {
+                const m = extractErrorMessage(e);
+                ctx.postMessage({
+                    type: 'prFilesSummaryError',
+                    error: m,
+                });
+            }
+            return true;
+        }
+
         // ─── PR Files (Changed Files) ───
         case 'prs.getFiles': {
             if (msg.prNumber !== undefined && ctx.prService) {

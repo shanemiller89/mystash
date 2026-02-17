@@ -30,6 +30,7 @@ import {
     Sparkles,
     Settings2,
     ShieldCheck,
+    RefreshCw,
 } from 'lucide-react';
 import { MarkdownBody } from './MarkdownBody';
 import { Button } from './ui/button';
@@ -47,6 +48,9 @@ import { PRFileDiff } from './PRFileDiff';
 import { PRReviewForm } from './PRReviewForm';
 import { PRReviewStatus } from './PRReviewStatus';
 import { PRMergeButton } from './PRMergeButton';
+import { PRFilesSummary, PRFilesSummaryPane } from './PRFilesSummary';
+import { CopyMarkdownButton } from './CopyMarkdownButton';
+import { ScrollArea } from './ui/scroll-area';
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleString();
@@ -809,12 +813,64 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
     const [showReviewForm, setShowReviewForm] = useState(false);
     const [filesFetched, setFilesFetched] = useState(false);
 
-    // When AI generates a summary, populate the edit body
-    useEffect(() => {
-        if (generatedSummary && isEditingBody) {
-            setEditBody(generatedSummary);
-        }
-    }, [generatedSummary, isEditingBody]);
+    // PR summary pane state
+    const prSummaryPaneOpen = usePRStore((s) => s.prSummaryPaneOpen);
+    const prSummaryPaneWidth = usePRStore((s) => s.prSummaryPaneWidth);
+    const setPRSummaryPaneOpen = usePRStore((s) => s.setPRSummaryPaneOpen);
+    const setPRSummaryPaneWidth = usePRStore((s) => s.setPRSummaryPaneWidth);
+
+    // Files summary pane state
+    const filesSummaryPaneOpen = usePRStore((s) => s.filesSummaryPaneOpen);
+    const filesSummaryPaneWidth = usePRStore((s) => s.filesSummaryPaneWidth);
+    const setFilesSummaryPaneWidth = usePRStore((s) => s.setFilesSummaryPaneWidth);
+
+    // PR summary pane resize logic
+    const summaryResizeRef = useRef<{ startX: number; startW: number } | null>(null);
+
+    const handleSummaryPaneResizeStart = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        summaryResizeRef.current = { startX: e.clientX, startW: prSummaryPaneWidth };
+
+        const handleMove = (ev: MouseEvent) => {
+            if (!summaryResizeRef.current) { return; }
+            const delta = summaryResizeRef.current.startX - ev.clientX;
+            const newWidth = Math.max(240, Math.min(600, summaryResizeRef.current.startW + delta));
+            setPRSummaryPaneWidth(newWidth);
+        };
+
+        const handleEnd = () => {
+            summaryResizeRef.current = null;
+            document.removeEventListener('mousemove', handleMove);
+            document.removeEventListener('mouseup', handleEnd);
+        };
+
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+    }, [prSummaryPaneWidth, setPRSummaryPaneWidth]);
+
+    // Files summary pane resize logic
+    const filesSummaryResizeRef = useRef<{ startX: number; startW: number } | null>(null);
+
+    const handleFilesSummaryPaneResizeStart = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        filesSummaryResizeRef.current = { startX: e.clientX, startW: filesSummaryPaneWidth };
+
+        const handleMove = (ev: MouseEvent) => {
+            if (!filesSummaryResizeRef.current) { return; }
+            const delta = filesSummaryResizeRef.current.startX - ev.clientX;
+            const newWidth = Math.max(260, Math.min(650, filesSummaryResizeRef.current.startW + delta));
+            setFilesSummaryPaneWidth(newWidth);
+        };
+
+        const handleEnd = () => {
+            filesSummaryResizeRef.current = null;
+            document.removeEventListener('mousemove', handleMove);
+            document.removeEventListener('mouseup', handleEnd);
+        };
+
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+    }, [filesSummaryPaneWidth, setFilesSummaryPaneWidth]);
 
     // Lazy-fetch files and reviews when switching to the files tab
     const handleTabChange = useCallback(
@@ -989,7 +1045,8 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
     }
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex">
+        <div className="flex-1 min-w-0 flex flex-col">
             {/* Header */}
             <div className="shrink-0 border-b border-border p-3">
                 <div className="flex items-start gap-2">
@@ -1342,6 +1399,8 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0">
+                            {/* AI file change summary */}
+                            <PRFilesSummary prNumber={pr.number} />
                             {/* File tree */}
                             <div className="shrink-0 max-h-[40%] overflow-y-auto border-b border-border">
                                 <PRFileTree />
@@ -1432,6 +1491,92 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                     prNumber={selectedPRNumber}
                 />
             )}
+        </div>
+
+        {/* ══════════ PR Summary Right Pane (resizable) ══════════ */}
+        {prSummaryPaneOpen && generatedSummary && (
+            <div
+                className="shrink-0 border-l border-border flex flex-col min-h-0 relative"
+                style={{ width: prSummaryPaneWidth }}
+            >
+                {/* Resize handle (left edge) */}
+                <div
+                    className="absolute top-0 left-0 w-1 h-full cursor-col-resize z-10 hover:bg-accent/30 active:bg-accent/50 transition-colors"
+                    onMouseDown={handleSummaryPaneResizeStart}
+                />
+
+                {/* Header */}
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-[var(--vscode-editor-background)] shrink-0">
+                    <Sparkles size={12} className="text-accent shrink-0" />
+                    <span className="text-[11px] font-semibold text-fg/70 flex-1 truncate">
+                        PR Summary
+                    </span>
+                    <div className="flex items-center gap-0.5">
+                        <CopyMarkdownButton content={generatedSummary} iconSize={11} />
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => {
+                                postMessage('prs.generateSummary', {
+                                    baseBranch: pr.baseBranch,
+                                    systemPrompt: prSummarySystemPrompt || undefined,
+                                });
+                            }}
+                            disabled={isGeneratingSummary}
+                            title="Regenerate summary"
+                        >
+                            {isGeneratingSummary ? (
+                                <Loader2 size={11} className="animate-spin" />
+                            ) : (
+                                <RefreshCw size={11} />
+                            )}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => setPRSummaryPaneOpen(false)}
+                            title="Close pane"
+                        >
+                            <X size={11} />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Summary content */}
+                <ScrollArea className="flex-1">
+                    <div className="px-4 py-3">
+                        <MarkdownBody
+                            content={generatedSummary}
+                            className="text-[11.5px] leading-relaxed"
+                        />
+                    </div>
+                </ScrollArea>
+
+                {/* Use as body button */}
+                {isEditingBody && (
+                    <div className="shrink-0 border-t border-border p-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full h-7 text-[10px] gap-1"
+                            onClick={() => setEditBody(generatedSummary)}
+                        >
+                            <Save size={10} />
+                            Use as PR Description
+                        </Button>
+                    </div>
+                )}
+            </div>
+        )}
+
+        {/* ══════════ Files Summary Right Pane (resizable) ══════════ */}
+        {detailTab === 'files' && filesSummaryPaneOpen && (
+            <PRFilesSummaryPane
+                prNumber={pr.number}
+                width={filesSummaryPaneWidth}
+                onResizeStart={handleFilesSummaryPaneResizeStart}
+            />
+        )}
         </div>
     );
 };

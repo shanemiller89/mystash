@@ -40,6 +40,7 @@ import {
     Pencil,
     RotateCcw,
 } from 'lucide-react';
+import { CopyMarkdownButton } from './CopyMarkdownButton';
 
 // ─── Templates ────────────────────────────────────────────────────
 
@@ -112,6 +113,9 @@ const AgentSummaryCard: React.FC<{
                     >
                         <Eye size={11} />
                     </Button>
+                )}
+                {hasContent && (
+                    <CopyMarkdownButton content={summary?.content ?? ''} iconSize={11} />
                 )}
                 <Button
                     variant="ghost"
@@ -641,6 +645,7 @@ export const AgentTab: React.FC = () => {
                     )}
                     {!agentIsStreaming && (
                         <div className="flex items-center gap-0.5">
+                            <CopyMarkdownButton content={agentResult} iconSize={11} />
                             <Button
                                 variant="ghost"
                                 size="icon-xs"
