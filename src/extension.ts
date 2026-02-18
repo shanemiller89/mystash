@@ -367,7 +367,10 @@ export function activate(context: vscode.ExtensionContext) {
                 stashProvider.refresh('window-focus');
                 prProvider.refresh('window-focus');
                 issueProvider.refresh('window-focus');
+                projectProvider.refresh('window-focus');
+                gistNotesProvider.refresh('window-focus');
                 mattermostProvider.refresh('window-focus');
+                driveProvider.refresh('window-focus');
                 forgeOverviewProvider.refresh('window-focus');
             }
         }),
@@ -1135,6 +1138,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('superprompt-forge.prs.signOut', async () => {
+            await authService.signOut();
+            vscode.window.showInformationMessage('Signed out of GitHub');
+        }),
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('superprompt-forge.prs.filter', async () => {
             const current = prProvider.stateFilter;
             const items: vscode.QuickPickItem[] = [
@@ -1221,6 +1231,13 @@ export function activate(context: vscode.ExtensionContext) {
                     `Signed in to GitHub as ${session.account.label}`,
                 );
             }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('superprompt-forge.issues.signOut', async () => {
+            await authService.signOut();
+            vscode.window.showInformationMessage('Signed out of GitHub');
         }),
     );
 

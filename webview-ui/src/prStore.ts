@@ -352,6 +352,10 @@ export const usePRStore = create<PRStore>((set, get) => ({
             selectedPRNumber: prNumber,
             selectedPRDetail: null,
             comments: [],
+            reviews: [],
+            prFiles: [],
+            filesError: null,
+            selectedFilePath: null,
             isCommentsLoading: true,
         });
     },

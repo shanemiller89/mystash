@@ -872,7 +872,7 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
         document.addEventListener('mouseup', handleEnd);
     }, [filesSummaryPaneWidth, setFilesSummaryPaneWidth]);
 
-    // Lazy-fetch files and reviews when switching to the files tab
+    // Lazy-fetch files when switching to the files tab
     const handleTabChange = useCallback(
         (value: string | number | null) => {
             const tab = value as PRDetailTab;
@@ -880,7 +880,6 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
             if (tab === 'files' && !filesFetched && selectedPRNumber !== null) {
                 setFilesFetched(true);
                 postMessage('prs.getFiles', { prNumber: selectedPRNumber });
-                postMessage('prs.getReviews', { prNumber: selectedPRNumber });
             }
         },
         [filesFetched, selectedPRNumber, setDetailTab],

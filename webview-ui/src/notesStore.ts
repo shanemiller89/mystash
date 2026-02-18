@@ -30,6 +30,7 @@ interface NotesStore {
     filterMode: NotesFilterMode;
     currentRepo: string | null;
     error: string | null;
+    tabSize: number;
 
     // Actions
     setNotes: (notes: GistNoteData[]) => void;
@@ -46,6 +47,7 @@ interface NotesStore {
     setPreviewMode: (preview: boolean) => void;
     setFilterMode: (mode: NotesFilterMode) => void;
     setCurrentRepo: (repo: string | null) => void;
+    setTabSize: (size: number) => void;
     /** Atomically set editor content/title without marking dirty (used when loading from extension) */
     loadNoteContent: (content: string, title?: string) => void;
     filteredNotes: () => GistNoteData[];
@@ -70,6 +72,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     filterMode: 'all',
     currentRepo: null,
     error: null,
+    tabSize: 4,
 
     setNotes: (notes) => {
         const { selectedNoteId } = get();
@@ -126,6 +129,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     setPreviewMode: (previewMode) => set({ previewMode }),
     setFilterMode: (filterMode) => set({ filterMode }),
     setCurrentRepo: (currentRepo) => set({ currentRepo }),
+    setTabSize: (tabSize) => set({ tabSize }),
 
     loadNoteContent: (content, title) =>
         set({

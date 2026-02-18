@@ -104,6 +104,9 @@ export function handleNotesMessage(msg: Msg): boolean {
             s.updateNoteInList(migratedNote.id, migratedNote);
             return true;
         }
+        case 'tabSize':
+            s.setTabSize(msg.tabSize as number);
+            return true;
         default:
             return false;
     }

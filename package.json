@@ -552,6 +552,12 @@
                 "icon": "$(sign-in)"
             },
             {
+                "command": "superprompt-forge.prs.signOut",
+                "title": "Sign Out of Pull Requests",
+                "category": "Superprompt Forge",
+                "icon": "$(sign-out)"
+            },
+            {
                 "command": "superprompt-forge.prs.filter",
                 "title": "Filter Pull Requests",
                 "category": "Superprompt Forge",
@@ -592,6 +598,12 @@
                 "title": "Sign In for Issues",
                 "category": "Superprompt Forge",
                 "icon": "$(sign-in)"
+            },
+            {
+                "command": "superprompt-forge.issues.signOut",
+                "title": "Sign Out of Issues",
+                "category": "Superprompt Forge",
+                "icon": "$(sign-out)"
             },
             {
                 "command": "superprompt-forge.issues.filter",
@@ -833,6 +845,10 @@
                     "group": "navigation"
                 },
                 {
+                    "command": "superprompt-forge.prs.signOut",
+                    "when": "view == pullRequestsView && superprompt-forge.isAuthenticated"
+                },
+                {
                     "command": "superprompt-forge.issues.refresh",
                     "when": "view == issuesView",
                     "group": "navigation"
@@ -861,6 +877,10 @@
                     "command": "superprompt-forge.issues.signIn",
                     "when": "view == issuesView && !superprompt-forge.isAuthenticated",
                     "group": "navigation"
+                },
+                {
+                    "command": "superprompt-forge.issues.signOut",
+                    "when": "view == issuesView && superprompt-forge.isAuthenticated"
                 },
                 {
                     "command": "superprompt-forge.projects.refresh",
@@ -1220,6 +1240,10 @@
                     "when": "workspaceFolderCount > 0 && !superprompt-forge.isAuthenticated"
                 },
                 {
+                    "command": "superprompt-forge.prs.signOut",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
+                },
+                {
                     "command": "superprompt-forge.prs.filter",
                     "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
@@ -1246,6 +1270,10 @@
                 {
                     "command": "superprompt-forge.issues.signIn",
                     "when": "workspaceFolderCount > 0 && !superprompt-forge.isAuthenticated"
+                },
+                {
+                    "command": "superprompt-forge.issues.signOut",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
                     "command": "superprompt-forge.issues.filter",
@@ -1351,6 +1379,7 @@
         "test": "vscode-test"
     },
     "devDependencies": {
+        "@base-ui/react": "^1.2.0",
         "@fullcalendar/core": "^6.1.20",
         "@fullcalendar/daygrid": "^6.1.20",
         "@fullcalendar/list": "^6.1.20",
@@ -1366,6 +1395,8 @@
         "@vitejs/plugin-react": "^5.1.4",
         "@vscode/test-cli": "^0.0.12",
         "@vscode/test-electron": "^2.5.2",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
         "date-fns": "^4.1.0",
         "esbuild": "^0.27.2",
         "eslint": "^9.39.2",
@@ -1380,18 +1411,13 @@
         "prettier": "^3.8.1",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
+        "react-resizable-panels": "^4.6.2",
+        "tailwind-merge": "^3.4.0",
         "tailwindcss": "^4.1.18",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.54.0",
+        "tw-animate-css": "^1.4.0",
         "vite": "^7.3.1",
         "zustand": "^5.0.11"
-    },
-    "dependencies": {
-        "@base-ui/react": "^1.2.0",
-        "class-variance-authority": "^0.7.1",
-        "clsx": "^2.1.1",
-        "react-resizable-panels": "^4.6.2",
-        "tailwind-merge": "^3.4.0",
-        "tw-animate-css": "^1.4.0"
     }
 }

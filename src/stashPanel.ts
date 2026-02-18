@@ -15,6 +15,59 @@ import { formatRelativeTime, extractErrorMessage } from './utils';
 import { type PanelServices } from './panelContext';
 import { handlerRegistry, type HandlerContext } from './handlers';
 
+// ─── GitHub Image URL Authentication ──────────────────────────────
+// GitHub-hosted images in PR bodies/comments (user-attachments, private-user-images)
+// require authentication to load. Since webview <img> tags can't send auth headers,
+// we follow redirects with the token to get the pre-signed URL that works without auth.
+
+/** Regex matching GitHub image URLs that may require authentication. */
+const GITHUB_IMAGE_URL_RE = /https:\/\/github\.com\/[^/]+\/[^/]+\/assets\/[^\s)"']+|https:\/\/private-user-images\.githubusercontent\.com\/[^\s)"']+/g;
+
+/**
+ * Rewrite GitHub image URLs in markdown/HTML content to use authenticated (pre-signed) URLs.
+ * GitHub's `/assets/` URLs redirect to a CDN with a JWT token when accessed with auth headers.
+ * We follow that redirect to get the final URL which is publicly accessible (time-limited).
+ */
+async function authenticateGitHubImageUrls(
+    content: string,
+    token: string,
+    outputChannel: vscode.OutputChannel,
+): Promise<string> {
+    const matches = content.match(GITHUB_IMAGE_URL_RE);
+    if (!matches) { return content; }
+
+    // Deduplicate URLs
+    const uniqueUrls = [...new Set(matches)];
+    const urlMap = new Map<string, string>();
+
+    await Promise.all(
+        uniqueUrls.map(async (url) => {
+            try {
+                // Follow redirects with auth to get the pre-signed CDN URL
+                const response = await fetch(url, {
+                    method: 'HEAD',
+                    headers: { Authorization: `Bearer ${token}` },
+                    redirect: 'follow',
+                });
+                if (response.ok && response.url !== url) {
+                    urlMap.set(url, response.url);
+                }
+            } catch (e: unknown) {
+                outputChannel.appendLine(`[PR] Failed to authenticate image URL: ${url} — ${extractErrorMessage(e)}`);
+            }
+        }),
+    );
+
+    if (urlMap.size === 0) { return content; }
+
+    let result = content;
+    for (const [original, authenticated] of urlMap) {
+        // Replace all occurrences of the original URL with the authenticated one
+        result = result.split(original).join(authenticated);
+    }
+    return result;
+}
+
 /**
  * Manages the Superprompt Forge webview panel — a rich, interactive stash explorer
  * that opens as an editor tab, powered by a React + Zustand + Tailwind UI.
@@ -1007,17 +1060,38 @@ export class StashPanel {
 
             this._panel.webview.postMessage({ type: 'prCommentsLoading', prNumber });
 
-            // Get both the full PR detail and the comments (with thread data)
-            const [pr, comments] = await Promise.all([
+            // Get the full PR detail, comments (with thread data), AND reviews in parallel
+            const [pr, comments, reviews] = await Promise.all([
                 this._prService.getPullRequest(repoInfo.owner, repoInfo.repo, prNumber),
                 this._prService.getCommentsWithThreads(repoInfo.owner, repoInfo.repo, prNumber),
+                this._prService.getReviews(repoInfo.owner, repoInfo.repo, prNumber),
             ]);
+
+            // Authenticate GitHub image URLs in body and comments
+            const token = await this._authService?.getToken();
+            const prData = PrService.toData(pr);
+            if (token) {
+                prData.body = await authenticateGitHubImageUrls(prData.body, token, this._outputChannel);
+            }
+
+            const commentData = comments.map((c) => PrService.toCommentData(c));
+            if (token) {
+                for (const c of commentData) {
+                    c.body = await authenticateGitHubImageUrls(c.body, token, this._outputChannel);
+                }
+            }
 
             this._panel.webview.postMessage({
                 type: 'prComments',
                 prNumber,
-                prDetail: PrService.toData(pr),
-                comments: comments.map((c) => PrService.toCommentData(c)),
+                prDetail: prData,
+                comments: commentData,
+            });
+
+            // Send reviews so the conversation tab shows approval status immediately
+            this._panel.webview.postMessage({
+                type: 'prReviews',
+                reviews: reviews.map(PrService.toReviewData),
             });
         } catch (e: unknown) {
             const m = extractErrorMessage(e);
@@ -1081,11 +1155,25 @@ export class StashPanel {
                 this._issueService.getComments(repoInfo.owner, repoInfo.repo, issueNumber),
             ]);
 
+            // Authenticate GitHub image URLs in body and comments
+            const token = await this._authService?.getToken();
+            const issueData = IssueService.toData(issue);
+            if (token) {
+                issueData.body = await authenticateGitHubImageUrls(issueData.body, token, this._outputChannel);
+            }
+
+            const commentData = comments.map((c) => IssueService.toCommentData(c));
+            if (token) {
+                for (const c of commentData) {
+                    c.body = await authenticateGitHubImageUrls(c.body, token, this._outputChannel);
+                }
+            }
+
             this._panel.webview.postMessage({
                 type: 'issueComments',
                 issueNumber,
-                issueDetail: IssueService.toData(issue),
-                comments: comments.map((c) => IssueService.toCommentData(c)),
+                issueDetail: issueData,
+                comments: commentData,
             });
         } catch (e: unknown) {
             const m = extractErrorMessage(e);

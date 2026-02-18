@@ -112,8 +112,8 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const contentRequestedRef = useRef<string | null>(null);
 
-    // Read editor.tabSize setting (posted from extension, fallback to 4)
-    const [tabSize] = useState(4); // Will be updated via message from extension
+    // Read editor.tabSize setting (posted from extension)
+    const tabSize = useNotesStore((s) => s.tabSize);
 
     // ─── Lazy Content Fetch ───────────────────────────────────────
     // When a note is selected but has no content (list API doesn't include it),
