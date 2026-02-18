@@ -498,9 +498,12 @@ export class StashPanel {
                     if (stashes.length === 0) {
                         return { key: 'stashes', order: 0, text: '## Stashes\nNo stashes found.' };
                     }
-                    const lines = stashes.map((s) =>
-                        `- stash@{${s.index}}: "${s.message}" (branch: ${s.branch}, ${formatRelativeTime(s.date)})`,
-                    );
+                    const lines = stashes.map((s) => {
+                        const statsStr = s.stats
+                            ? ` — ${s.stats.filesChanged} file(s), +${s.stats.insertions}/-${s.stats.deletions}`
+                            : '';
+                        return `- stash@{${s.index}}: "${s.message}" (branch: ${s.branch}, ${formatRelativeTime(s.date)}${statsStr})`;
+                    });
                     return { key: 'stashes', order: 0, text: `## Stashes (${stashes.length})\n${lines.join('\n')}` };
                 } catch {
                     return { key: 'stashes', order: 0, text: '## Stashes\nUnable to fetch stash data.' };
@@ -522,11 +525,49 @@ export class StashPanel {
                     if (prs.length === 0) {
                         return { key: 'prs', order: 1, text: '## Pull Requests\nNo open PRs.' };
                     }
-                    const lines = prs.map((pr) => {
+                    const prLines: string[] = [];
+                    for (const pr of prs) {
                         const data = PrService.toData(pr);
-                        return `- #${data.number}: "${data.title}" by ${data.author} (${data.state}, ${data.commentsCount} comments, +${data.additions}/-${data.deletions})`;
-                    });
-                    return { key: 'prs', order: 1, text: `## Pull Requests (${prs.length} open)\n${lines.join('\n')}` };
+                        const parts: string[] = [
+                            `### PR #${data.number}: ${data.title}`,
+                            `- **Author**: ${data.author}${data.isDraft ? ' (DRAFT)' : ''}`,
+                            `- **State**: ${data.state} | **Branch**: ${data.branch} → ${data.baseBranch}`,
+                            `- **Size**: +${data.additions}/-${data.deletions} across ${data.changedFiles} file(s), ${data.commentsCount} comment(s)`,
+                            `- **Created**: ${formatRelativeTime(new Date(data.createdAt))} | **Updated**: ${formatRelativeTime(new Date(data.updatedAt))}`,
+                        ];
+                        if (data.labels.length > 0) {
+                            parts.push(`- **Labels**: ${data.labels.map((l) => l.name).join(', ')}`);
+                        }
+                        if (data.assignees.length > 0) {
+                            parts.push(`- **Assignees**: ${data.assignees.map((a) => a.login).join(', ')}`);
+                        }
+                        if (data.requestedReviewers.length > 0) {
+                            parts.push(`- **Reviewers requested**: ${data.requestedReviewers.map((r) => r.login).join(', ')}`);
+                        }
+                        if (data.body) {
+                            const bodyPreview = data.body.length > 300
+                                ? data.body.slice(0, 300) + '…'
+                                : data.body;
+                            parts.push(`- **Description**: ${bodyPreview}`);
+                        }
+                        // Fetch reviews for each PR (best-effort)
+                        try {
+                            const reviews = await this._prService!.getReviews(
+                                repoInfo.owner, repoInfo.repo, data.number,
+                            );
+                            const meaningful = reviews.filter((r) =>
+                                r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED',
+                            );
+                            if (meaningful.length > 0) {
+                                const reviewStrs = meaningful.map((r) =>
+                                    `${r.user}: ${r.state}`,
+                                );
+                                parts.push(`- **Reviews**: ${reviewStrs.join(', ')}`);
+                            }
+                        } catch { /* ok — skip review fetch errors */ }
+                        prLines.push(parts.join('\n'));
+                    }
+                    return { key: 'prs', order: 1, text: `## Pull Requests (${prs.length} open)\n${prLines.join('\n\n')}` };
                 } catch {
                     return { key: 'prs', order: 1, text: '## Pull Requests\nUnable to fetch PR data.' };
                 }
@@ -545,12 +586,32 @@ export class StashPanel {
                     if (issues.length === 0) {
                         return { key: 'issues', order: 2, text: '## Issues\nNo open issues.' };
                     }
-                    const lines = issues.map((i) => {
+                    const issueLines: string[] = [];
+                    for (const i of issues) {
                         const data = IssueService.toData(i);
-                        const labels = data.labels.length > 0 ? ` [${data.labels.map((l) => l.name).join(', ')}]` : '';
-                        return `- #${data.number}: "${data.title}" by ${data.author}${labels} (${data.commentsCount} comments)`;
-                    });
-                    return { key: 'issues', order: 2, text: `## Issues (${issues.length} open)\n${lines.join('\n')}` };
+                        const parts: string[] = [
+                            `### Issue #${data.number}: ${data.title}`,
+                            `- **Author**: ${data.author} | **State**: ${data.state} | **Comments**: ${data.commentsCount}`,
+                            `- **Created**: ${formatRelativeTime(new Date(data.createdAt))} | **Updated**: ${formatRelativeTime(new Date(data.updatedAt))}`,
+                        ];
+                        if (data.labels.length > 0) {
+                            parts.push(`- **Labels**: ${data.labels.map((l) => l.name).join(', ')}`);
+                        }
+                        if (data.assignees.length > 0) {
+                            parts.push(`- **Assignees**: ${data.assignees.map((a) => a.login).join(', ')}`);
+                        }
+                        if (data.milestone) {
+                            parts.push(`- **Milestone**: ${data.milestone.title}`);
+                        }
+                        if (data.body) {
+                            const bodyPreview = data.body.length > 300
+                                ? data.body.slice(0, 300) + '…'
+                                : data.body;
+                            parts.push(`- **Description**: ${bodyPreview}`);
+                        }
+                        issueLines.push(parts.join('\n'));
+                    }
+                    return { key: 'issues', order: 2, text: `## Issues (${issues.length} open)\n${issueLines.join('\n\n')}` };
                 } catch {
                     return { key: 'issues', order: 2, text: '## Issues\nUnable to fetch issue data.' };
                 }
@@ -569,24 +630,78 @@ export class StashPanel {
                     if (projects.length === 0) {
                         return { key: 'projects', order: 3, text: '## Projects\nNo projects found.' };
                     }
-                    const projLines: string[] = [];
-                    for (const p of projects.slice(0, 3)) {
+                    const projSections: string[] = [];
+                    for (const p of projects.slice(0, 5)) {
+                        const projParts: string[] = [];
+                        // Fetch full project details (views, fields, description)
+                        let fullProject: import('./projectService').Project | undefined;
+                        try {
+                            fullProject = await this._projectService!.getProject(
+                                repoInfo.owner, p.number,
+                            );
+                        } catch { /* ok — fall back to lightweight data */ }
+
+                        if (fullProject) {
+                            projParts.push(
+                                `### ${fullProject.title}${fullProject.shortDescription ? ` — ${fullProject.shortDescription}` : ''}`,
+                                `- **Status**: ${fullProject.closed ? 'Closed' : 'Open'} | **Visibility**: ${fullProject.public ? 'Public' : 'Private'} | **Total items**: ${fullProject.totalItemCount}`,
+                            );
+                            if (fullProject.views.length > 0) {
+                                projParts.push(`- **Views**: ${fullProject.views.map((v) => `${v.name} (${v.layout})`).join(', ')}`);
+                            }
+                            if (fullProject.fields.length > 0) {
+                                const customFields = fullProject.fields.filter((f) =>
+                                    !['Title', 'Assignees', 'Labels', 'Milestone', 'Repository', 'Linked pull requests', 'Reviewers', 'Tracks', 'Tracked by'].includes(f.name),
+                                );
+                                if (customFields.length > 0) {
+                                    projParts.push(`- **Custom fields**: ${customFields.map((f) => {
+                                        if (f.options && f.options.length > 0) {
+                                            return `${f.name} (${f.dataType}: ${f.options.map((o) => o.name).join('/')})`;
+                                        }
+                                        return `${f.name} (${f.dataType})`;
+                                    }).join(', ')}`);
+                                }
+                            }
+                        } else {
+                            projParts.push(
+                                `### ${p.title}`,
+                                `- **Status**: ${p.closed ? 'Closed' : 'Open'}`,
+                            );
+                        }
                         try {
                             const itemResult = await this._projectService!.listProjectItems(p.id);
-                            const itemData = itemResult.items.map((i: { id: string; type: string; isArchived: boolean }) => i);
-                            const typeCounts: Record<string, number> = {};
-                            for (const item of itemData) {
-                                typeCounts[item.type] = (typeCounts[item.type] ?? 0) + 1;
+                            const activeItems = itemResult.items.filter((item) => !item.isArchived);
+                            if (!fullProject) {
+                                projParts[1] += ` | **Items**: ${activeItems.length}${activeItems.length < itemResult.items.length ? ` (${itemResult.items.length - activeItems.length} archived)` : ''}`;
                             }
-                            const typeStr = Object.entries(typeCounts)
-                                .map(([k, v]) => `${k}: ${v}`)
-                                .join(', ');
-                            projLines.push(`- "${p.title}" (${itemData.length} items — ${typeStr})`);
+                            // Group items by status field value
+                            const statusGroups: Record<string, string[]> = {};
+                            for (const item of activeItems.slice(0, 30)) {
+                                const statusFv = item.fieldValues.find((fv) => fv.fieldName === 'Status');
+                                const status = statusFv?.singleSelectOptionName ?? 'No Status';
+                                const title = item.content?.title ?? '(untitled)';
+                                const typeTag = item.type === 'PULL_REQUEST' ? ' [PR]' : item.type === 'DRAFT_ISSUE' ? ' [Draft]' : '';
+                                const num = item.content?.number ? `#${item.content.number}` : '';
+                                const assigneeFv = item.fieldValues.find((fv) => fv.fieldName === 'Assignees');
+                                const assigneeStr = assigneeFv?.users && assigneeFv.users.length > 0
+                                    ? ` (${assigneeFv.users.map((u) => u.login).join(', ')})`
+                                    : '';
+                                if (!statusGroups[status]) { statusGroups[status] = []; }
+                                statusGroups[status].push(`  - ${num} ${title}${typeTag}${assigneeStr}`);
+                            }
+                            for (const [status, items] of Object.entries(statusGroups)) {
+                                projParts.push(`\n**${status}** (${items.length})`);
+                                projParts.push(...items);
+                            }
+                            if (activeItems.length > 30) {
+                                projParts.push(`\n…and ${activeItems.length - 30} more items.`);
+                            }
                         } catch {
-                            projLines.push(`- "${p.title}" (unable to load items)`);
+                            projParts.push('- Unable to load items');
                         }
+                        projSections.push(projParts.join('\n'));
                     }
-                    return { key: 'projects', order: 3, text: `## Projects (${projects.length})\n${projLines.join('\n')}` };
+                    return { key: 'projects', order: 3, text: `## Projects (${projects.length})\n${projSections.join('\n\n')}` };
                 } catch {
                     return { key: 'projects', order: 3, text: '## Projects\nUnable to fetch project data.' };
                 }
@@ -658,9 +773,18 @@ export class StashPanel {
                             const activeChannels = eligibleChannels
                                 .filter((c) => c.lastPostAt > 0)
                                 .sort((a, b) => b.lastPostAt - a.lastPostAt)
-                                .slice(0, 5);
+                                .slice(0, 8);
 
-                            mmLines.push(`\n${channels.length} channels total, showing recent activity:`);
+                            const channelTypeName = (t: string) => {
+                                switch (t) {
+                                    case 'O': return 'public';
+                                    case 'P': return 'private';
+                                    case 'D': return 'DM';
+                                    case 'G': return 'group DM';
+                                    default: return t;
+                                }
+                            };
+                            mmLines.push(`\n${channels.length} channels total, showing ${activeChannels.length} most active:`);
 
                             for (const ch of activeChannels) {
                                 try {
@@ -668,16 +792,21 @@ export class StashPanel {
                                         ch.id, 0, 35,
                                     );
                                     if (posts.length > 0) {
+                                        // Resolve usernames for posts
+                                        const userMap = await this._mattermostService!.resolveUsernames(posts);
                                         const postLines = posts.map((p) => {
                                             const time = new Date(p.createAt).toLocaleString();
+                                            const author = userMap.get(p.userId) ?? p.userId;
                                             const msg = p.message.length > 750
                                                 ? p.message.slice(0, 750) + '…'
                                                 : p.message;
-                                            return `  - [${time}] ${msg}`;
+                                            const threadTag = p.rootId ? ' (reply)' : '';
+                                            const pinTag = p.isPinned ? ' 📌' : '';
+                                            return `  - [${time}] @${author}: ${msg}${threadTag}${pinTag}`;
                                         });
-                                        mmLines.push(`\n### #${ch.displayName}\n${postLines.join('\n')}`);
+                                        mmLines.push(`\n### #${ch.displayName} (${channelTypeName(ch.type)})\n${postLines.join('\n')}`);
                                     } else {
-                                        mmLines.push(`\n### #${ch.displayName}\nNo recent posts.`);
+                                        mmLines.push(`\n### #${ch.displayName} (${channelTypeName(ch.type)})\nNo recent posts.`);
                                     }
                                 } catch {
                                     mmLines.push(`\n### #${ch.displayName}\nUnable to load posts.`);
@@ -702,13 +831,23 @@ export class StashPanel {
                     }
                     const driveLines: string[] = [];
 
+                    const formatDriveFile = (f: { name: string; mimeType: string; modifiedTime: string; size?: string; shared: boolean; owners?: { displayName: string }[] }) => {
+                        const modified = new Date(f.modifiedTime).toLocaleDateString();
+                        const typeLabel = f.mimeType.split('.').pop() ?? f.mimeType;
+                        const sizeStr = f.size ? `, ${(parseInt(f.size, 10) / 1024).toFixed(0)} KB` : '';
+                        const sharedStr = f.shared ? ', shared' : '';
+                        const ownerStr = f.owners && f.owners.length > 0
+                            ? `, owner: ${f.owners[0].displayName}`
+                            : '';
+                        return `- "${f.name}" (${typeLabel}${sizeStr}, modified ${modified}${sharedStr}${ownerStr})`;
+                    };
+
                     try {
-                        const recent = await this._driveService!.getRecentFiles(15);
+                        const recent = await this._driveService!.getRecentFiles(20);
                         if (recent.files.length > 0) {
                             driveLines.push('### Recent Files');
                             for (const f of recent.files) {
-                                const modified = new Date(f.modifiedTime).toLocaleDateString();
-                                driveLines.push(`- "${f.name}" (${f.mimeType.split('.').pop()}, modified ${modified})`);
+                                driveLines.push(formatDriveFile(f));
                             }
                         }
                     } catch { /* ok */ }
@@ -718,7 +857,7 @@ export class StashPanel {
                         if (starred.files.length > 0) {
                             driveLines.push('### Starred/Pinned Files');
                             for (const f of starred.files) {
-                                driveLines.push(`- "${f.name}" (${f.mimeType.split('.').pop()})`);
+                                driveLines.push(formatDriveFile(f));
                             }
                         }
                     } catch { /* ok */ }
@@ -769,7 +908,38 @@ export class StashPanel {
                                         const timeStr = allDay ? `${start} (all day)` : start;
                                         const summary = ev.summary ?? '(No title)';
                                         const location = ev.location ? ` @ ${ev.location}` : '';
+                                        const extras: string[] = [];
+                                        // Attendees
+                                        if (ev.attendees && ev.attendees.length > 0) {
+                                            const attendeeNames = ev.attendees.slice(0, 8).map((a) =>
+                                                a.displayName ?? a.email,
+                                            );
+                                            const attendeeStr = ev.attendees.length > 8
+                                                ? `${attendeeNames.join(', ')} +${ev.attendees.length - 8} more`
+                                                : attendeeNames.join(', ');
+                                            extras.push(`  - Attendees: ${attendeeStr}`);
+                                        }
+                                        // Conference link
+                                        if (ev.hangoutLink) {
+                                            extras.push(`  - Meet: ${ev.hangoutLink}`);
+                                        } else if (ev.conferenceData?.entryPoints?.[0]) {
+                                            extras.push(`  - Conference: ${ev.conferenceData.entryPoints[0].uri}`);
+                                        }
+                                        // Status
+                                        if (ev.status && ev.status !== 'confirmed') {
+                                            extras.push(`  - Status: ${ev.status}`);
+                                        }
+                                        // Description snippet
+                                        if (ev.description) {
+                                            const descPreview = ev.description.length > 200
+                                                ? ev.description.slice(0, 200) + '…'
+                                                : ev.description;
+                                            extras.push(`  - Description: ${descPreview}`);
+                                        }
                                         calLines.push(`- ${timeStr}: "${summary}"${location}`);
+                                        if (extras.length > 0) {
+                                            calLines.push(...extras);
+                                        }
                                     }
                                 }
                             } catch { /* ok — skip individual calendar errors */ }
@@ -804,26 +974,33 @@ export class StashPanel {
                         return { key: 'wiki', order: 8, text: '## Wiki\nWiki exists but has no pages.' };
                     }
                     const wikiLines: string[] = [];
+                    // Fetch content from the most important pages
                     const homePage = pages.find((p) => p.title === 'Home');
-                    if (homePage) {
+                    const contentPages = homePage
+                        ? [homePage, ...pages.filter((p) => p.title !== 'Home').slice(0, 9)]
+                        : pages.slice(0, 10);
+                    for (const page of contentPages) {
                         try {
-                            const home = await this._wikiService!.getPageContent(
-                                repoInfo.owner, repoInfo.repo, homePage.filename,
+                            const content = await this._wikiService!.getPageContent(
+                                repoInfo.owner, repoInfo.repo, page.filename,
                             );
-                            const preview = home.content.length > 1000
-                                ? home.content.slice(0, 1000) + '…'
-                                : home.content;
-                            wikiLines.push(`### Home\n${preview}`);
-                        } catch { /* ok */ }
+                            const preview = content.content.length > 800
+                                ? content.content.slice(0, 800) + '…'
+                                : content.content;
+                            wikiLines.push(`### ${page.title}\n${preview}`);
+                        } catch {
+                            wikiLines.push(`### ${page.title}\nUnable to load content.`);
+                        }
                     }
-                    const otherPages = pages.filter((p) => p.title !== 'Home');
-                    if (otherPages.length > 0) {
+                    const remainingPages = pages.length - contentPages.length;
+                    if (remainingPages > 0) {
+                        const remaining = pages.slice(contentPages.length);
                         wikiLines.push('\n### Other Pages');
-                        for (const p of otherPages.slice(0, 20)) {
+                        for (const p of remaining.slice(0, 20)) {
                             wikiLines.push(`- ${p.title}`);
                         }
-                        if (otherPages.length > 20) {
-                            wikiLines.push(`…and ${otherPages.length - 20} more pages.`);
+                        if (remaining.length > 20) {
+                            wikiLines.push(`…and ${remaining.length - 20} more pages.`);
                         }
                     }
                     return { key: 'wiki', order: 8, text: `## Wiki (${pages.length} pages)\n${wikiLines.join('\n')}` };
