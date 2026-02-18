@@ -766,19 +766,28 @@ export const MattermostChat: React.FC<{
 
     // Group posts: root posts in order, with their inline replies collected.
     // Replies are always grouped with their root post regardless of date boundaries.
+    // Orphaned replies (root post not loaded) are shown in-place so they don't vanish.
     const threadedGroups = useMemo(() => {
         // Build a flat chronological list of all posts (oldest first)
         const allPosts = dateGroups.flatMap((g) => g.posts);
+
+        // Track which root post IDs are actually present in the loaded posts
+        const loadedPostIds = new Set(allPosts.map((p) => p.id));
 
         // Build a global reply map: rootId → replies (across all date groups)
         const globalReplyMap = new Map<string, MattermostPostData[]>();
         const replyIds = new Set<string>();
         for (const post of allPosts) {
             if (post.rootId && post.rootId !== '') {
-                const existing = globalReplyMap.get(post.rootId) ?? [];
-                existing.push(post);
-                globalReplyMap.set(post.rootId, existing);
-                replyIds.add(post.id);
+                if (loadedPostIds.has(post.rootId)) {
+                    // Root post is loaded — group normally
+                    const existing = globalReplyMap.get(post.rootId) ?? [];
+                    existing.push(post);
+                    globalReplyMap.set(post.rootId, existing);
+                    replyIds.add(post.id);
+                }
+                // If root post is NOT loaded (orphaned reply), don't add to replyIds
+                // so it stays visible in-place as a standalone post rather than vanishing.
             }
         }
 
@@ -900,12 +909,13 @@ export const MattermostChat: React.FC<{
 
         const mmStore = useMattermostStore.getState();
         const isThreadReply = optimisticPost.rootId && optimisticPost.rootId !== '';
-        if (!isThreadReply) {
-            // Root-level message — show in main channel feed
-            mmStore.prependNewPost(optimisticPost);
-        }
+
+        // Always add to main posts array for optimistic display.
+        // threadedGroups will handle grouping it under the root post inline.
+        mmStore.prependNewPost(optimisticPost);
+
+        // Also add to the thread panel if this reply targets the active thread
         if (isThreadReply && optimisticPost.rootId === mmStore.activeThreadRootId) {
-            // Reply to the active thread — show in thread panel
             mmStore.appendThreadPost(optimisticPost);
         }
 

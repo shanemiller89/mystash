@@ -449,19 +449,10 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     confirmPendingPost: (pendingId, realPost) =>
         set((state) => {
             const confirmed = { ...realPost, _pending: undefined, _failedError: undefined, _sendParams: undefined };
-            const isThreadReply = confirmed.rootId && confirmed.rootId !== '';
 
-            // Update posts: replace pending if found (only for root-level posts)
-            let updatedPosts = state.posts;
-            const pendingInPosts = state.posts.some((p) => p.id === pendingId);
-            if (pendingInPosts) {
-                if (isThreadReply) {
-                    // Remove the pending thread reply from main posts if it somehow got there
-                    updatedPosts = state.posts.filter((p) => p.id !== pendingId);
-                } else {
-                    updatedPosts = state.posts.map((p) => p.id === pendingId ? confirmed : p);
-                }
-            }
+            // Replace pending post with confirmed post in both arrays.
+            // Thread replies stay in posts[] — threadedGroups handles display grouping.
+            const updatedPosts = state.posts.map((p) => p.id === pendingId ? confirmed : p);
 
             // Update thread posts: replace pending if found
             const updatedThreadPosts = state.threadPosts.map((p) =>

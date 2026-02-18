@@ -137,6 +137,10 @@ export function handleMattermostMessage(msg: Msg): boolean {
             if (typeof msg.reconnectAttempt === 'number') {
                 s.setReconnectAttempt(msg.reconnectAttempt as number);
             }
+            // On reconnect, re-fetch the current channel's posts to fill any gaps
+            if (msg.connected && s.selectedChannelId) {
+                postMessage('mattermost.getPosts', { channelId: s.selectedChannelId });
+            }
             return true;
         case 'mattermostNewPost': {
             const newPost = msg.post as MattermostPostData;
