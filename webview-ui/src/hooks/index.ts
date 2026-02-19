@@ -8,18 +8,18 @@
  * until one handler returns `true`.
  */
 
-import { handleStashMessage } from './useStashMessages';
-import { handleNotesMessage } from './useNotesMessages';
-import { handlePRMessage } from './usePRMessages';
-import { handleIssueMessage } from './useIssueMessages';
-import { handleProjectMessage } from './useProjectMessages';
-import { handleMattermostMessage } from './useMattermostMessages';
-import { handleAIMessage } from './useAIMessages';
-import { handleDriveMessage } from './useDriveMessages';
-import { handleCalendarMessage } from './useCalendarMessages';
-import { handleWikiMessage } from './useWikiMessages';
-import { handleAppMessage } from './useAppMessages';
-import { handleSettingsMessage } from './useSettingsMessages';
+import { handleStashMessage } from '@stashes/handler';
+import { handleNotesMessage } from '@notes/handler';
+import { handlePRMessage } from '@prs/handler';
+import { handleIssueMessage } from '@issues/handler';
+import { handleProjectMessage } from '@projects/handler';
+import { handleMattermostMessage } from '@mattermost/handler';
+import { handleAIMessage } from '@ai/handler';
+import { handleDriveMessage } from '@drive/handler';
+import { handleCalendarMessage } from '@calendar/handler';
+import { handleWikiMessage } from '@wiki/handler';
+import { handleAppMessage } from './appHandler';
+import { handleSettingsMessage } from '@settings/handler';
 
 export {
     handleStashMessage,

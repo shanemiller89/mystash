@@ -14,6 +14,17 @@
         "noEmit": true,
         "baseUrl": ".",
         "paths": {
+            "@stashes/*": ["./src/features/stashes/*"],
+            "@prs/*": ["./src/features/prs/*"],
+            "@issues/*": ["./src/features/issues/*"],
+            "@notes/*": ["./src/features/notes/*"],
+            "@mattermost/*": ["./src/features/mattermost/*"],
+            "@projects/*": ["./src/features/projects/*"],
+            "@drive/*": ["./src/features/drive/*"],
+            "@calendar/*": ["./src/features/calendar/*"],
+            "@wiki/*": ["./src/features/wiki/*"],
+            "@ai/*": ["./src/features/ai/*"],
+            "@settings/*": ["./src/features/settings/*"],
             "@/*": ["./src/*"]
         }
     },

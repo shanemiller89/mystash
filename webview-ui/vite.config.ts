@@ -8,6 +8,17 @@ export default defineConfig(({ mode }) => ({
     root: resolve(__dirname, 'src'),
     resolve: {
         alias: {
+            '@stashes': resolve(__dirname, 'src/features/stashes'),
+            '@prs': resolve(__dirname, 'src/features/prs'),
+            '@issues': resolve(__dirname, 'src/features/issues'),
+            '@notes': resolve(__dirname, 'src/features/notes'),
+            '@mattermost': resolve(__dirname, 'src/features/mattermost'),
+            '@projects': resolve(__dirname, 'src/features/projects'),
+            '@drive': resolve(__dirname, 'src/features/drive'),
+            '@calendar': resolve(__dirname, 'src/features/calendar'),
+            '@wiki': resolve(__dirname, 'src/features/wiki'),
+            '@ai': resolve(__dirname, 'src/features/ai'),
+            '@settings': resolve(__dirname, 'src/features/settings'),
             '@': resolve(__dirname, 'src'),
         },
     },
