@@ -879,6 +879,28 @@ export class ProjectService {
     }
 
     /**
+     * Clear (unset) a field value for a project item.
+     * Used to move a card to the "No <Field>" column.
+     */
+    async clearFieldValue(
+        projectId: string,
+        itemId: string,
+        fieldId: string,
+    ): Promise<void> {
+        const query = `
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+                clearProjectV2ItemFieldValue(
+                    input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId }
+                ) {
+                    projectV2Item { id }
+                }
+            }
+        `;
+
+        await this._graphql<unknown>(query, { projectId, itemId, fieldId });
+    }
+
+    /**
      * Delete an item from a project.
      */
     async deleteItem(projectId: string, itemId: string): Promise<void> {

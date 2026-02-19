@@ -34,6 +34,9 @@ export function handleProjectMessage(msg: Msg): boolean {
         case 'projectFieldUpdated':
             s.setFieldUpdating(false);
             return true;
+        case 'projectFieldCleared':
+            s.setFieldUpdating(false);
+            return true;
         case 'projectFieldUpdating':
             s.setFieldUpdating(true);
             return true;

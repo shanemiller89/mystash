@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useProjectStore } from '../store';
 import { useNotesStore } from '@notes/store';
 import { postMessage } from '@/vscode';
 import { ProjectList } from './ProjectList';
 import { ProjectDetail } from './ProjectDetail';
-import { ProjectBoardView } from './ProjectBoardView';
+import { ProjectKanbanView } from './ProjectKanbanView';
 import { ProjectTableView } from './ProjectTableView';
 import { ResizableLayout } from '@/components/shared/ResizableLayout';
 import { TabWithSummary } from '@/components/shared/TabWithSummary';
@@ -113,8 +113,17 @@ export const ProjectsTab: React.FC = () => {
 
     const hasSelection = selectedItemId !== null;
     const isSimple = selectedViewId === SIMPLE_VIEW_ID;
-    const layout = isSimple ? 'SIMPLE' : (currentView?.layout ?? 'TABLE');
+    const baseLayout = isSimple ? 'SIMPLE' : (currentView?.layout ?? 'TABLE');
+
+    // Allow manually overriding the layout (List, Table, or Board)
+    const [layoutOverride, setLayoutOverride] = useState<'SIMPLE' | 'TABLE' | 'BOARD' | null>(null);
+    const layout = layoutOverride ?? baseLayout;
     const loading = isLoading || isItemsLoading;
+
+    // Reset override when view changes
+    useEffect(() => {
+        setLayoutOverride(null);
+    }, [selectedViewId]);
 
     // ─── Auth / repo-not-found guard ──────────────────────────────
     if (!isAuthenticated) {
@@ -187,7 +196,7 @@ export const ProjectsTab: React.FC = () => {
 
         switch (layout) {
             case 'BOARD':
-                return <ProjectBoardView />;
+                return <ProjectKanbanView />;
             case 'TABLE':
                 return <ProjectTableView />;
             case 'SIMPLE':
@@ -285,15 +294,6 @@ export const ProjectsTab: React.FC = () => {
                                 {opt.name}
                             </Button>
                         ))}
-                        <div className="flex-1" />
-                        <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={handleRefresh}
-                            title="Refresh"
-                        >
-                            <RefreshCw size={13} />
-                        </Button>
                     </div>
                 )}
 
@@ -312,17 +312,43 @@ export const ProjectsTab: React.FC = () => {
                             className="pl-7 text-[11px]"
                         />
                     </div>
-                    {/* Refresh for board views (no status bar to hold the button) */}
-                    {layout === 'BOARD' && (
-                        <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={handleRefresh}
-                            title="Refresh"
-                        >
-                            <RefreshCw size={13} />
-                        </Button>
+                    {/* Layout toggle — always visible when a project is loaded */}
+                    {selectedProject && (
+                        <div className="flex items-center gap-0.5 shrink-0 border border-border rounded-md p-0.5">
+                            <Button
+                                variant={layout === 'SIMPLE' ? 'default' : 'ghost'}
+                                size="icon-xs"
+                                title="List view"
+                                onClick={() => setLayoutOverride('SIMPLE')}
+                            >
+                                <List size={13} />
+                            </Button>
+                            <Button
+                                variant={layout === 'TABLE' ? 'default' : 'ghost'}
+                                size="icon-xs"
+                                title="Table view"
+                                onClick={() => setLayoutOverride('TABLE')}
+                            >
+                                <Table size={13} />
+                            </Button>
+                            <Button
+                                variant={layout === 'BOARD' ? 'default' : 'ghost'}
+                                size="icon-xs"
+                                title="Board / Kanban view"
+                                onClick={() => setLayoutOverride('BOARD')}
+                            >
+                                <LayoutGrid size={13} />
+                            </Button>
+                        </div>
                     )}
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={handleRefresh}
+                        title="Refresh"
+                    >
+                        <RefreshCw size={13} />
+                    </Button>
                 </div>
             </div>
 

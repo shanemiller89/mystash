@@ -56,6 +56,25 @@ export const handleProjectMessage: MessageHandler = async (ctx, msg) => {
             }
             return true;
 
+        case 'projects.clearField':
+            if (ctx.projectService && msg.projectId && msg.itemId && msg.fieldId) {
+                try {
+                    ctx.postMessage({ type: 'projectFieldUpdating' });
+                    await ctx.projectService.clearFieldValue(
+                        msg.projectId as string,
+                        msg.itemId as string,
+                        msg.fieldId as string,
+                    );
+                    ctx.postMessage({ type: 'projectFieldUpdated' });
+                    await ctx.refreshProjectItems(msg.projectId as string);
+                } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
+                    vscode.window.showErrorMessage(`Failed to clear field: ${m}`);
+                    ctx.postMessage({ type: 'projectError', message: m });
+                }
+            }
+            return true;
+
         case 'projects.deleteItem':
             if (ctx.projectService && msg.projectId && msg.itemId) {
                 try {

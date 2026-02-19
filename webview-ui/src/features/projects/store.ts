@@ -162,6 +162,7 @@ interface ProjectStore {
     setRepoNotFound: (notFound: boolean) => void;
     setError: (error: string | null) => void;
     updateItemFieldValue: (itemId: string, fieldId: string, value: ProjectFieldValueData) => void;
+    clearItemFieldValue: (itemId: string, fieldId: string) => void;
     removeItem: (itemId: string) => void;
     addItem: (item: ProjectItemData) => void;
 
@@ -261,6 +262,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                     newFieldValues.push(value);
                 }
                 return { ...item, fieldValues: newFieldValues };
+            }),
+            isFieldUpdating: false,
+        }));
+    },
+
+    clearItemFieldValue: (itemId, fieldId) => {
+        set((state) => ({
+            items: state.items.map((item) => {
+                if (item.id !== itemId) {
+                    return item;
+                }
+                return {
+                    ...item,
+                    fieldValues: item.fieldValues.filter((fv) => fv.fieldId !== fieldId),
+                };
             }),
             isFieldUpdating: false,
         }));
