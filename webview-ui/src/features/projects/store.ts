@@ -54,6 +54,26 @@ export interface ProjectItemContent {
     authorAvatarUrl?: string;
     labels?: { name: string; color: string }[];
     assignees?: { login: string; avatarUrl: string }[];
+    /** Sub-issue progress summary (Issues only) */
+    subIssuesSummary?: { total: number; completed: number; percentCompleted: number };
+    /** Parent issue info (Issues only) */
+    parentIssue?: { number: number; title: string };
+    /** Sub-issues list (Issues only) */
+    subIssues?: SubIssueInfo[];
+}
+
+/** Lightweight sub-issue data included inline with parent issues. */
+export interface SubIssueInfo {
+    number: number;
+    title: string;
+    state: string;
+    url: string;
+    body?: string;
+    labels?: { name: string; color: string }[];
+    assignees?: { login: string; avatarUrl: string }[];
+    subIssuesSummary?: { total: number; completed: number; percentCompleted: number };
+    /** Nested sub-issues (one level) */
+    subIssues?: SubIssueInfo[];
 }
 
 export interface ProjectItemData {
@@ -124,6 +144,9 @@ interface ProjectStore {
     // Selected item
     selectedItemId: string | null;
 
+    // Sub-issue drill-down navigation stack
+    drillDownStack: SubIssueInfo[];
+
     // View selection
     selectedViewId: string | null;
 
@@ -152,6 +175,9 @@ interface ProjectStore {
     setFields: (fields: ProjectFieldData[]) => void;
     selectItem: (itemId: string) => void;
     clearSelection: () => void;
+    pushDrillDown: (sub: SubIssueInfo) => void;
+    popDrillDown: () => void;
+    clearDrillDown: () => void;
     setStatusFilter: (filter: string) => void;
     setSearchQuery: (query: string) => void;
     setMyIssuesOnly: (on: boolean) => void;
@@ -181,6 +207,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     items: [],
     fields: [],
     selectedItemId: null,
+    drillDownStack: [],
     selectedViewId: '__simple__',
     activeScope: 'repo',
     statusFilter: 'all',
@@ -228,10 +255,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         if (itemId === selectedItemId) {
             return;
         }
-        set({ selectedItemId: itemId });
+        set({ selectedItemId: itemId, drillDownStack: [] });
     },
 
-    clearSelection: () => set({ selectedItemId: null }),
+    clearSelection: () => set({ selectedItemId: null, drillDownStack: [] }),
+
+    pushDrillDown: (sub) => {
+        set((state) => ({ drillDownStack: [...state.drillDownStack, sub] }));
+    },
+
+    popDrillDown: () => {
+        set((state) => ({ drillDownStack: state.drillDownStack.slice(0, -1) }));
+    },
+
+    clearDrillDown: () => set({ drillDownStack: [] }),
 
     setStatusFilter: (statusFilter) =>
         set({ statusFilter }),

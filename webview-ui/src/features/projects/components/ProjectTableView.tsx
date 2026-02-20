@@ -9,6 +9,7 @@ import {
     GitMerge,
     StickyNote,
     Lock,
+    ListTree,
 } from 'lucide-react';
 
 // ─── Shared ItemTypeIcon ──────────────────────────────────────────
@@ -288,6 +289,12 @@ export const ProjectTableView: React.FC = () => {
                                         <span className="text-[11px] font-medium truncate">
                                             {title}
                                         </span>
+                                        {item.content?.subIssuesSummary && item.content.subIssuesSummary.total > 0 && (
+                                            <span className="inline-flex items-center gap-1 shrink-0 ml-1 text-[9px] text-fg/40 tabular-nums" title={`${item.content.subIssuesSummary.completed} of ${item.content.subIssuesSummary.total} sub-issues completed`}>
+                                                <ListTree size={10} />
+                                                {item.content.subIssuesSummary.completed}/{item.content.subIssuesSummary.total}
+                                            </span>
+                                        )}
                                     </div>
                                 </td>
                                 {/* Field value cells */}

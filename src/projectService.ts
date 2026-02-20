@@ -87,7 +87,27 @@ export interface ProjectItem {
         authorAvatarUrl?: string;
         labels?: { name: string; color: string }[];
         assignees?: { login: string; avatarUrl: string }[];
+        /** Sub-issue progress summary (Issues only) */
+        subIssuesSummary?: { total: number; completed: number; percentCompleted: number };
+        /** Parent issue info (Issues only) */
+        parentIssue?: { number: number; title: string };
+        /** Sub-issues list (Issues only) */
+        subIssues?: SubIssueInfo[];
     };
+}
+
+/** Lightweight sub-issue data included inline with parent issues. */
+export interface SubIssueInfo {
+    number: number;
+    title: string;
+    state: string;
+    url: string;
+    body?: string;
+    labels?: { name: string; color: string }[];
+    assignees?: { login: string; avatarUrl: string }[];
+    subIssuesSummary?: { total: number; completed: number; percentCompleted: number };
+    /** Nested sub-issues (one level) */
+    subIssues?: SubIssueInfo[];
 }
 
 export interface ProjectView {
@@ -234,6 +254,32 @@ interface RawProjectItemNode {
         author?: { login: string; avatarUrl: string };
         labels?: { nodes: RawLabelNode[] };
         assignees?: { nodes: RawUserNode[] };
+        subIssuesSummary?: { total: number; completed: number; percentCompleted: number };
+        parent?: { number: number; title: string };
+        subIssues?: {
+            nodes: {
+                number: number;
+                title: string;
+                state: string;
+                url: string;
+                body?: string;
+                labels?: { nodes: { name: string; color: string }[] };
+                assignees?: { nodes: { login: string; avatarUrl: string }[] };
+                subIssuesSummary?: { total: number; completed: number; percentCompleted: number };
+                subIssues?: {
+                    nodes: {
+                        number: number;
+                        title: string;
+                        state: string;
+                        url: string;
+                        body?: string;
+                        labels?: { nodes: { name: string; color: string }[] };
+                        assignees?: { nodes: { login: string; avatarUrl: string }[] };
+                        subIssuesSummary?: { total: number; completed: number; percentCompleted: number };
+                    }[];
+                };
+            }[];
+        };
     };
 }
 
@@ -767,6 +813,55 @@ export class ProjectService {
                                         assignees(first: 10) {
                                             nodes { login avatarUrl }
                                         }
+                                        subIssuesSummary {
+                                            total
+                                            completed
+                                            percentCompleted
+                                        }
+                                        parent {
+                                            number
+                                            title
+                                        }
+                                        subIssues(first: 20) {
+                                            nodes {
+                                                number
+                                                title
+                                                state
+                                                url
+                                                body
+                                                labels(first: 5) {
+                                                    nodes { name color }
+                                                }
+                                                assignees(first: 5) {
+                                                    nodes { login avatarUrl }
+                                                }
+                                                subIssuesSummary {
+                                                    total
+                                                    completed
+                                                    percentCompleted
+                                                }
+                                                subIssues(first: 20) {
+                                                    nodes {
+                                                        number
+                                                        title
+                                                        state
+                                                        url
+                                                        body
+                                                        labels(first: 5) {
+                                                            nodes { name color }
+                                                        }
+                                                        assignees(first: 5) {
+                                                            nodes { login avatarUrl }
+                                                        }
+                                                        subIssuesSummary {
+                                                            total
+                                                            completed
+                                                            percentCompleted
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                     ... on PullRequest {
                                         id
@@ -1073,6 +1168,15 @@ export class ProjectService {
                     assignees: (c.assignees?.nodes ?? []).map(
                         (a) => ({ login: a.login, avatarUrl: a.avatarUrl }),
                     ),
+                    subIssuesSummary: c.subIssuesSummary?.total
+                        ? c.subIssuesSummary
+                        : undefined,
+                    parentIssue: c.parent
+                        ? { number: c.parent.number, title: c.parent.title }
+                        : undefined,
+                    subIssues: c.subIssues?.nodes?.length
+                        ? c.subIssues.nodes.map((si) => this._parseSubIssue(si))
+                        : undefined,
                 };
             } else if (c.title !== undefined) {
                 // Draft issue
@@ -1093,6 +1197,29 @@ export class ProjectService {
             updatedAt: raw.updatedAt,
             fieldValues,
             content,
+        };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private _parseSubIssue(si: any): SubIssueInfo {
+        return {
+            number: si.number,
+            title: si.title,
+            state: si.state,
+            url: si.url,
+            body: si.body ?? undefined,
+            labels: si.labels?.nodes?.length
+                ? si.labels.nodes.map((l: { name: string; color: string }) => ({ name: l.name, color: l.color }))
+                : undefined,
+            assignees: si.assignees?.nodes?.length
+                ? si.assignees.nodes.map((a: { login: string; avatarUrl: string }) => ({ login: a.login, avatarUrl: a.avatarUrl }))
+                : undefined,
+            subIssuesSummary: si.subIssuesSummary?.total
+                ? si.subIssuesSummary
+                : undefined,
+            subIssues: si.subIssues?.nodes?.length
+                ? si.subIssues.nodes.map((nested: unknown) => this._parseSubIssue(nested))
+                : undefined,
         };
     }
 }

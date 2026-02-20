@@ -39,6 +39,8 @@ import {
     StickyNote,
     Lock,
     GripVertical,
+    ListTree,
+    Link2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -234,6 +236,30 @@ const KanbanCard: React.FC<KanbanCardProps> = React.memo(({ item, columnId, isSe
                         </div>
                     )}
                 </div>
+                {/* Sub-issue progress bar */}
+                {item.content?.subIssuesSummary && item.content.subIssuesSummary.total > 0 && (
+                    <div className="mt-2 flex items-center gap-1.5">
+                        <ListTree size={10} className="shrink-0 text-fg/40" />
+                        <div className="flex-1 h-1.5 rounded-full bg-fg/10 overflow-hidden">
+                            <div
+                                className="h-full rounded-full bg-[#3fb950] transition-all"
+                                style={{ width: `${item.content.subIssuesSummary.percentCompleted}%` }}
+                            />
+                        </div>
+                        <span className="text-[9px] text-fg/40 shrink-0 tabular-nums">
+                            {item.content.subIssuesSummary.completed}/{item.content.subIssuesSummary.total}
+                        </span>
+                    </div>
+                )}
+                {/* Parent issue indicator */}
+                {item.content?.parentIssue && (
+                    <div className="mt-1.5 flex items-center gap-1 text-[9px] text-fg/30">
+                        <Link2 size={9} className="shrink-0" />
+                        <span className="truncate">
+                            #{item.content.parentIssue.number} {item.content.parentIssue.title}
+                        </span>
+                    </div>
+                )}
             </button>
             {closestEdge === 'bottom' && <DropIndicatorLine edge="bottom" />}
         </div>

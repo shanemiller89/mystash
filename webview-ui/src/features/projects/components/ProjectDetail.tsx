@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { useProjectStore, type ProjectFieldValueData, type ProjectFieldData } from '../store';
+import { useProjectStore, type ProjectFieldValueData, type ProjectFieldData, type SubIssueInfo } from '../store';
 import { postMessage } from '@/vscode';
 import { MarkdownBody } from '@/components/shared/MarkdownBody';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,10 @@ import {
     Trash2,
     Save,
     Edit2,
+    ListTree,
+    Link2,
+    ChevronRight,
+    ChevronLeft,
 } from 'lucide-react';
 
 function formatRelative(iso: string): string {
@@ -261,6 +265,260 @@ const FieldValueEditor: React.FC<{
     );
 };
 
+/** Sub-issue row — compact state icon + number + title, click to drill down */
+const SubIssueRow: React.FC<{
+    sub: SubIssueInfo;
+    onDrillDown: (sub: SubIssueInfo) => void;
+}> = ({ sub, onDrillDown }) => {
+    const handleClick = useCallback(() => {
+        onDrillDown(sub);
+    }, [sub, onDrillDown]);
+
+    const isClosed = sub.state === 'CLOSED';
+
+    return (
+        <button
+            onClick={handleClick}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-left rounded hover:bg-[var(--vscode-list-hoverBackground)] transition-colors group"
+        >
+            <div className="shrink-0">
+                {isClosed ? (
+                    <CheckCircle2 size={13} className="text-purple-400" />
+                ) : (
+                    <CircleDot size={13} className="text-green-400" />
+                )}
+            </div>
+            <span className="text-fg/40 text-[10px] shrink-0">#{sub.number}</span>
+            <span className={`text-[11px] truncate flex-1 ${isClosed ? 'text-fg/40 line-through' : 'text-fg/80'}`}>
+                {sub.title}
+            </span>
+            {sub.assignees && sub.assignees.length > 0 && (
+                <div className="shrink-0 flex -space-x-1">
+                    {sub.assignees.slice(0, 2).map((a) => (
+                        <img
+                            key={a.login}
+                            src={a.avatarUrl}
+                            alt={a.login}
+                            title={a.login}
+                            className="w-3.5 h-3.5 rounded-full border border-bg"
+                        />
+                    ))}
+                </div>
+            )}
+            {sub.subIssuesSummary && sub.subIssuesSummary.total > 0 && (
+                <span className="shrink-0 text-[9px] text-fg/30 tabular-nums">
+                    <ListTree size={9} className="inline mr-0.5" />
+                    {sub.subIssuesSummary.completed}/{sub.subIssuesSummary.total}
+                </span>
+            )}
+            <ChevronRight
+                size={11}
+                className="shrink-0 text-fg/20 opacity-0 group-hover:opacity-100 transition-opacity"
+            />
+        </button>
+    );
+};
+
+/** Sub-issues section with progress bar header and clickable list */
+const SubIssuesSection: React.FC<{
+    subIssues: SubIssueInfo[];
+    summary?: { total: number; completed: number; percentCompleted: number };
+    onDrillDown: (sub: SubIssueInfo) => void;
+}> = ({ subIssues, summary, onDrillDown }) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+
+    const completed = summary?.completed ?? subIssues.filter((s) => s.state === 'CLOSED').length;
+    const total = summary?.total ?? subIssues.length;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    return (
+        <div className="shrink-0 border-b border-border">
+            {/* Header — progress bar that toggles expand */}
+            <button
+                onClick={() => setIsExpanded((p) => !p)}
+                className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-[var(--vscode-list-hoverBackground)] transition-colors"
+            >
+                <ListTree size={13} className="shrink-0 text-fg/50" />
+                <span className="text-[11px] font-semibold text-fg/60 uppercase tracking-wide shrink-0">
+                    Sub-issues
+                </span>
+                <div className="flex-1 h-1.5 rounded-full bg-fg/10 overflow-hidden mx-1">
+                    <div
+                        className="h-full rounded-full bg-[#3fb950] transition-all"
+                        style={{ width: `${pct}%` }}
+                    />
+                </div>
+                <span className="text-[10px] text-fg/40 tabular-nums shrink-0">
+                    {completed}/{total}
+                </span>
+                <ChevronRight
+                    size={12}
+                    className={`shrink-0 text-fg/30 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                />
+            </button>
+
+            {/* Expandable sub-issue list */}
+            {isExpanded && (
+                <div className="pb-1">
+                    {subIssues.map((sub) => (
+                        <SubIssueRow key={sub.number} sub={sub} onDrillDown={onDrillDown} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+/** Sub-issue detail view — rendered when drilled into a sub-issue */
+const SubIssueDetailView: React.FC<{
+    sub: SubIssueInfo;
+    breadcrumbs: SubIssueInfo[];
+    onBack: () => void;
+    onDrillDown: (sub: SubIssueInfo) => void;
+    onClose: () => void;
+}> = ({ sub, breadcrumbs, onBack, onDrillDown, onClose }) => {
+    const isClosed = sub.state === 'CLOSED';
+
+    const handleOpenInBrowser = useCallback(() => {
+        if (sub.url) {
+            postMessage('projects.openInBrowser', { url: sub.url });
+        }
+    }, [sub.url]);
+
+    return (
+        <div className="h-full flex flex-col overflow-y-auto">
+            {/* Breadcrumb / back bar */}
+            <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-border bg-[var(--vscode-sideBar-background)]">
+                <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={onBack}
+                    title="Back"
+                >
+                    <ChevronLeft size={14} />
+                </Button>
+                <div className="flex items-center gap-1 text-[10px] text-fg/40 min-w-0 overflow-hidden">
+                    {breadcrumbs.map((crumb, i) => (
+                        <React.Fragment key={crumb.number}>
+                            {i > 0 && <ChevronRight size={9} className="shrink-0 text-fg/20" />}
+                            <span className="shrink-0 truncate max-w-[100px]" title={`#${crumb.number} ${crumb.title}`}>
+                                #{crumb.number}
+                            </span>
+                        </React.Fragment>
+                    ))}
+                    <ChevronRight size={9} className="shrink-0 text-fg/20" />
+                    <span className="text-fg/60 font-medium shrink-0">#{sub.number}</span>
+                </div>
+            </div>
+
+            {/* Header */}
+            <div className="shrink-0 p-4 border-b border-border">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 min-w-0">
+                        <div className="mt-0.5 shrink-0">
+                            {isClosed ? (
+                                <CheckCircle2 size={16} className="text-purple-400" />
+                            ) : (
+                                <CircleDot size={16} className="text-green-400" />
+                            )}
+                        </div>
+                        <div className="min-w-0">
+                            <h2 className="text-[14px] font-semibold leading-snug">
+                                <span className="text-fg/40 font-normal">
+                                    #{sub.number}{' '}
+                                </span>
+                                {sub.title}
+                            </h2>
+                            <div className="flex items-center gap-2 mt-1 text-[10px] text-fg/40">
+                                <Badge
+                                    variant={isClosed ? 'secondary' : 'success'}
+                                    className="text-[9px] px-1.5 py-0"
+                                >
+                                    {sub.state}
+                                </Badge>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={handleOpenInBrowser}
+                            title="Open in Browser"
+                        >
+                            <ExternalLink size={13} />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={onClose}
+                            title="Close"
+                        >
+                            <X size={13} />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Labels */}
+                {sub.labels && sub.labels.length > 0 && (
+                    <div className="flex items-center gap-1 mt-2 flex-wrap">
+                        {sub.labels.map((l) => (
+                            <Badge
+                                key={l.name}
+                                variant="outline"
+                                className="text-[9px] px-1.5 py-0.5"
+                                style={{
+                                    backgroundColor: `#${l.color}20`,
+                                    color: `#${l.color}`,
+                                    borderColor: `#${l.color}40`,
+                                }}
+                            >
+                                {l.name}
+                            </Badge>
+                        ))}
+                    </div>
+                )}
+
+                {/* Assignees */}
+                {sub.assignees && sub.assignees.length > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                        {sub.assignees.map((a) => (
+                            <div key={a.login} className="flex items-center gap-1">
+                                <img
+                                    src={a.avatarUrl}
+                                    alt={a.login}
+                                    className="w-4 h-4 rounded-full"
+                                />
+                                <span className="text-[10px] text-fg/50">{a.login}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Nested sub-issues */}
+            {sub.subIssues && sub.subIssues.length > 0 && (
+                <SubIssuesSection
+                    subIssues={sub.subIssues}
+                    summary={sub.subIssuesSummary}
+                    onDrillDown={onDrillDown}
+                />
+            )}
+
+            <Separator />
+
+            {/* Body */}
+            <div className="flex-1 p-4">
+                {sub.body ? (
+                    <MarkdownBody content={sub.body} />
+                ) : (
+                    <p className="text-fg/30 text-[11px] italic">No description provided.</p>
+                )}
+            </div>
+        </div>
+    );
+};
+
 interface ProjectDetailProps {
     onClose: () => void;
 }
@@ -270,6 +528,10 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({ onClose }) => {
     const items = useProjectStore((s) => s.items);
     const fields = useProjectStore((s) => s.fields);
     const selectedProject = useProjectStore((s) => s.selectedProject);
+    const drillDownStack = useProjectStore((s) => s.drillDownStack);
+    const pushDrillDown = useProjectStore((s) => s.pushDrillDown);
+    const popDrillDown = useProjectStore((s) => s.popDrillDown);
+    const clearDrillDown = useProjectStore((s) => s.clearDrillDown);
 
     const item = useMemo(() => {
         if (!selectedItemId) {
@@ -316,6 +578,40 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({ onClose }) => {
             <div className="h-full flex items-center justify-center text-fg/30 text-[11px]">
                 Select an item to view details
             </div>
+        );
+    }
+
+    // ── Sub-issue drill-down view ──
+    if (drillDownStack.length > 0) {
+        const currentSub = drillDownStack[drillDownStack.length - 1];
+        // Build breadcrumbs: the parent item + all intermediate drill-downs (excluding current)
+        const breadcrumbs: SubIssueInfo[] = [
+            // Represent the root project item as a pseudo-breadcrumb
+            {
+                number: item.content?.number ?? 0,
+                title: item.content?.title ?? 'Untitled',
+                state: item.content?.state ?? 'OPEN',
+                url: item.content?.url ?? '',
+            },
+            ...drillDownStack.slice(0, -1),
+        ];
+
+        const handleBack = () => {
+            if (drillDownStack.length === 1) {
+                clearDrillDown();
+            } else {
+                popDrillDown();
+            }
+        };
+
+        return (
+            <SubIssueDetailView
+                sub={currentSub}
+                breadcrumbs={breadcrumbs}
+                onBack={handleBack}
+                onDrillDown={pushDrillDown}
+                onClose={onClose}
+            />
         );
     }
 
@@ -456,7 +752,30 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({ onClose }) => {
                         ))}
                     </div>
                 )}
+
+                {/* Parent issue link */}
+                {item.content?.parentIssue && (
+                    <div className="flex items-center gap-1.5 mt-2 text-[10px] text-fg/40">
+                        <Link2 size={11} className="shrink-0" />
+                        <span>
+                            Sub-issue of{' '}
+                            <span className="text-fg/60 font-medium">
+                                #{item.content.parentIssue.number}
+                            </span>{' '}
+                            {item.content.parentIssue.title}
+                        </span>
+                    </div>
+                )}
             </div>
+
+            {/* Sub-issues section */}
+            {item.content?.subIssues && item.content.subIssues.length > 0 && (
+                <SubIssuesSection
+                    subIssues={item.content.subIssues}
+                    summary={item.content.subIssuesSummary}
+                    onDrillDown={pushDrillDown}
+                />
+            )}
 
             {/* Project Fields */}
             {(editableFields.length > 0 || readOnlyFields.length > 0) && (

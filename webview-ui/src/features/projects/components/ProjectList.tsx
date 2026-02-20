@@ -12,6 +12,8 @@ import {
     GitMerge,
     StickyNote,
     Lock,
+    ListTree,
+    Link2,
 } from 'lucide-react';
 import { postMessage } from '@/vscode';
 
@@ -226,6 +228,28 @@ export const ProjectList: React.FC = () => {
                                             ))}
                                         </div>
                                     )}
+                                {item.content?.subIssuesSummary && item.content.subIssuesSummary.total > 0 && (
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                        <ListTree size={10} className="shrink-0 text-fg/40" />
+                                        <div className="flex-1 h-1.5 rounded-full bg-fg/10 overflow-hidden max-w-[120px]">
+                                            <div
+                                                className="h-full rounded-full bg-[#3fb950] transition-all"
+                                                style={{ width: `${item.content.subIssuesSummary.percentCompleted}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-[9px] text-fg/40 shrink-0 tabular-nums">
+                                            {item.content.subIssuesSummary.completed}/{item.content.subIssuesSummary.total}
+                                        </span>
+                                    </div>
+                                )}
+                                {item.content?.parentIssue && (
+                                    <div className="flex items-center gap-1 mt-1 text-[9px] text-fg/30">
+                                        <Link2 size={9} className="shrink-0" />
+                                        <span className="truncate">
+                                            #{item.content.parentIssue.number} {item.content.parentIssue.title}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             {item.content?.assignees &&
                                 item.content.assignees.length > 0 && (
