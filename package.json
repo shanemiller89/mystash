@@ -216,7 +216,7 @@
                 {
                     "id": "superprompt-forge-container",
                     "title": "Superprompt Forge",
-                    "icon": "$(archive)"
+                    "icon": "$(lightbulb)"
                 }
             ]
         },

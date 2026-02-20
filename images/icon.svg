@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <!-- Superprompt Forge placeholder icon — stacked boxes representing stashes -->
+  <!-- Superprompt Forge icon — lightbulb -->
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#4FC3F7"/>
@@ -8,10 +8,21 @@
   </defs>
   <!-- Background rounded square -->
   <rect x="4" y="4" width="120" height="120" rx="20" ry="20" fill="url(#bg)"/>
-  <!-- Stash boxes (3 stacked) -->
-  <rect x="28" y="70" width="72" height="20" rx="4" ry="4" fill="white" opacity="0.4"/>
-  <rect x="28" y="46" width="72" height="20" rx="4" ry="4" fill="white" opacity="0.65"/>
-  <rect x="28" y="22" width="72" height="20" rx="4" ry="4" fill="white" opacity="0.9"/>
-  <!-- Down arrow indicating "stash" action -->
-  <polygon points="64,96 48,84 56,84 56,78 72,78 72,84 80,84" fill="white" opacity="0.85"/>
+  <!-- Lightbulb glass — rounded top -->
+  <path d="M64,16 C44,16 28,32 28,52 C28,64 34,72 42,80 C44,82 46,86 46,90 L82,90 C82,86 84,82 86,80 C94,72 100,64 100,52 C100,32 84,16 64,16 Z"
+        fill="white" opacity="0.9"/>
+  <!-- Filament lines inside bulb -->
+  <line x1="54" y1="50" x2="58" y2="68" stroke="#0288D1" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="64" y1="46" x2="64" y2="68" stroke="#0288D1" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="74" y1="50" x2="70" y2="68" stroke="#0288D1" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+  <!-- Bulb base / screw cap -->
+  <rect x="48" y="92" width="32" height="6" rx="2" ry="2" fill="white" opacity="0.7"/>
+  <rect x="50" y="100" width="28" height="5" rx="2" ry="2" fill="white" opacity="0.55"/>
+  <rect x="52" y="107" width="24" height="5" rx="3" ry="3" fill="white" opacity="0.4"/>
+  <!-- Glow rays -->
+  <line x1="64" y1="6" x2="64" y2="12" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="28" y1="20" x2="32" y2="24" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="100" y1="20" x2="96" y2="24" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="14" y1="52" x2="22" y2="52" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="106" y1="52" x2="114" y2="52" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
 </svg>

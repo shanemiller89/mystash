@@ -136,7 +136,7 @@ export const useAIStore = create<AIStore>((set, _get) => ({
     chatInput: '',
     isChatLoading: false,
     webSearchEnabled: false,
-    agentTemplate: 'sprint',
+    agentTemplate: 'agile',
     agentPrompt: '',
     agentSystemPrompts: {},
     defaultSystemPrompts: {},

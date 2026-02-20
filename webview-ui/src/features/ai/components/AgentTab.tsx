@@ -46,9 +46,9 @@ import { CopyMarkdownButton } from '@/components/shared/CopyMarkdownButton';
 
 const AGENT_TEMPLATES = [
     {
-        key: 'sprint',
-        label: 'Sprint Overview',
-        description: 'Full sprint status report across all data sources',
+        key: 'agile',
+        label: 'Agile Status Report',
+        description: 'Agile Manifesto-driven status report across all data sources',
         Icon: ClipboardList,
     },
     {
